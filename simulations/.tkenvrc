@@ -1,0 +1,5 @@
+# Partial OMNeT++/Tkenv config file -- see $HOME/.tkenvrc as well
+config default-configname	{NonBeaconMode-TXtoCoordinator}
+config default-runnumber	{0}
+inspector {net.IEEE802154Nodes[0].NIC.MAC.IEEE802154Mac.PLME-SET.confirm} GetConfirm 27 1 464x315+616+587:normal
+
