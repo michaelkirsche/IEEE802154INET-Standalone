@@ -492,7 +492,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 ASSERT(txData == NULL);
                 txData = data;
                 csmacaEntry('d');
-                return;
+                break;
             }
 
             case 2:  // direct GTS noACK
@@ -1239,9 +1239,10 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
 
     unsigned short frmCtrl = frame->getFcf();
     frameType frmType;
-    frmType = (frameType) ((frmCtrl & 57344) >> 13);
+    frmType = (frameType) ((frmCtrl & ftMask) >> 13);
 
-    macEV << "A " << frmType << " frame received from the PHY layer, performing filtering now... \n";
+    macEV << (frmType == Beacon ? "Beacon" : (frmType == Data ? "Data" : (frmType == Ack ? "Ack" : "Command" ) ) )
+          << " frame received from the PHY layer, performing filtering now... \n";
     // perform MAC frame filtering
     if (filter(frame))
     {
@@ -1272,7 +1273,7 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
     // send an acknowledgment if needed (no matter if this is a duplicated packet or not)
     if ((frmType == Data) || (frmType == Command))
     {
-        if ((frmCtrl && 1024) >> arequShift)  // acknowledgment required
+        if ((frmCtrl & 1024) >> arequShift)  // acknowledgment required
         {
             bool noAck = false; // XXX fix to reduce variable scope
             // MAC layer can process only one command (RX or TX) at a time
@@ -1980,7 +1981,7 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
 bool IEEE802154Mac::filter(mpdu* pdu)
 {
     unsigned short frmCtrl = pdu->getFcf();
-    frameType frmType = (frameType) ((frmCtrl & 57344) >> 13);
+    frameType frmType = (frameType) ((frmCtrl & ftMask) >> 13);
     AddrMode addressMode = (AddrMode) ((frmCtrl & 48) >> 4);
 
     // First check flag set by PHY layer, COLLISION or RX_DURING_CCA
