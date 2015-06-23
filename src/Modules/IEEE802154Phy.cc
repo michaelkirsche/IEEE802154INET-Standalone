@@ -171,8 +171,17 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
     } // if (msg->arrivedOn("PLME_SAP"))
     else if (msg->arrivedOn("PD_SAP")) // --> Message arrived from MAC layer over PHY-DATA SAP
     {
-        ppdu *pdu = generatePPDU(msg, false);
-        send(pdu, "outToRadio");
+        // check which type of MAC packet is arriving to decide how to generate a PPDU and calculate correct MAC payload size
+        if (dynamic_cast<AckFrame *>(msg) != 0)
+        {
+            ppdu *pdu = generatePPDU(msg, true);
+            send(pdu, "outToRadio");
+        }
+        else
+        {
+            ppdu *pdu = generatePPDU(msg, false);
+            send(pdu, "outToRadio");
+        }
     }
     // Message from radioInterface
     else
