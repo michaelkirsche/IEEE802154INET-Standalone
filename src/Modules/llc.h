@@ -39,7 +39,7 @@ class llc : public cSimpleModule
 
     protected:
         /** @brief Debug output switch for the LLC module */
-        bool llcDebug;
+        bool llcDebug = false;
 
         void initialize();
         void handleMessage(cMessage *msg);

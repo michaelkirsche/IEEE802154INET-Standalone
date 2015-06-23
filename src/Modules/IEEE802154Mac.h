@@ -178,7 +178,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
     protected:
         /** @brief Debug output switch for the IEEE 802.15.4 MAC module */
-        bool macDebug;
+        bool macDebug = false;
 
         void initialize(int stage);
 

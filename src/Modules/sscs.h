@@ -33,7 +33,7 @@ class sscs : public cSimpleModule
 
     protected:
         /** @brief Debug output switch for the SSCS module */
-        bool sscsDebug;
+        bool sscsDebug = false;
 };
 
 #endif /* SSCS_H_ */

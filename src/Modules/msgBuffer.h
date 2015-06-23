@@ -41,11 +41,11 @@ class msgBuffer : public cSimpleModule
 
     private:
         cArray buffer; // Message buffer
-        unsigned int start; // buffer start position
-        unsigned int end; // buffer end position
-        bool isEmpty; // buffer status
-        unsigned int elems;
-        bool firstPack;
+        unsigned int start = 0; // buffer start position
+        unsigned int end = 0; // buffer end position
+        bool isEmpty = true; // buffer status
+        unsigned int elems = 0;
+        bool firstPack = true;
 };
 
 #endif /* MSGBUFFER_H_ */

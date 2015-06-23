@@ -102,7 +102,7 @@ class MACAddressExt
         /**
          * Returns the address size in bytes, that is, 8.
          */
-        unsigned int getAddressSize() const
+        static const unsigned int getAddressSize()
         {
             return MAC_ADDRESS_SIZE;
         }
@@ -128,7 +128,7 @@ class MACAddressExt
             shortAddr = address & (MAC_ADDRESS_SHORT_MASK);
         }
 
-        unsigned short getShortAddr()
+        unsigned short getShortAddr() const
         {
             return shortAddr;
         }

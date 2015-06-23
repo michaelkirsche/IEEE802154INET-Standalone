@@ -77,7 +77,7 @@ class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add I
 
     protected:
         /** @brief Debug output switch for the IEEE 802.15.4 Radio */
-        bool radioDebug;
+        bool radioDebug = false;
 
         // added functionality for IEEE 802.15.4 support
         void performED();

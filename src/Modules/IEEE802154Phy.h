@@ -39,7 +39,7 @@ class IEEE802154Phy : public cSimpleModule
 
     protected:
         /** @brief Debug output switch for the IEEE 802.15.4 PHY module */
-        bool phyDebug;
+        bool phyDebug = false;
 
         virtual ppdu *generatePPDU(cMessage *psdu, bool ackFlag);
         virtual void initialize();
