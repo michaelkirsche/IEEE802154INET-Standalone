@@ -211,7 +211,7 @@ void llc::handleMessage(cMessage *msg)
 
             cPacket* pack = check_and_cast<cPacket*>(msg);
 
-            mcpsDataReq* data = new mcpsDataInd("MCPS-DATA.indication");
+            mcpsDataReq* data = new mcpsDataReq("MCPS-DATA.request");
             data->encapsulate(pack);
             data->setMsduHandle(pack->getId());
             data->setMsduLength(pack->getByteLength());
@@ -351,13 +351,14 @@ void llc::handleMessage(cMessage *msg)
                 cPacket* payload = ind->decapsulate();
                 llcEV << "Forwarding MCPS-Data.indication to the higher layer \n";
                 send(payload, "outApp");
+                delete(ind); // XXX fix for undisposed object: (mcpsDataInd) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.indication
             }
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
                 mcpsDataConf* conf = check_and_cast<mcpsDataConf *>(msg);
 
                 llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << conf->getMsduHandle() << endl;
-                delete (conf);
+                delete(conf);
                 return;
             }
             else {
@@ -384,5 +385,4 @@ llc::~llc()
         if (pollTimer)
             cancelAndDelete(pollTimer);
     }
-
 }
