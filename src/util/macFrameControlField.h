@@ -28,8 +28,8 @@ class macFrameControlField
         unsigned short genFCF(frameType ft, bool sec, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fV, AddrMode sam); // Frame....
         ~macFrameControlField();
 
-    private:
-        bool ackReq;
+//    private:
+//        bool ackReq;  // variable not used anymore
 };
 
 #endif /* MACFRAMECONTROLFIELD_H_ */

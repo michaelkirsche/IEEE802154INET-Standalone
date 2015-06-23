@@ -20,7 +20,6 @@
 
 unsigned short macFrameControlField::genFCF(frameType ft, bool sec, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fV, AddrMode sam)
 {
-    // EV<< "data = "<<ft;
     unsigned short fc = 0;
 
     fc = (ft << ftShift) & ftMask;
@@ -40,7 +39,7 @@ unsigned short macFrameControlField::genFCF(frameType ft, bool sec, bool fp, boo
     if (dam != none)
         fc = (fc | (dam << damShift)) & damMask;
 
-    // fV Should always be 001 !!!
+    // fV(ersion) Should always be 001 for 802.15.4-2003 and 2006
     fc = (fc | (fV << fvShift)) & fvMask;
 
     fc = fc | sam;
