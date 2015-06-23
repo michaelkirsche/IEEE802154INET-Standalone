@@ -2025,7 +2025,8 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         // check packet type
         if ((frmType != Beacon) && (frmType != Data) && (frmType != Ack) && (frmType != Command))
         {
-            return true;
+            error ("[MAC]: unknown frame type!");
+            //return true;
         }
         if (frmType == Beacon)
         {
@@ -2071,6 +2072,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
 
         if (frmType == Ack && pdu->getSqnr() != mpib.getMacDSN())
         {
+            macEV << "frmType == Ack & Sqnr != MacDSN --> filtered here \n";
             // if dsr address does not match
             return true;
         }
@@ -2081,9 +2083,13 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         {
             if (addressMode == none)  // destination address fields not included
             {
-                if (!isCoordinator)  // not a PAN coordinator
+                if (!isCoordinator) {
+                    // not a PAN coordinator
+                    macEV << "frmType == Data || Command & addressMode == none & no Coordinator --> filtered here \n";
                     return true;
+                }
             }
+            macEV << "frmType == Data || Command --> not filtered \n";
         }
     }
     return false;
@@ -2881,11 +2887,15 @@ void IEEE802154Mac::csmacaEntry(char pktType)
         csmacaResume();
 
     }
-    else  //if (pktType == 'd')  // txData
+    else  if (pktType == 'd')  // txData
     {
         waitDataAck = false;  // data packet not yet transmitted
         numDataRetry = 0;
         csmacaResume();
+    }
+    else
+    {
+        error("MAC.csmaEntry: unknown packet type!");
     }
 }
 
