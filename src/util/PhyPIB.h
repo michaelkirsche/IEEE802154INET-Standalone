@@ -30,15 +30,10 @@
 class PhyPIB
 {
     public:
-        PhyPIB()
-        {
-        }
-        ; // Standard Ctor
+        PhyPIB() {}; // Standard Ctor
         PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned char transPow, unsigned short int CCAMode, unsigned short int currPage,
                 unsigned short SHRdur, double symbols);
         virtual ~PhyPIB();
-
-        void initialize();
 
         // Getters & Setters ....
         unsigned short int getCurrChann();
@@ -48,7 +43,7 @@ class PhyPIB
         unsigned char getTransPow();
         void setTransPow(unsigned char setTransPow);
         unsigned short getCCA();
-        void setCCA(unsigned short CCA);
+        void setCCA(unsigned short cca);
         unsigned short getCurrPage();
         void setCurrPage(unsigned short currPage);
         unsigned short getSHR();

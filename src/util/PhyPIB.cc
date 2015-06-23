@@ -21,16 +21,9 @@
 #include "PhyPIB.h"
 #include "omnetpp.h"
 
-void PhyPIB::initialize()
-{
-
-    return;
-}
 PhyPIB::PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned char transPow, unsigned short int CCAMode, unsigned short int currPage,
         unsigned short SHRdur, double symbols)
 {
-
-    initialize();
 
     phyCurrentChannel = currChann;
     // Copy arrays into each other
@@ -56,65 +49,77 @@ unsigned short int PhyPIB::getCurrChann()
 {
     return phyCurrentChannel;
 }
+
 void PhyPIB::setCurrChann(unsigned short int currChann)
 {
     phyCurrentChannel = currChann;
     return;
 }
+
 std::vector<int> PhyPIB::getChannSupp()
 {
     return phyChannelsSupported;
 }
+
 void PhyPIB::setChannSupp(std::vector<int> channSupp)
 {
     phyChannelsSupported = channSupp;
     return;
 }
+
 unsigned char PhyPIB::getTransPow()
 {
     return phyTransmitPower;
 }
+
 void PhyPIB::setTransPow(unsigned char setTransPow)
 {
     phyTransmitPower = setTransPow;
     return;
 }
+
 unsigned short PhyPIB::getCCA()
 {
     return phyCCAMode;
 }
-void PhyPIB::setCCA(unsigned short CCA)
+
+void PhyPIB::setCCA(unsigned short cca)
 {
-    phyCCAMode = CCA;
+    phyCCAMode = cca;
     return;
 }
+
 unsigned short PhyPIB::getCurrPage()
 {
     return phyCurrentPage;
 }
+
 void PhyPIB::setCurrPage(unsigned short currPage)
 {
     phyCurrentPage = currPage;
     return;
 }
+
 unsigned short PhyPIB::getSHR()
 {
     return phySHRDuration;
 }
+
 void PhyPIB::setSHR(unsigned short shr)
 {
     phySHRDuration = shr;
     phyMaxFrameDuration = SHRduration + ceil(128 * phySymbolsPerOctet);
     return;
 }
+
 double PhyPIB::getSymbols()
 {
     return phySymbolsPerOctet;
 }
+
 void PhyPIB::setSymbols(double sym)
 {
     phySymbolsPerOctet = sym;
     phyMaxFrameDuration = SHRduration + ceil(128 * phySymbolsPerOctet);
     return;
 }
-
