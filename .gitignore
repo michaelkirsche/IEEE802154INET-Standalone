@@ -28,3 +28,5 @@
 /src/util/mcpsData_m.h
 /out
 /simulations/results
+/simulations/.tkenvlog
+/src/Makefile
