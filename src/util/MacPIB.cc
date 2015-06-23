@@ -29,7 +29,9 @@ MacPIB::MacPIB()
     macBattLifeExtPeriods = 6; // no real default value given just putting it in range
     macBeaconPayloadLength = 0;
     macBeaconTxTime = 0;
+    macBeaconOrder = 0;
     macBSN = 0;
+    macDSN = 0;
     macCoordShortAddress = 0xffff;
     macGTSPermit = true;
     macMaxBE = 5;
@@ -230,7 +232,7 @@ void MacPIB::setMacDSN(unsigned short val)
 {
     if (val < 0x100)
     {
-        macBSN = val;
+        macDSN = val;           
     }
     else
     {
