@@ -375,7 +375,19 @@ void llc::handleMessage(cMessage *msg)
 
 llc::llc()
 {
-
+    logicalChannel = 0;
+    convertingMode = false;
+    TXoption = 0;
+    associateSuccess = false;
+    coordAddrMode = 0;
+    coordPANId = 0;
+    scanChannels = 0;
+    scanDuration = 0.0;
+    scanPage = 0;
+    scanType = 0;
+    startMsg = NULL;
+    selfMsg = NULL;
+    pollTimer = NULL;
 }
 
 llc::~llc()
