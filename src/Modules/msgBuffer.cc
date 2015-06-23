@@ -35,7 +35,7 @@ void msgBuffer::initialize()
 
     if (ev.isGUI())
     {
-        char buf[55];
+        char buf[60];
         sprintf(buf, "Size: %d pks | Holding : %u pks | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
         getDisplayString().setTagArg("t", 0, buf);
     }
@@ -83,15 +83,21 @@ void msgBuffer::handleMessage(cMessage* msg)
             }
 
             send(purgeConf, "outSSCS");
+            delete(msg);        // fix for undisposed object messages
+            delete(purgeReq);   // fix for undisposed object messages
         }
         else
         {
             if (firstPack)
             {
-                if (msg->arrivedOn("inSSCS"))
+                if (msg->arrivedOn("inSSCS"))       // arrived on upperLayerInData -> forward to IEEE802154Mac.MCPS_SAP
+                {
                     send(msg, "outMCPS");
-                else
+                }
+                else if (msg->arrivedOn("inLLC"))  // arrived on upperLayerInMngt -> forward to IEEE802154Mac.MLME_SAP
+                {
                     send(msg, "outMLME");
+                }
 
                 firstPack = false;
             }
