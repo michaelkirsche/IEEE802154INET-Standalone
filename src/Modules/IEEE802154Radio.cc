@@ -370,7 +370,8 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
 
                 generateEDconf(rcvdPow, ED_SUCCESS);
                 activeED = false;
-                delete msg;
+                delete(msg);
+                delete(airframe);    // undisposed AirFrame object fix
                 return;
             }
             else if (ccaMode1 || ccaMode2)
@@ -421,11 +422,13 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 {
                     error("handleMessage(): ccaMode checking produced an illegal state!");
                 }
+
+                delete(msg);         // undisposed object fix
+                delete(airframe);    // undisposed AirFrame object fix
                 return;
             }
             else
             {
-
                 if (rs.getState() == RadioState::RECV)
                 {
                     handleLowerMsgStart(airframe);
@@ -434,10 +437,10 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 else
                 {
                     radioEV << "Radio is not in receive mode during this frame \n";
-                    delete (msg);
+                    delete(msg);         // undisposed object fix
+                    delete(airframe);    // undisposed AirFrame object fix
                     return;
                 }
-
             }
         }
         else
@@ -509,14 +512,18 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
 
     radioEV << "Sending up frame " << frame->getName() << endl;
     send(dataInd, upperLayerOut);
+    delete(frame);  // fix for undisposed object: (ppdu) net.IEEE802154Nodes[*].NIC.radioInterface.
 }
 
 void IEEE802154Radio::sendDown(AirFrame *airframe)
 {
-    if (transceiverConnect)
+    if (transceiverConnect) {
         sendToChannel(airframe);
-    else
-        delete airframe;
+    }
+    else {
+        radioEV << "transceiver is not connected - airframe " << airframe->getName() << " is deleted!\n";
+        delete(airframe);
+    }
 }
 
 /**
@@ -527,7 +534,7 @@ AirFrame *IEEE802154Radio::unbufferMsg(cMessage *msg)
 {
     AirFrame *airframe = (AirFrame *) msg->getContextPointer();
     // delete the self message
-    delete msg;
+    delete(msg);
 
     return airframe;
 }
@@ -741,6 +748,7 @@ void IEEE802154Radio::handleSelfMsg(cMessage *msg)
         AirFrame *airframe = unbufferMsg(msg);
 
         handleLowerMsgEnd(airframe);
+        delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[0].NIC.radioInterface.PD-DATA
     }
     else if (msg->getKind() == MK_TRANSMISSION_OVER)
     {
@@ -966,7 +974,7 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
 
         // message should be deleted
         delete airframe;
-        radioEV << "Message deleted\n";
+        radioEV << "Message deleted \n";
     }
 
     // check the RadioState and update if necessary
