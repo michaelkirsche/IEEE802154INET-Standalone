@@ -37,7 +37,7 @@ packet ppdu {
     unsigned char PHR;              // PHY Header containing 7 Bits Frame Length & 1 Bit Reserved
 }
 
-message edConf{
+packet edConf{
 	unsigned char status @enum(phyState);  // compare IEEE802154Enum.h
 	unsigned char EnergyLevel;             // 0x00–0xff
 }

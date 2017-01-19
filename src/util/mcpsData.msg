@@ -31,12 +31,12 @@ enum purgeStatus;
 // This is the format that the SSCS layer should send to our MAC Entity
 packet mcpsDataReq {                   // Range of each field
     unsigned char SrcAddrMode@enum(AddrMode); // 0x00–0x03
-	unsigned char DstAddrMode;         // 0x00–0x03
+	unsigned char DstAddrMode@enum(AddrMode); // 0x00–0x03
 	unsigned short DstPANId;           // 0x0000–0xffff
 	MACAddressExt DstAddr;			
 	unsigned char msduLength;          // <= aMaxMACPayloadSize
 	//msdu, Payload just encapsulated
-	unsigned long msduHandle;          // 0x00–0xff  -->  actually just an unsigned char 8-Bit value but mapping to OMNeT msg ID requires long
+	unsigned char msduHandle;          // 0x00–0xff 
 	unsigned char TxOptions;           // actuallay a 3-Bit field 000 - 111
 	unsigned char SecurityLevel;	   // 0x00–0x07
 	unsigned char KeyIdMode;           // 0x00–0x03
@@ -50,14 +50,14 @@ packet mcpsDataInd extends mcpsDataReq {
 	MACAddressExt SrcAddr;			
 	unsigned char mpduLinkQuality;     // 0x00–0xff
 	unsigned char DSN;                 // 0x00–0xff	
-	//uint32_t Timestamp;              // 0x000000–0xffffff -> optional is set via ->setTimestamp()
+	simtime_t Timestamp;               // 0x000000–0xffffff -> optional is set via ->setTimestamp()
 }
 
 packet mcpsDataConf {
     // added for MSCPS confirm 
-	unsigned long msduHandle;          // 0x00–0xff  -->  actually just an unsigned char 8-Bit value but mapping to OMNeT msg ID requires long 
+	unsigned char msduHandle;          // 0x00–0xff  -->  actually just an unsigned char 8-Bit value but mapping to OMNeT msg ID requires long 
 	unsigned char status @enum(MCPSStatus);    // see IEEE802154Enum.h
-	//uint32_t Timestamp;			   // 0x000000–0xffffff -> optional is set via ->setTimestamp()
+	simtime_t Timestamp;			       // 0x000000–0xffffff -> optional is set via ->setTimestamp()
 }
 
 packet MaUnitdata {
@@ -69,10 +69,10 @@ packet MaUnitdata {
 	// ServiceClass // NULL 
 }
 
-message mcpsPurgeReq {
-	unsigned long msduHandle;          // 0x00–0xff  -->  actually just an unsigned char 8-Bit value but mapping to OMNeT msg ID requires long
+packet mcpsPurgeReq {
+	unsigned char msduHandle;          // 0x00–0xff  -->  actually just an unsigned char 8-Bit value but mapping to OMNeT msg ID requires long
 }
 
-message mcpsPurgeConf extends mcpsPurgeReq {
+packet mcpsPurgeConf extends mcpsPurgeReq {
 	unsigned char status @enum(purgeStatus);   // see IEEE802154Enum.h
 }

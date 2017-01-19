@@ -57,7 +57,7 @@ ppdu *IEEE802154Phy::generatePPDU(cMessage *psdu, bool ackFlag)
 {
     ppdu *pdu = new ppdu("PD-DATA");
     cPacket *pk = dynamic_cast<cPacket *>(psdu);
-    pdu->setSFD(229); // set SFD to 11100101 except for ask
+    pdu->setSFD(229); // set SFD to 11100101 except for TODO ASK
 
     if (ackFlag)
     {
@@ -79,18 +79,18 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
     phyEV << "Got Message " << msg->getName() << endl;
     if (msg->arrivedOn("PLME_SAP")) // --> Message arrived from MAC over PHY-Management-Layer-Entity SAP
     {
-        if (dynamic_cast<AssoCmdreq *>(msg) != 0)
+        if (dynamic_cast<AssoCmdreq *>(msg) != NULL)
         {
             // just forwarding it
             send(msg, "outToRadio");
             return;
         }
-        else if (dynamic_cast<DisAssoCmd*>(msg) != 0)
+        else if (dynamic_cast<DisAssoCmd*>(msg) != NULL)
         {
             send(msg, "outToRadio");
             return;
         }
-        else if (dynamic_cast<GTSCmd*>(msg) != 0)
+        else if (dynamic_cast<GTSCmd*>(msg) != NULL)
         {
             send(msg, "outToRadio");
             return;
@@ -198,11 +198,11 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             msg->setName("PLME-CCA.confirm");
             send(msg, "outPLME");
         }
-        else if (dynamic_cast<AssoCmdreq *>(msg) != 0)
+        else if (dynamic_cast<AssoCmdreq *>(msg) != NULL)
         {
             send(msg, "outPLME");
         }
-        else if (dynamic_cast<AssoCmdresp *>(msg) != 0)
+        else if (dynamic_cast<AssoCmdresp *>(msg) != NULL)
         {
             send(msg, "outPLME");
         }

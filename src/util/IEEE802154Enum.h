@@ -275,26 +275,28 @@ enum EDval {
 };
 
 enum AddrMode {             // addressing mode of the coordinator to which a poll.request is intended
-    none        = 0x00,
+    noAddr      = 0x00,
     addrShort   = 0x02,     // 16-bit short address
     addrLong    = 0x03      // 64-bit extended address
 };
 
 enum BitMasksandShifts {
     ftShift     = 13,
-    secShift    = 12,
+    secuShift   = 12,
     fpShift     = 11,
     arequShift  = 10,
     pidShift    = 9,
     damShift    = 4,
     fvShift     = 2,
+    samShift    = 0,
     ftMask      = 57344,
-    secMask     = 61440,
-    fpMask      = 63488,
-    arequMask   = 64512,
-    pidMask     = 65024,
-    damMask     = 65520,
-    fvMask      = 65532
+    secuMask    = 4096,
+    fpMask      = 2048,
+    arequMask   = 1024,
+    pidMask     = 512,
+    damMask     = 48,
+    fvMask      = 12,
+    samMask     = 3
 };
 
 enum MlmeAssociationStatus {

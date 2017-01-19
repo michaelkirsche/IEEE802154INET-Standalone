@@ -212,8 +212,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool filter(mpdu* pdu);
         virtual void receiveChangeNotification(int category, const cPolymorphic *details);
         mpdu *generateMPDU(cMessage *msg);
-        void genACK(mpdu* frame, bool fp);
-        void sendMCPSDataConf(MACenum status, long id);
+        void genACK(unsigned char dsn, bool fp);
+        void sendMCPSDataConf(MACenum status, unsigned char msdu);
         void sendMCPSDataIndication(mpdu* rxData);
         void genSetTrxState(phyState state);
         void genCCARequest();
@@ -242,8 +242,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool csmacaCanProceed(simtime_t wtime, bool afterCCA);
         void csmaca_handle_RX_ON_confirm(phyState status);
         void csmacaTrxBeacon(char trx);
-        int calFrmByteLength(mpdu* mpdu);
-        int calMHRByteLength(unsigned char mhr, bool secu);
+        int calFrameByteLength(mpdu* mpdu);
+        int calMacHeaderByteLength(unsigned char mhr, bool secu);
         simtime_t calDuration(mpdu* mpdu);
         bool toParent(mpdu* mpdu);
         void doScan();
@@ -312,12 +312,9 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         MacPIB mpib;
         // PHY PAN Information Base
         PhyPIB ppib;
-        // Data Transfer Mode: 1 = direct; 2 = indirect; 3 = GTS
-        Ieee802154TxOption dataTransMode;
-        // Msg Sequence Number
-        int sequ;
-        // Frame Type: Beacon = 000, Data = 001, Ack = 2, Command = 3
-        frameType ft;
+        Ieee802154TxOption dataTransMode; // see IEEE802154Enum.h
+        int sequ; // Msg Sequence Number
+        frameType ft; // see IEEE802154Enum.h
         macFrameControlField *fcf;
         unsigned short fc;
         bool trxState;
@@ -392,7 +389,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // for beacon or command frames coming from the upper layer, to be transmitted with CSMA/CA
         mpdu* txBcnCmdUpper;
 
-        // for beacon or command frames responding to receiving a packet,to be transmitted with CSMA/CA
+        // for beacon or command frames responding to receiving a packet, to be transmitted with CSMA/CA
         mpdu* txBcnCmd;
 
         // for data frames to be transmitted

@@ -26,9 +26,13 @@ Define_Module(llc);
 void llc::initialize()
 {
     if (hasPar("llcDebug"))
+    {
         llcDebug = par("llcDebug").boolValue();
+    }
     else
+    {
         llcDebug = false;
+    }
 
     /* This is for Application layers which cannot send out MCPS primitives
      * if a true LLC is available, it will take care of it
@@ -93,9 +97,9 @@ MACAddressExt* llc::tokenDest(cMessage* msg)
 
     // Use the internal representation of the IPv6 address to create the 64-bit EUI MAC address
     // create 8 groups with each 16 bit's (aka 8 tupels)
-    uint16_t groups[8] = { uint16_t(*&destAddr.words()[0] >> 16), uint16_t(*&destAddr.words()[0] & 0xffff), uint16_t(*&destAddr.words()[1] >> 16), uint16_t(
-            *&destAddr.words()[1] & 0xffff), uint16_t(*&destAddr.words()[2] >> 16), uint16_t(*&destAddr.words()[2] & 0xffff), uint16_t(*&destAddr.words()[3] >> 16), uint16_t(
-            *&destAddr.words()[3] & 0xffff) };
+    uint16_t groups[8] = { uint16_t(*&destAddr.words()[0] >> 16), uint16_t(*&destAddr.words()[0] & 0xffff), uint16_t(*&destAddr.words()[1] >> 16),
+            uint16_t(*&destAddr.words()[1] & 0xffff), uint16_t(*&destAddr.words()[2] >> 16), uint16_t(*&destAddr.words()[2] & 0xffff), uint16_t(
+                     *&destAddr.words()[3] >> 16), uint16_t(*&destAddr.words()[3] & 0xffff) };
 
     std::string destString;
 
@@ -213,7 +217,17 @@ void llc::handleMessage(cMessage *msg)
 
             mcpsDataReq* data = new mcpsDataReq("MCPS-DATA.request");
             data->encapsulate(pack);
-            data->setMsduHandle(pack->getId());
+            //data->setMsduHandle(pack->getId());   // using the message ID can get problematic during longer simulations
+                                                    // because the 8 bit DSN value on the MAC layer is going to overflow
+            data->setMsduHandle(msgHandle);
+            if (msgHandle < 255)
+            {
+                msgHandle++;
+            }
+            else
+            {
+                msgHandle = 0;
+            }
             data->setMsduLength(pack->getByteLength());
             data->setTxOptions(TXoption);
             // try to generate the MAC destination address from the packet's IPvX address destination address
@@ -349,26 +363,29 @@ void llc::handleMessage(cMessage *msg)
             {
                 mcpsDataInd* ind = check_and_cast<mcpsDataInd*>(msg);
                 cPacket* payload = ind->decapsulate();
-                llcEV << "Forwarding MCPS-Data.indication to the higher layer \n";
+                llcEV << "Forwarding MCPS-Data.indication for Message #" << (int) ind->getDSN() << " to the higher layer \n";
                 send(payload, "outApp");
-                delete(ind); // XXX fix for undisposed object: (mcpsDataInd) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.indication
+                //delete (msg); // XXX fix for undisposed object: (mcpsDataInd) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.indication
+                return;
             }
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
-                mcpsDataConf* conf = check_and_cast<mcpsDataConf *>(msg);
-
-                llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << conf->getMsduHandle() << endl;
-                delete(conf);
+                mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
+                llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle() << endl;
+                send(conf, "outApp");
+                //delete (msg); // XXX fix for undisposed object: (mcpsDataConf) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.confirmation
                 return;
             }
-            else {
-                error ("[LLC]: Undefined Message arrived on inData gate!");
+            else
+            {
+                error("[LLC]: Undefined Message arrived on inData gate!");
             }
         }
         else
         {
             llcEV << "Forwarding MCPS-Data to the higher layer -> " << msg->getFullName() << endl;
             send(msg, "outApp");
+            return;
         }
     }
 }
@@ -378,6 +395,7 @@ llc::llc()
     logicalChannel = 0;
     convertingMode = false;
     TXoption = 0;
+    msgHandle = 0;
     associateSuccess = false;
     coordAddrMode = 0;
     coordPANId = 0;

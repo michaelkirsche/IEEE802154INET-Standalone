@@ -73,12 +73,12 @@ packet beaconNotify
     unsigned char sduLength;                // 0 – aMaxBeaconPayloadLength (52) (which is aMaxPHYPacketSize (127) – aMaxBeaconOverhead (75))
 }
 
-message CmdFrame extends mpdu
+packet CmdFrame extends mpdu
 {
     int cmdType @enum(Ieee802154MacCmdType);// refer to IEEE802154Enum.h
         
 }
-message RealignCmd extends CmdFrame 
+packet RealignCmd extends CmdFrame 
 {
     unsigned short PANId;
     unsigned short CoordShortAddr;
@@ -87,35 +87,35 @@ message RealignCmd extends CmdFrame
     unsigned char ChannelPage;              // 0 - 31, channel page on which to start using new superframe configuration
 }
 
-message GTSCmd extends CmdFrame
+packet GTSCmd extends CmdFrame
 {
     GTSDescriptor GTSCharacteristics;
 }
 
-message DisAssoCmd extends CmdFrame
+packet DisAssoCmd extends CmdFrame
 {
     unsigned char DisassociateReason @enum(DisAssociateReason); // refer to IEEE802154Enum.h
 }
 
-message AssoCmdreq extends CmdFrame
+packet AssoCmdreq extends CmdFrame
 {
     DevCapability CapabilityInformation;
 }
 
-message AssoCmdresp extends CmdFrame
+packet AssoCmdresp extends CmdFrame
 {
     unsigned short shortAddress;
     unsigned short status @enum(MlmeAssociationStatus); // refer to IEEE802154Enum.h
 }
 
-message AckFrame
+packet AckFrame
 {
     unsigned short fcs;     // 16-Bit Frame Check Sequence
     unsigned char sqnr;     // 8-Bit Sequence Number
     unsigned short fcf;     // 16-Bit Framce Control Field
 }
 
-message DisAssociation
+packet DisAssociation
 {
     unsigned char DeviceAddrMode @enum(AddrMode);   // refer to IEEE802154Enum.h
     unsigned short DevicePANId;
@@ -129,7 +129,7 @@ message DisAssociation
     unsigned char KeyIndex;                 // 0x01–0xff, index of the key to be used
 }
 
-message Association
+packet Association
 {
     MACAddressExt addr; // used different in request and response for coordinator // device addr
     DevCapability CapabilityInformation;
@@ -139,7 +139,7 @@ message Association
     unsigned char KeyIndex;                 // 0x01–0xff, index of the key to be used
 }
 
-message AssociationRequest extends Association
+packet AssociationRequest extends Association
 {
     unsigned int LogicalChannel;            // logical channel on which to start using new superframe configuration
     unsigned char ChannelPage;              // 0 - 31, channel page on which to start using new superframe configuration
@@ -148,19 +148,19 @@ message AssociationRequest extends Association
     MACAddressExt CoordAddress;        
 }
 
-message AssociationResponse extends Association
+packet AssociationResponse extends Association
 {
     // Short Address ist also stored in the long address
     unsigned short status @enum(MlmeAssociationStatus);     // refer to IEEE802154Enum.h    
 }
 
-message AssociationConfirm extends Association
+packet AssociationConfirm extends Association
 {
     // Short Address ist also stored in the long address
     unsigned short status @enum(MlmeAssociationStatus);     // refer to IEEE802154Enum.h        
 }
 
-message GTSMessage
+packet GTSMessage
 {
     GTSDescriptor GTSCharacteristics;
     unsigned char SecurityLevel;            // 0x00–0x07, compare Table 95 in Spec. 802.15.4-2006
@@ -169,12 +169,12 @@ message GTSMessage
     unsigned char KeyIndex;                 // 0x01–0xff, index of the key to be used
 }
 
-message GTSIndication extends GTSMessage
+packet GTSIndication extends GTSMessage
 {
     unsigned short deviceAddr;
 }
 
-message GTSConfirm
+packet GTSConfirm
 {
     GTSDescriptor gts;
     unsigned short status @enum(MACenum);       // refer to IEEE802154Enum.h

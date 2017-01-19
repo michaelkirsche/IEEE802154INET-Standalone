@@ -348,6 +348,10 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
 
     if (msg->getArrivalGateId() == upperLayerIn)
     {
+        if (msg->isPacket() == false)
+        {
+            error("Message '%s' is supposed to be a cPacket, but is not!", msg->getName());
+        }
         AirFrame *airframe = encapsulatePacket(PK(msg));
         handleUpperMsg(airframe);
     }
@@ -424,7 +428,7 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 }
 
                 delete(msg);         // undisposed object fix
-                delete(airframe);    // undisposed AirFrame object fix
+                //delete(airframe);    // removed due to issues
                 return;
             }
             else
@@ -438,7 +442,7 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 {
                     radioEV << "Radio is not in receive mode during this frame \n";
                     delete(msg);         // undisposed object fix
-                    delete(airframe);    // undisposed AirFrame object fix
+                    //delete(airframe);    // removed due to issues
                     return;
                 }
             }
@@ -512,7 +516,7 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
 
     radioEV << "Sending up frame " << frame->getName() << endl;
     send(dataInd, upperLayerOut);
-    delete(frame);  // fix for undisposed object: (ppdu) net.IEEE802154Nodes[*].NIC.radioInterface.
+    //delete(frame);  // removed due to issues 
 }
 
 void IEEE802154Radio::sendDown(AirFrame *airframe)
@@ -748,7 +752,7 @@ void IEEE802154Radio::handleSelfMsg(cMessage *msg)
         AirFrame *airframe = unbufferMsg(msg);
 
         handleLowerMsgEnd(airframe);
-        delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[0].NIC.radioInterface.PD-DATA
+        //delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[0].NIC.radioInterface.PD-DATA -> seems to cause problems /removed/ for now
     }
     else if (msg->getKind() == MK_TRANSMISSION_OVER)
     {

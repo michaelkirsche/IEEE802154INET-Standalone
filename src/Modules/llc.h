@@ -65,16 +65,18 @@ class llc : public cSimpleModule
          */
         unsigned char TXoption;
 
+        unsigned char msgHandle;    // simple 8-bit counter to set msduHandle (and subsequently MAC DSN) for created packets
+
         simtime_t pollFreq;
 
-        bool associateSuccess; // We associate on first beacon notify until successful
+        bool associateSuccess;  // We associate on first beacon notify until successful
 
         unsigned char coordAddrMode;
         unsigned short coordPANId;
         MACAddressExt coordAddress; // shared by both 16 bit short address or 64 bit extended address
 
         // --- Initial Scan Variables
-        int scanChannels; // 27 bit, choose each bit for the channel to be scanned
+        int scanChannels;   // 27 bit, choose each bit for the channel to be scanned
         double scanDuration;
         int scanPage;
         int scanType;

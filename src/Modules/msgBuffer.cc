@@ -83,8 +83,8 @@ void msgBuffer::handleMessage(cMessage* msg)
             }
 
             send(purgeConf, "outSSCS");
-            delete(msg);        // fix for undisposed object messages
-            delete(purgeReq);   // fix for undisposed object messages
+            delete(msg);        // fix for undisposed object message
+            delete(purgeReq);   // fix for undisposed object message
         }
         else
         {
