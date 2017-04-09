@@ -30,7 +30,6 @@
 #include "SnrList.h"
 #include "ObstacleControl.h"
 #include "INoiseGenerator.h"
-//#include "ILifecycle.h" // TODO Add ILivecycle support
 #include "Modulation.h"
 #include "IEEE802154Enum.h"
 #include "PhyPIB.h"
@@ -62,7 +61,7 @@
  * @author Andras Varga, Levente Meszaros
  *
  */
-class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add ILifecycle support
+class IEEE802154Radio : public ChannelAccess
 {
     protected:
         typedef std::map<double, double> SensitivityList; // Sensitivity list
@@ -71,9 +70,6 @@ class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add I
     public:
         IEEE802154Radio();
         ~IEEE802154Radio();
-
-        // TODO Add ILivecycle support
-        //virtual bool handleOperationStage(LifecycleOperation *operation, int stage, IDoneCallback *doneCallback);
 
     protected:
         /** @brief Debug output switch for the IEEE 802.15.4 Radio */

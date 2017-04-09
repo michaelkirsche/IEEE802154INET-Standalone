@@ -25,10 +25,6 @@
 #include "FWMath.h"
 #include "BasicBattery.h"
 
-// TODO Add ILivecycle support
-//#include "NodeStatus.h"
-//#include "NodeOperations.h"
-
 #define MK_TRANSMISSION_OVER  1
 #define MK_RECEPTION_COMPLETE 2
 
@@ -92,27 +88,6 @@ IEEE802154Radio::~IEEE802154Radio()
         delete it->first;
     }
 }
-
-// TODO Add ILivecycle support
-//bool IEEE802154Radio::handleOperationStage(LifecycleOperation *operation, int stage, IDoneCallback *doneCallback)
-//{
-//    Enter_Method_Silent();
-//    if (dynamic_cast<NodeStartOperation *>(operation)) {
-//        if (stage == NodeStartOperation::STAGE_PHYSICAL_LAYER)
-//            setRadioState(RadioState::IDLE);  //FIXME only if the interface is up, too; also: connectReceiver(), etc.
-//    }
-//    else if (dynamic_cast<NodeShutdownOperation *>(operation)) {
-//        if (stage == NodeStartOperation::STAGE_PHYSICAL_LAYER)
-//            setRadioState(RadioState::OFF);
-//    }
-//    else if (dynamic_cast<NodeCrashOperation *>(operation)) {
-//        if (stage == NodeStartOperation::STAGE_LOCAL)  // crash is immediate
-//            setRadioState(RadioState::OFF);
-//    }
-//    else
-//        throw cRuntimeError("Unsupported operation '%s'", operation->getClassName());
-//    return true;
-//}
 
 void IEEE802154Radio::initialize(int stage)
 {
@@ -278,23 +253,12 @@ void IEEE802154Radio::initialize(int stage)
     {
         registerBattery();
 
-        // TODO Add ILifecycle Operations
-//        NodeStatus *nodeStatus = dynamic_cast<NodeStatus *>(findContainingNode(this)->getSubmodule("status"));
-//        bool isOperational = (!nodeStatus) || nodeStatus->getState() == NodeStatus::UP;
-//        if (isOperational)
-//        {
         // tell initial values to MAC; must be done in stage 1, because they subscribe in stage 0
         nb->fireChangeNotification(NF_RADIOSTATE_CHANGED, &rs);
         nb->fireChangeNotification(NF_RADIO_CHANNEL_CHANGED, &rs);
-//        }
     }
     else if (stage == 2)
     {
-        // TODO Add ILifecycle Operations
-//        NodeStatus *nodeStatus = dynamic_cast<NodeStatus *>(findContainingNode(this)->getSubmodule("status"));
-//        bool isOperational = (!nodeStatus) || nodeStatus->getState() == NodeStatus::UP;
-//        if (isOperational)
-//        {
         // tell initial channel number to ChannelControl; should be done in stage==2 or later,
         // because base class initializes myIEEE802154RadioRef in that stage
         cc->setRadioChannel(myRadioRef, rs.getChannelNumber());
@@ -303,15 +267,6 @@ void IEEE802154Radio::initialize(int stage)
         emit(bitrateSignal, rs.getBitrate());
         emit(IEEE802154RadioStateSignal, rs.getState());
         emit(channelNumberSignal, rs.getChannelNumber());
-//        }
-//        else
-//        {
-//            setRadioState(RadioState::OFF);
-//            // tell initial values to MAC; must be done in stage 1,
-//            // because they subscribe in stage 0
-//            nb->fireChangeNotification(NF_RADIOSTATE_CHANGED, &rs);
-//            nb->fireChangeNotification(NF_RADIO_CHANNEL_CHANGED, &rs);
-//        }
 
         // draw the interference distance
         this->updateDisplayString();
@@ -459,7 +414,6 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 }
 
                 delete (msg);       // undisposed object fix
-                //delete(airframe); // removed due to issues
                 return;
             }
             else
@@ -473,7 +427,6 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 {
                     radioEV << "Radio is not in receive mode during this frame \n";
                     delete (msg);       // undisposed object fix
-                    //delete(airframe); // removed due to issues
                     return;
                 }
             }
@@ -549,7 +502,6 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
 
     radioEV << "Sending up frame " << frame->getName() << endl;
     send(dataInd, upperLayerOut);
-    //delete(frame);  // removed due to issues 
 }
 
 void IEEE802154Radio::sendDown(AirFrame *airframe)
@@ -793,7 +745,7 @@ void IEEE802154Radio::handleSelfMsg(cMessage *msg)
         AirFrame *airframe = unbufferMsg(msg);
 
         handleLowerMsgEnd(airframe);
-        //delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[0].NIC.radioInterface.PD-DATA -> seems to cause problems /removed/ for now
+        //delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[0].NIC.radioInterface.PD-DATA -> causes problems -> removed for now
     }
     else if (msg->getKind() == MK_TRANSMISSION_OVER)
     {
@@ -880,8 +832,7 @@ void IEEE802154Radio::handleLowerMsgStart(AirFrame* airframe)
 
     // Calculate the receive power of the message
     double frequency = carrierFrequency;
-    //if (airframe && airframe->getCarrierFrequency() > 0.0)
-    if (airframe->getCarrierFrequency() > 0.0)  // XXX removed redundant check
+    if (airframe->getCarrierFrequency() > 0.0)
     {
         frequency = airframe->getCarrierFrequency();
     }
@@ -901,9 +852,8 @@ void IEEE802154Radio::handleLowerMsgStart(AirFrame* airframe)
     recvBuff[airframe] = rcvdPow;
     updateSensitivity(airframe->getBitrate());
 
-    // if receive power is bigger than sensitivity and if not sending
-    // and currently not receiving another message and the message has
-    // arrived in time
+    // if receive power is bigger than sensitivity and if not sending and
+    // currently not receiving another message and the message has arrived in time
     // NOTE: a message may have arrival time in the past here when we are
     // processing ongoing transmissions during a channel change
     if (airframe->getArrivalTime() == simTime() && rcvdPow >= sensitivity && rs.getState() != RadioState::TRANSMIT && snrInfo.ptr == NULL)
@@ -1295,9 +1245,13 @@ void IEEE802154Radio::updateDisplayString()
         d.removeTag("r2");
         d.insertTag("r2");
         if (doubleRayCoverage)
+        {
             d.setTagArg("r2", 0, (long) calcDistDoubleRay());
+        }
         else
+        {
             d.setTagArg("r2", 0, (long) calcDistFreeSpace());
+        }
         d.setTagArg("r2", 2, "blue");
     }
 

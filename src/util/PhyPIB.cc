@@ -41,10 +41,6 @@ PhyPIB::PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned 
 
 }
 
-PhyPIB::~PhyPIB()
-{
-}
-
 unsigned short int PhyPIB::getCurrChann()
 {
     return phyCurrentChannel;

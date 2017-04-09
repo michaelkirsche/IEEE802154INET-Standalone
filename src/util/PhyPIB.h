@@ -33,7 +33,7 @@ class PhyPIB
         PhyPIB() {}; // Standard Ctor
         PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned char transPow, unsigned short int CCAMode, unsigned short int currPage,
                 unsigned short SHRdur, double symbols);
-        virtual ~PhyPIB();
+        virtual ~PhyPIB() {};   // Standard Dtor
 
         // Getters & Setters ....
         unsigned short int getCurrChann();

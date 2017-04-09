@@ -87,5 +87,4 @@ void sscs::handleMessage(cMessage *msg)
             sscsEV << "Unknown Packet type -- Doing nothing at all\n";
         }
     }
-
 }

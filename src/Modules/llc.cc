@@ -203,6 +203,7 @@ void llc::handleMessage(cMessage *msg)
     {
         if ((msg->getKind() == IP_C_REGISTER_PROTOCOL))
         {
+            // FIXME add "register protocol message" handling
             llcEV << "FIXME(!) Register Protocol Message is not handled yet - FullPath: " << msg->getFullPath() << endl;
             delete (msg);
             return;
@@ -211,7 +212,9 @@ void llc::handleMessage(cMessage *msg)
         if (convertingMode)
         {
             if (!msg->isPacket())
+            {
                 error("[802154LLC]: Application layer in convertingMode has to send out cPackets!");
+            }
 
             cPacket* pack = check_and_cast<cPacket*>(msg);
 
@@ -371,9 +374,8 @@ void llc::handleMessage(cMessage *msg)
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
                 mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
-                llcEV
-                << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle()
-                        << endl;
+                llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #"
+                      << (int) conf->getMsduHandle() << endl;
                 send(conf, "outApp");
                 //delete (msg); // XXX fix for undisposed object: (mcpsDataConf) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.confirmation
                 return;

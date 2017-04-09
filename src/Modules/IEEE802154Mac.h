@@ -320,7 +320,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool trxState;
         unsigned int headerSize;
         cMessage* selfMsg;
-        //int bitrate;
 
         // Message Types
         std::map<std::string, PIBMsgTypes> mappedMsgTypes;
@@ -558,7 +557,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // timer for scheduling of GTS, shared by both PAN coordinator and devices
         cMessage* gtsTimer;
 
-        simtime_t lastTime_bcnRxTimer;
+        //simtime_t lastTime_bcnRxTimer;    // XXX parameter needed anymore?
         bool txNow_bcnTxTimer;
 
         //true while in active period of the outgoing superframe

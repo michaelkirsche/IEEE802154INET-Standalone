@@ -55,11 +55,8 @@ class IEEE802154Phy : public cSimpleModule
         phyState trxState;
         // Map to associate the strings with the enum values (cp. IEEE802154Enum.h)
         std::map<std::string, PIBMsgTypes> mappedMsgTypes;
-        // Par inside of a msg
-        //cMsgPar param;    // XXX parameter not needed anymore !?
         PhyPIB pib;
 
-        //std::string tokens;      // XXX parameter not needed anymore !?
         unsigned int suppPages[3];
 };
 

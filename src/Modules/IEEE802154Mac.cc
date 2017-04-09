@@ -91,7 +91,6 @@ void IEEE802154Mac::initialize(int stage)
         sequ = 0;
         trxState = false;
         headerSize = 0;
-        //bitrate = 10;
 
         mappedMsgTypes["PLME-SET-TRX-STATE.confirm"] = SETTRXSTATE;
         mappedMsgTypes["PLME-GET.confirm"] = GET;
@@ -153,7 +152,7 @@ void IEEE802154Mac::initialize(int stage)
         scanEnergyDetectList = new unsigned int[26];
 
         // for timer
-        lastTime_bcnRxTimer = 0;
+        //lastTime_bcnRxTimer = 0;  // XXX parameter needed anymore?
         inTxSD_txSDTimer = false;
         inRxSD_rxSDTimer = false;
         index_gtsTimer = 0;
@@ -3645,7 +3644,7 @@ void IEEE802154Mac::startBcnRxTimer()
     // we want to receive right before the beacon is transmitted
     wtime -= 0.01;
 
-    lastTime_bcnRxTimer = now + wtime;  // XXX parameter needed anymore??
+    //lastTime_bcnRxTimer = now + wtime;  // XXX parameter needed anymore??
     if (bcnRxTimer->isScheduled())
     {
         cancelEvent(bcnRxTimer);
@@ -4099,8 +4098,10 @@ void IEEE802154Mac::handleTxAckBoundTimer()
     }
 }
 
-// Called when txCmdDataBoundTimer expires or directly by <handle_PLME_SET_TRX_STATE_confirm()>
-// Data or Command is sent to PHY layer here
+/**
+ * Called when txCmdDataBoundTimer expires or directly by <handle_PLME_SET_TRX_STATE_confirm()>
+ * Data or Command is sent to PHY layer here
+ */
 void IEEE802154Mac::handleTxCmdDataBoundTimer()
 {
     if (txBcnCmd == txCsmaca)
@@ -4123,9 +4124,11 @@ void IEEE802154Mac::handleTxCmdDataBoundTimer()
     }
 }
 
-// this function is called after delay of IFS following sending out the ACK requested by reception of a data or command packet
-// or following the reception of a data packet requiring no ACK
-// other command packets requiring no ACK are processed in <handleCommand()>
+/**
+ * this function is called after delay of IFS following sending out the ACK requested by reception of a data or command packet
+ * or following the reception of a data packet requiring no ACK
+ * other command packets requiring no ACK are processed in <handleCommand()>
+ */
 void IEEE802154Mac::handleIfsTimer()
 {
     //MACenum status;
@@ -5071,10 +5074,10 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
     else if (strcmp(frFunc, "handle_PD_DATA_confirm") == 0)  // only process phy_SUCCESS here
     {
         if ((txBeacon != NULL) && (txPkt == txBeacon))
-        // TODO Problem: when using CAP Ack data transfer mode, the first packet gets acknowledge and sender seem to think he is sending a beacon frame
+        // Problem: when using CAP Ack data transfer mode, the first packet gets acknowledge and sender seem to think he is sending a beacon frame
         // because txPkt seems to be empty and tXBeacon is still empty...
         // txAck although isn't empty and should be prioritized here in case of the if then else lineup...
-        // XXX Solution approach: add condition that txBeacon isn't 0
+        // Solution approach: add condition that txBeacon isn't 0
         {
             resetTRX();
             taskSuccess('b');  // beacon transmitted successfully
@@ -5138,7 +5141,7 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
         {
             ASSERT((taskP.taskStatus(TP_MCPS_DATA_REQUEST)) && (strcmp(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), frFunc) == 0));
 
-            //frmCtrl = txData->getFcf();
+            //frmCtrl = txData->getFcf();   // not needed here
             if (taskP.taskStatus(TP_MCPS_DATA_REQUEST))
             {
                 FSM_MCPS_DATA_request(pStatus);  // mStatus ignored
