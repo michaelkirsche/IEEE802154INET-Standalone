@@ -23,9 +23,13 @@ Define_Module(IEEE802154Phy);
 void IEEE802154Phy::initialize()
 {
     if (hasPar("phyDebug"))
+    {
         phyDebug = par("phyDebug").boolValue();
+    }
     else
+    {
         phyDebug = false;
+    }
 
     trxState = phy_IDLE;
 
@@ -40,7 +44,6 @@ void IEEE802154Phy::initialize()
     tokenizePages();
 
     pib = PhyPIB(par("currentChannel"), suppPages, par("transmitPower"), par("CCAMode"), par("currentPage"), par("SHRDuration"), par("symbolsPerOctet"));
-
 }
 
 void IEEE802154Phy::tokenizePages()
@@ -71,7 +74,6 @@ ppdu *IEEE802154Phy::generatePPDU(cMessage *psdu, bool ackFlag)
     }
     pdu->encapsulate(pk);
     return pdu;
-
 }
 
 void IEEE802154Phy::handleMessage(cMessage *msg)
@@ -103,7 +105,6 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
 
         switch (mappedMsgTypes[msg->getName()])
         {
-
             case SETTRXSTATE: {
                 if (trxState == msg->getKind())
                 {
@@ -406,14 +407,4 @@ void IEEE802154Phy::sendTrxConf(phyState status)
     mlmeMsg->setKind(status);
     send(mlmeMsg, "outPLME");
     return;
-}
-
-IEEE802154Phy::IEEE802154Phy()
-{
-
-}
-
-IEEE802154Phy::~IEEE802154Phy()
-{
-
 }

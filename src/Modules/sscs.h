@@ -26,8 +26,8 @@
 class sscs : public cSimpleModule
 {
     public:
-        sscs();
-        virtual ~sscs();
+        sscs(){};  // std Ctor
+        virtual ~sscs(){}; // std Dtor;
         void initialize();
         void handleMessage(cMessage* msg);
 

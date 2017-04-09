@@ -51,12 +51,6 @@ MacPIB::MacPIB()
     macTimestampSupported = true;
     macTransactionPersistenceTime = 500;
     macAckWaitDuration = 0;
-
-}
-
-MacPIB::~MacPIB()
-{
-
 }
 
 int MacPIB::getMacAckWaitDuration()
@@ -232,7 +226,7 @@ void MacPIB::setMacDSN(unsigned short val)
 {
     if (val < 0x100)
     {
-        macDSN = val;           
+        macDSN = val;
     }
     else
     {

@@ -510,9 +510,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // incoming superframe specification used by devices
         SuperframeSpec rxSfSpec;
 
-        /**
-         * @name Timer Messages
-         */
+        /** @name Timer Messages */
 
         // backoff timer for CSMA-CA
         cMessage* backoffTimer;
@@ -575,9 +573,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
          */
         unsigned short int index_gtsTimer;
 
-        /**
-         * @name Beacon related variables
-         */
+        /** @name Beacon related variables */
 
         // beacon order of incoming superframe
         unsigned short rxBO;
@@ -615,9 +611,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // Temporary requested state to set in PHY
         phyState trx_state_req;
 
-        /**
-         * @name Statistical variables
-         */
+        /** @name Statistical variables */
         // number of data packets received from upper layer, counted in <handleUpperMsg()>
         unsigned short numUpperPkt;
 

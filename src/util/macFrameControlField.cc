@@ -41,12 +41,3 @@ unsigned short macFrameControlField::genFCF(frameType ft, bool secu, bool fp, bo
     return fcf;
 }
 
-macFrameControlField::macFrameControlField()
-{
-
-}
-
-macFrameControlField::~macFrameControlField()
-{
-    // Auto-generated destructor stub
-}

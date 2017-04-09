@@ -67,20 +67,30 @@ IEEE802154Radio::~IEEE802154Radio()
     delete radioModel;
     delete receptionModel;
     if (noiseGenerator)
+    {
         delete noiseGenerator;
+    }
 
     if (updateString)
+    {
         cancelAndDelete(updateString);
+    }
 
     if (selfCCAMsg)
+    {
         cancelAndDelete(selfCCAMsg);
+    }
 
     if (selfEDMsg)
+    {
         cancelAndDelete(selfEDMsg);
+    }
 
     // delete messages being received
     for (RecvBuff::iterator it = recvBuff.begin(); it != recvBuff.end(); ++it)
+    {
         delete it->first;
+    }
 }
 
 // TODO Add ILivecycle support
@@ -111,9 +121,13 @@ void IEEE802154Radio::initialize(int stage)
     if (stage == 0)
     {
         if (hasPar("radioDebug"))
+        {
             radioDebug = par("radioDebug").boolValue();
+        }
         else
+        {
             radioDebug = false;
+        }
 
         radioEV << "Initializing IEEE802154Radio, stage=" << stage << endl;
 
@@ -174,22 +188,30 @@ void IEEE802154Radio::initialize(int stage)
         // IEEE802154Radio state has to be initialized as RECV
         rs.setState(RadioState::IDLE);
         if (BASE_NOISE_LEVEL >= sensitivity)
+        {
             rs.setState(RadioState::RECV);
+        }
 
         WATCH(noiseLevel);
         WATCH(rs);
 
         obstacles = ObstacleControlAccess().getIfExists();
         if (obstacles)
+        {
             radioEV << "Found ObstacleControl \n";
+        }
 
         // this is the parameter of the channel controller (global)
         std::string propModel = getChannelControlPar("propagationModel").stdstringValue();
         if (propModel == "")
+        {
             propModel = "FreeSpaceModel";
+        }
         doubleRayCoverage = false;
         if (propModel == "TwoRayGroundModel")
+        {
             doubleRayCoverage = true;
+        }
 
         receptionModel = (IReceptionModel *) createOne(propModel.c_str());
         receptionModel->initializeFrom(this);
@@ -210,15 +232,16 @@ void IEEE802154Radio::initialize(int stage)
             receptionThreshold = FWMath::dBm2mW(par("receptionThreshold").doubleValue());
             if (par("maxDistantReceptionThreshold").doubleValue() > 0)
             {
-                receptionThreshold = receptionModel->calculateReceivedPower(transmitterPower, carrierFrequency,
-                        par("maxDistantReceptionThreshold").doubleValue());
+                receptionThreshold = receptionModel->calculateReceivedPower(transmitterPower, carrierFrequency, par("maxDistantReceptionThreshold").doubleValue());
             }
         }
 
         // IEEE802154Radio model to handle frame length and reception success calculation (modulation, error correction etc.)
         std::string rModel = par("radioModel").stdstringValue();
         if (rModel == "")
+        {
             rModel = "GenericRadioModel";
+        }
 
         radioModel = (IRadioModel *) createOne(rModel.c_str());
         radioModel->initializeFrom(this);
@@ -227,13 +250,22 @@ void IEEE802154Radio::initialize(int stage)
         setBitrate(newBitrate, true);
 
         if (this->hasPar("drawCoverage"))
+        {
             drawCoverage = par("drawCoverage");
+        }
         else
+        {
             drawCoverage = false;
+        }
+
         if (this->hasPar("refreshCoverageInterval"))
+        {
             updateStringInterval = par("refreshCoverageInterval");
+        }
         else
+        {
             updateStringInterval = 0;
+        }
 
         selfCCAMsg = new cMessage("CCA-Timer");
         selfCCAMsg->setKind(CCA);
@@ -283,7 +315,6 @@ void IEEE802154Radio::initialize(int stage)
 
         // draw the interference distance
         this->updateDisplayString();
-
     }
 }
 
@@ -374,8 +405,8 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
 
                 generateEDconf(rcvdPow, ED_SUCCESS);
                 activeED = false;
-                delete(msg);
-                delete(airframe);    // undisposed AirFrame object fix
+                delete (msg);
+                delete (airframe);    // undisposed AirFrame object fix
                 return;
             }
             else if (ccaMode1 || ccaMode2)
@@ -427,8 +458,8 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                     error("handleMessage(): ccaMode checking produced an illegal state!");
                 }
 
-                delete(msg);         // undisposed object fix
-                //delete(airframe);    // removed due to issues
+                delete (msg);       // undisposed object fix
+                //delete(airframe); // removed due to issues
                 return;
             }
             else
@@ -441,8 +472,8 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 else
                 {
                     radioEV << "Radio is not in receive mode during this frame \n";
-                    delete(msg);         // undisposed object fix
-                    //delete(airframe);    // removed due to issues
+                    delete (msg);       // undisposed object fix
+                    //delete(airframe); // removed due to issues
                     return;
                 }
             }
@@ -494,25 +525,27 @@ AirFrame *IEEE802154Radio::encapsulatePacket(cPacket *frame)
     airframe->setSenderPos(getRadioPosition());
     airframe->setCarrierFrequency(carrierFrequency);
 
-    radioEV << "Frame (" << frame->getClassName() << ")" << frame->getName() << " will be transmitted at "
-            << (airframe->getBitrate() / 1e3) << "Kbps in " << airframe->getDuration() << "sec \n";
+    radioEV<<"Frame ("<< frame->getClassName()<<")"<<frame->getName()<<" will be transmitted at "<<(airframe->getBitrate() / 1e3)<<"Kbps in "<<airframe->getDuration()<<"sec \n";
     return airframe;
 }
 
 void IEEE802154Radio::sendUp(AirFrame *airframe)
 {
     cPacket *frame = airframe->decapsulate();    // this is the Data request
-    radioEV << "PD-Data.indication with SNR ratio: " << airframe->getSnr() << " and LossRate: " << airframe->getLossRate()
-            << " and ReceivedPower: " << airframe->getPowRec() << endl;
+    radioEV<<"PD-Data.indication with SNR ratio: "<<airframe->getSnr()<<" and LossRate: "<< airframe->getLossRate()<<" and ReceivedPower: "<< airframe->getPowRec()<<endl;
 
     pdDataInd* dataInd = new pdDataInd("PD-DATA.indication");
-    dataInd->setPpduLinkQuality(airframe->getSnr());  
+    dataInd->setPpduLinkQuality(airframe->getSnr());
     dataInd->setPsduLength(frame->getByteLength());
 
     if (frame->getEncapsulatedPacket() != NULL)
+    {
         dataInd->encapsulate(frame->decapsulate());  // encapsulate the data from it
+    }
     else
+    {
         dataInd->encapsulate(frame);
+    }
 
     radioEV << "Sending up frame " << frame->getName() << endl;
     send(dataInd, upperLayerOut);
@@ -521,12 +554,14 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
 
 void IEEE802154Radio::sendDown(AirFrame *airframe)
 {
-    if (transceiverConnect) {
+    if (transceiverConnect)
+    {
         sendToChannel(airframe);
     }
-    else {
+    else
+    {
         radioEV << "transceiver is not connected - airframe " << airframe->getName() << " is deleted!\n";
-        delete(airframe);
+        delete (airframe);
     }
 }
 
@@ -538,7 +573,7 @@ AirFrame *IEEE802154Radio::unbufferMsg(cMessage *msg)
 {
     AirFrame *airframe = (AirFrame *) msg->getContextPointer();
     // delete the self message
-    delete(msg);
+    delete (msg);
 
     return airframe;
 }
@@ -648,16 +683,22 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
             if (newTransmitterPower != -1)
             {
                 if (newTransmitterPower > getChannelControlPar("pMax").doubleValue())
+                {
                     newTransmitterPower = getChannelControlPar("pMax").doubleValue();
+                }
                 else
+                {
                     transmitterPower = newTransmitterPower;
+                }
             }
             return;
         }
 
         case phy_CHANGE_CHANNEL: {
             if (prop == NULL)
+            {
                 error("[RADIO]: got a Change Channel command without Par");
+            }
 
             int newChann = prop->longValue();
             if ((newChann > -1) && (newChann < 27))
@@ -841,14 +882,20 @@ void IEEE802154Radio::handleLowerMsgStart(AirFrame* airframe)
     double frequency = carrierFrequency;
     //if (airframe && airframe->getCarrierFrequency() > 0.0)
     if (airframe->getCarrierFrequency() > 0.0)  // XXX removed redundant check
+    {
         frequency = airframe->getCarrierFrequency();
+    }
 
     if (distance < MIN_DISTANCE)
+    {
         distance = MIN_DISTANCE;
+    }
 
     rcvdPow = receptionModel->calculateReceivedPower(airframe->getPSend(), frequency, distance);
     if (obstacles && distance > MIN_DISTANCE)
+    {
         rcvdPow = obstacles->calculateReceivedPower(rcvdPow, carrierFrequency, framePos, 0, getRadioPosition(), 0);
+    }
     airframe->setPowRec(rcvdPow);
     // store the receive power in the recvBuff
     recvBuff[airframe] = rcvdPow;
@@ -925,12 +972,15 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
         SnrList list;
         list = snrInfo.sList;
 
-        // delete the pointer to indicate that no message is currently
-        // being received and clear the list
+        // delete the pointer to indicate that no message is currently being received and clear the list
         double snirMin = snrInfo.sList.begin()->snr;
         for (SnrList::const_iterator iter = snrInfo.sList.begin(); iter != snrInfo.sList.end(); iter++)
+        {
             if (iter->snr < snirMin)
+            {
                 snirMin = iter->snr;
+            }
+        }
         snrInfo.ptr = NULL;
         snrInfo.sList.clear();
 
@@ -949,7 +999,9 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
             numGivenUp++;
         }
         else
+        {
             numReceivedCorrectly++;
+        }
 
         if ((numReceivedCorrectly + numGivenUp) % 50 == 0)
         {
@@ -1002,10 +1054,15 @@ void IEEE802154Radio::addNewSnr()
 
 void IEEE802154Radio::changeChannel(int channel)
 {
+    // Basic checks
     if (channel == rs.getChannelNumber())
+    {
         return;
+    }
     if (rs.getState() == RadioState::TRANSMIT)
+    {
         error("Changing channel while transmitting is not allowed");
+    }
 
     // Clear the recvBuff
     for (RecvBuff::iterator it = recvBuff.begin(); it != recvBuff.end(); ++it)
@@ -1017,17 +1074,17 @@ void IEEE802154Radio::changeChannel(int channel)
     }
     recvBuff.clear();
 
-    // clear SNR info
+    // Clear SNR info
     snrInfo.ptr = NULL;
     snrInfo.sList.clear();
 
-    // reset the noiseLevel
+    // Reset the noiseLevel
     noiseLevel = thermalNoise;
 
     if (rs.getState() != RadioState::IDLE)
         rs.setState(RadioState::IDLE);  // Force IEEE802154Radio to Idle
 
-    // do channel switch
+    // Do channel switch
     radioEV << "Changing to channel #" << channel << endl;
 
     emit(channelNumberSignal, channel);
@@ -1101,16 +1158,23 @@ void IEEE802154Radio::changeChannel(int channel)
 
 void IEEE802154Radio::setBitrate(int bitrate, bool firstTime)
 {
+    // Basic checks
     if (rs.getBitrate() == bitrate)
+    {
         return;
+    }
 
     if (bitrate < 0)
+    {
         error("SetBitrate(): bit rate cannot be negative (%g)", bitrate);
+    }
 
     if (rs.getState() == RadioState::TRANSMIT)
+    {
         error("SetBitrate(): changing the bit rate while transmitting is not allowed");
+    }
 
-    // TODO Check and update the symbol rate to the newer IEEE 802.15.4 revisions
+    // TODO Check and update the symbol rate to newer IEEE 802.15.4 revisions
     switch (bitrate)
     {
         case 20000:
@@ -1127,11 +1191,13 @@ void IEEE802154Radio::setBitrate(int bitrate, bool firstTime)
             break;
     }
 
-    radioEV << "Setting bit rate to " << (bitrate / 1e3) << "Kbps \n";
+    radioEV << "Setting bit rate to " << (bitrate / 1e3) << "Kbps" << endl;
 
     // Don't emit signal during Radio::initialize, only afterwards
     if (!firstTime)
+    {
         emit(bitrateSignal, bitrate);
+    }
 
     rs.setBitrate(bitrate);
 }
@@ -1167,14 +1233,20 @@ void IEEE802154Radio::updateSensitivity(double rate)
 
     SensitivityList::iterator it = sensitivityList.find(rate);
     if (it != sensitivityList.end())
+    {
         sensitivity = it->second;
+    }
     else
+    {
         sensitivity = sensitivityList[0.0];
+    }
 
     if (!par("setReceptionThreshold").boolValue())
+    {
         receptionThreshold = sensitivity;
+    }
 
-    radioEV << "updateSensitivity(): bit rate = " << (rate / 1e3) << "Kbps\n";
+    radioEV << "updateSensitivity(): bit rate = " << (rate / 1e3) << "Kbps \n";
     radioEV << "updateSensitivity(): sensitivity after updateSensitivity: " << sensitivity << endl;
 }
 
@@ -1189,7 +1261,9 @@ void IEEE802154Radio::registerBattery()
         double mUsageIEEE802154RadioSleep = par("usage_IEEE802154Radio_sleep");
         double mUsageIEEE802154RadioSend = par("usage_IEEE802154Radio_send");
         if (mUsageIEEE802154RadioIdle < 0 || mUsageIEEE802154RadioRecv < 0 || mUsageIEEE802154RadioSleep < 0 || mUsageIEEE802154RadioSend < 0)
+        {
             return;
+        }
         bat->registerWirelessDevice(rs.getRadioId(), mUsageIEEE802154RadioIdle, mUsageIEEE802154RadioRecv, mUsageIEEE802154RadioSend, mUsageIEEE802154RadioSleep);
     }
 }
@@ -1203,7 +1277,10 @@ void IEEE802154Radio::updateDisplayString()
     // avoid a big modification, we reuse those methods.
 
     if (!ev.isGUI() || !drawCoverage)  // nothing to do
+    {
         return;
+    }
+
     if (myRadioRef)
     {
         cDisplayString& d = hostModule->getDisplayString();
@@ -1223,10 +1300,16 @@ void IEEE802154Radio::updateDisplayString()
             d.setTagArg("r2", 0, (long) calcDistFreeSpace());
         d.setTagArg("r2", 2, "blue");
     }
+
     if (updateString == NULL && updateStringInterval > 0)
+    {
         updateString = new cMessage("refresh timer");
+    }
+
     if (updateStringInterval > 0)
+    {
         scheduleAt(simTime() + updateStringInterval, updateString);
+    }
 }
 
 double IEEE802154Radio::calcDistFreeSpace()
@@ -1264,12 +1347,16 @@ void IEEE802154Radio::receiveSignal(cComponent *source, simsignal_t signalID, cO
         if (BASE_NOISE_LEVEL < receptionThreshold)
         {
             if (rs.getState() == RadioState::RECV && snrInfo.ptr == NULL)
+            {
                 setRadioState(RadioState::IDLE);
+            }
         }
         else
         {
             if (rs.getState() != RadioState::IDLE)
+            {
                 setRadioState(RadioState::RECV);
+            }
         }
     }
 }
@@ -1279,7 +1366,9 @@ void IEEE802154Radio::disconnectReceiver()
     receiverConnect = false;
     cc->disableReception(this->myRadioRef);
     if (rs.getState() == RadioState::TRANSMIT)
+    {
         error("changing channel while transmitting is not allowed");
+    }
 
     // Clear the recvBuff
     for (RecvBuff::iterator it = recvBuff.begin(); it != recvBuff.end(); ++it)
@@ -1302,7 +1391,9 @@ void IEEE802154Radio::connectReceiver()
     cc->enableReception(this->myRadioRef);
 
     if (rs.getState() != RadioState::IDLE)
+    {
         rs.setState(RadioState::IDLE);  // Force IEEE802154Radio to Idle
+    }
 
     cc->setRadioChannel(myRadioRef, rs.getChannelNumber());
     cModule *myHost = findHost();
@@ -1382,7 +1473,9 @@ void IEEE802154Radio::getSensitivityList(cXMLElement* xmlConfig)
             const char* sensitivityStr = (*it)->getAttribute("Sensitivity");
             double rate = atof(bitRate);
             if (rate == 0)
+            {
                 error("invalid bit rate");
+            }
             double sens = atof(sensitivityStr);
             sensitivityList[rate] = FWMath::dBm2mW(sens);
 
@@ -1456,7 +1549,9 @@ void IEEE802154Radio::genCCAConf(bool success)
 
     send(ccaConf, "upperLayerOut");
     if (selfCCAMsg->isScheduled())
+    {
         cancelEvent(selfCCAMsg);
+    }
 
     ccaMode1 = false;
     ccaMode2 = false;
@@ -1497,7 +1592,9 @@ void IEEE802154Radio::generateEDconf(double rcvdPower, int status)
     }
 
     if (selfEDMsg->isScheduled())
+    {
         cancelEvent(selfEDMsg);
+    }
 
     edConf->setKind(status);
     send(edConf, "upperLayerOut");

@@ -34,8 +34,8 @@ class IEEE802154Phy : public cSimpleModule
 {
 
     public:
-        IEEE802154Phy();
-        virtual ~IEEE802154Phy();
+        IEEE802154Phy(){};  // std Ctor
+        virtual ~IEEE802154Phy(){};  // std Dtor
 
     protected:
         /** @brief Debug output switch for the IEEE 802.15.4 PHY module */

@@ -31,7 +31,9 @@ const MACAddressExt MACAddressExt::MULTICAST_PAUSE_ADDRESS("01:80:C2:00:00:00:00
 unsigned char MACAddressExt::getAddressByte(unsigned int k) const
 {
     if (k >= MAC_ADDRESS_SIZE)
+    {
         throw cRuntimeError("Array of size 8 indexed with %d", k);
+    }
     int offset = (MAC_ADDRESS_SIZE - k - 1) * 8;
     return 0xff & (address >> offset);
 }
@@ -39,7 +41,9 @@ unsigned char MACAddressExt::getAddressByte(unsigned int k) const
 void MACAddressExt::setAddressByte(unsigned int k, unsigned char addrbyte)
 {
     if (k >= MAC_ADDRESS_SIZE)
+    {
         throw cRuntimeError("Array of size 8 indexed with %d", k);
+    }
     int offset = (MAC_ADDRESS_SIZE - k - 1) * 8;
     address = (address & (~(((uint64) 0xff) << offset))) | (((uint64) addrbyte) << offset);
 }
@@ -47,7 +51,9 @@ void MACAddressExt::setAddressByte(unsigned int k, unsigned char addrbyte)
 bool MACAddressExt::tryParse(const char *hexstr)
 {
     if (!hexstr)
+    {
         return false;
+    }
 
     // check syntax
     int numHexDigits = 0;
@@ -76,7 +82,9 @@ bool MACAddressExt::tryParse(const char *hexstr)
         else
         {
             while (*s && !isxdigit(*s))
+            {
                 s++;
+            }
             if (!*s)
             {
                 setAddressByte(pos, 0);
@@ -87,7 +95,9 @@ bool MACAddressExt::tryParse(const char *hexstr)
             s++;
 
             while (*s && !isxdigit(*s))
+            {
                 s++;
+            }
             if (!*s)
             {
                 setAddressByte(pos, 0);
@@ -106,20 +116,26 @@ bool MACAddressExt::tryParse(const char *hexstr)
 void MACAddressExt::setAddress(const char *hexstr)
 {
     if (!tryParse(hexstr))
+    {
         throw cRuntimeError("MACAddress: wrong address syntax '%s': 16 hex digits expected, with optional embedded spaces, hyphens or colons", hexstr);
+    }
 }
 
 void MACAddressExt::getAddressBytes(unsigned char *addrbytes) const
 {
     for (int i = 0; i < MAC_ADDRESS_SIZE; i++)
+    {
         addrbytes[i] = getAddressByte(i);
+    }
 }
 
 void MACAddressExt::setAddressBytes(unsigned char *addrbytes)
 {
     address = 0; // clear top 16 bits too that setAddressByte() calls skip
     for (int i = 0; i < MAC_ADDRESS_SIZE; i++)
+    {
         setAddressByte(i, addrbytes[i]);
+    }
 }
 
 // New (from 802.11 MACAddress.h) definition of str
@@ -128,14 +144,17 @@ std::string MACAddressExt::str() const
     char buf[24];
     char *s = buf;
     for (int i = 0; i < MAC_ADDRESS_SIZE; i++, s += 3)
+    {
         sprintf(s, "%2.2X:", getAddressByte(i));
+    }
     *(s - 1) = '\0';
     return std::string(buf);
 }
 
 int MACAddressExt::compareTo(const MACAddressExt& other) const
 {
-    return (address < other.address) ? -1 : (address == other.address) ? 0 : 1; // note: "return address-other.address" is not OK because 64-bit result does not fit into the return type
+    // note: "return address-other.address" is not OK because 64-bit result does not fit into the return type
+    return (address < other.address) ? -1 : (address == other.address) ? 0 : 1;
 }
 
 MACAddressExt MACAddressExt::generateAutoAddress()

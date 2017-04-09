@@ -24,9 +24,9 @@
 class macFrameControlField
 {
     public:
-        macFrameControlField(); //Standard Ctor
+        macFrameControlField(){};   // Std Ctor
+        ~macFrameControlField(){};  // Std Dtor
         unsigned short genFCF(frameType ft, bool sec, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fV, AddrMode sam); // Frame....
-        ~macFrameControlField();
 
 //    private:
 //        bool ackReq;  // variable not used anymore

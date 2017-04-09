@@ -97,9 +97,9 @@ MACAddressExt* llc::tokenDest(cMessage* msg)
 
     // Use the internal representation of the IPv6 address to create the 64-bit EUI MAC address
     // create 8 groups with each 16 bit's (aka 8 tupels)
-    uint16_t groups[8] = { uint16_t(*&destAddr.words()[0] >> 16), uint16_t(*&destAddr.words()[0] & 0xffff), uint16_t(*&destAddr.words()[1] >> 16),
-            uint16_t(*&destAddr.words()[1] & 0xffff), uint16_t(*&destAddr.words()[2] >> 16), uint16_t(*&destAddr.words()[2] & 0xffff), uint16_t(
-                     *&destAddr.words()[3] >> 16), uint16_t(*&destAddr.words()[3] & 0xffff) };
+    uint16_t groups[8] = { uint16_t(*&destAddr.words()[0] >> 16), uint16_t(*&destAddr.words()[0] & 0xffff), uint16_t(*&destAddr.words()[1] >> 16), uint16_t(*&destAddr.words()[1]
+            & 0xffff), uint16_t(*&destAddr.words()[2] >> 16), uint16_t(*&destAddr.words()[2] & 0xffff), uint16_t(*&destAddr.words()[3] >> 16), uint16_t(*&destAddr.words()[3]
+            & 0xffff) };
 
     std::string destString;
 
@@ -218,7 +218,7 @@ void llc::handleMessage(cMessage *msg)
             mcpsDataReq* data = new mcpsDataReq("MCPS-DATA.request");
             data->encapsulate(pack);
             //data->setMsduHandle(pack->getId());   // using the message ID can get problematic during longer simulations
-                                                    // because the 8 bit DSN value on the MAC layer is going to overflow
+            // because the 8 bit DSN value on the MAC layer is going to overflow
             data->setMsduHandle(msgHandle);
             if (msgHandle < 255)
             {
@@ -313,7 +313,7 @@ void llc::handleMessage(cMessage *msg)
                     unsigned short beaconOrder = par("BeaconOrder");
                     unsigned short superframeOrder = par("SuperframeOrder");
                     bool batteryLifeExtension = par("BatteryLifeExtension");
-                    bool coordRealignment = par("CoordRealignment");        
+                    bool coordRealignment = par("CoordRealignment");
 
                     startMsg = new StartRequest("MLME-START.request");
                     startMsg->setPANId(panId);
@@ -371,7 +371,9 @@ void llc::handleMessage(cMessage *msg)
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
                 mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
-                llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle() << endl;
+                llcEV
+                << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle()
+                        << endl;
                 send(conf, "outApp");
                 //delete (msg); // XXX fix for undisposed object: (mcpsDataConf) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.confirmation
                 return;

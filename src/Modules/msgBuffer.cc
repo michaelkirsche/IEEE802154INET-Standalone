@@ -83,8 +83,8 @@ void msgBuffer::handleMessage(cMessage* msg)
             }
 
             send(purgeConf, "outSSCS");
-            delete(msg);        // fix for undisposed object message
-            delete(purgeReq);   // fix for undisposed object message
+            delete (msg);        // fix for undisposed object message
+            delete (purgeReq);   // fix for undisposed object message
         }
         else
         {
@@ -136,7 +136,7 @@ void msgBuffer::handleMessage(cMessage* msg)
                             send(toMac, "outMLME");
                     }
                 }
-                delete(msg);    // XXX solving undisposed object error for Buffer-get-Elem
+                delete (msg);    // XXX solving undisposed object error for Buffer-get-Elem
             }
             else
             {
@@ -182,6 +182,7 @@ cMessage* msgBuffer::getElem()
     {
         start++;
     }
+
     if (start == end)
     {
         isEmpty = true;

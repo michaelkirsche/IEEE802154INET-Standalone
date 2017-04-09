@@ -79,7 +79,7 @@ class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add I
         /** @brief Debug output switch for the IEEE 802.15.4 Radio */
         bool radioDebug = false;
 
-        // added functionality for IEEE 802.15.4 support
+        /** added functionality for IEEE 802.15.4 support */
         void performED();
         void generateEDconf(double power, int EDval);
         void performCCA();
@@ -177,13 +177,15 @@ class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add I
 
         virtual void updateDisplayString();
 
-        // Methods to calculate distances and minimum power level to receive signals
+        /** Methods to calculate distances and minimum power level to receive signals */
         double calcDistFreeSpace();
         double calcDistDoubleRay();
 
     protected:
-        // Support of noise generators
-        // Noise generators allow the IEEE802154Radio to change between RECV <--> IDLE without receiving a frame
+        /**
+         * Support of noise generators
+         * Noise generators allow the IEEE802154Radio to change between RECV <--> IDLE without receiving a frame
+         */
         static simsignal_t changeLevelNoise;
         virtual void receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj);
 
@@ -276,24 +278,24 @@ class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add I
          */
         double sensitivity;
 
-        /*
-         *  minimum signal necessary to change the channel state to RECV
+        /**
+         * minimum signal necessary to change the channel state to RECV
          */
         double receptionThreshold;
 
-        /*
+        /**
          * this variable is used to disconnect the possibility of sent packets to the ChannelControl
          */
         bool transceiverConnect;
         bool receiverConnect;
 
-        /*
+        /**
          * Symbol rate of the PHY
          * Different symbol rates for different frequencies and bit rates (refer to IEEE 802.15.4 specs)
          */
         double symbolRate;
 
-        // if true --> draw coverage circles
+        /** if true --> draw coverage circles */
         bool drawCoverage;
         bool doubleRayCoverage;
 
@@ -301,21 +303,21 @@ class IEEE802154Radio : public ChannelAccess //, public ILifecycle // TODO Add I
         bool activeED;
         cMessage* selfEDMsg;
 
-        // Boolean values for the 3 different CCAModes
+        /** Boolean values for the 3 different CCAModes */
         bool ccaMode1;
         bool ccaMode2;
         unsigned short ccaMode;
         cMessage* selfCCAMsg;
 
-        // used for CCA and ED answer
+        /** used for CCA and ED answer  */
         double rcvdPow;
         double distance;
         static const double channelFreq[27];
 
-        // ID of this Module, required for RadioID
+        /** ID of this Module, required for RadioID */
         int iD;
 
-        /* statistics: */
+        /** statistics: */
         static simsignal_t bitrateSignal;
         static simsignal_t IEEE802154RadioStateSignal; //enum
         static simsignal_t channelNumberSignal;

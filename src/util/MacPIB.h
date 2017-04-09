@@ -31,7 +31,7 @@ class MacPIB
 {
     public:
         MacPIB();
-        virtual ~MacPIB();
+        virtual ~MacPIB(){};    // Std. Dtor
 
         /** @brief Getters and Setters for the whole MPIB */
         int getMacAckWaitDuration();

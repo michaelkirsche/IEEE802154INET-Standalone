@@ -17,15 +17,18 @@
 
 #include "sscs.h"
 
-Define_Module(sscs);
+Define_Module (sscs);
 
 void sscs::initialize()
 {
     if (hasPar("sscsDebug"))
+    {
         sscsDebug = par("sscsDebug").boolValue();
+    }
     else
+    {
         sscsDebug = false;
-
+    }
 }
 
 void sscs::handleMessage(cMessage *msg)
@@ -84,15 +87,5 @@ void sscs::handleMessage(cMessage *msg)
             sscsEV << "Unknown Packet type -- Doing nothing at all\n";
         }
     }
-
-}
-
-sscs::sscs()
-{
-
-}
-
-sscs::~sscs()
-{
 
 }
