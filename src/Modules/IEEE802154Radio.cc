@@ -150,8 +150,9 @@ void IEEE802154Radio::initialize(int stage)
         newChannel = -1;
 
         // statistics
-        numGivenUp = 0;
+        numReceivedButGivenUp = 0;
         numReceivedCorrectly = 0;
+        lossRate = 0;
 
         // Initialize IEEE802154Radio state. If thermal noise is already to high,
         // IEEE802154Radio state has to be initialized as RECV
@@ -160,9 +161,6 @@ void IEEE802154Radio::initialize(int stage)
         {
             rs.setState(RadioState::RECV);
         }
-
-        WATCH(noiseLevel);
-        WATCH(rs);
 
         obstacles = ObstacleControlAccess().getIfExists();
         if (obstacles)
@@ -247,8 +245,12 @@ void IEEE802154Radio::initialize(int stage)
     {
         registerBattery();
 
-        WATCH(numGivenUp);
+        WATCH(noiseLevel);
+        WATCH(rs);
+
+        WATCH(numReceivedButGivenUp);
         WATCH(numReceivedCorrectly);
+        WATCH(lossRate);
 
         // tell initial values to MAC; must be done in stage 1, because they subscribe in stage 0
         nb->fireChangeNotification(NF_RADIOSTATE_CHANGED, &rs);
@@ -935,7 +937,7 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
 
         //airframe->setSnr(10 * log10(recvBuff[airframe] / (BASE_NOISE_LEVEL)));        //ahmed
         airframe->setSnr(10 * log10(snirMin));  // TODO check which SNR calculation should be used
-        airframe->setLossRate(lossRate);
+        //airframe->setLossRate(lossRate);      // currently only used in INET 2.x, not sent up in 802.15.4 model
         // delete the frame from the recvBuff
         recvBuff.erase(airframe);
 
@@ -945,29 +947,25 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
             airframe->getEncapsulatedPacket()->getEncapsulatedPacket()->setKind(frameState);    // fix for setting of PhyIndications
             airframe->setName(frameState == COLLISION ? "COLLISION" : "BITERROR");  // msg name not evaluated for now
 
-            if (frameState == COLLISION)
+            if (ev.isGUI())    // only supported up to OMNeT 4.6, not compatible with OMNeT 5.x -> use hasGUI() there
             {
-                bubble("Packets collided - frameState COLLISION");
-            }
-            else if (frameState == BITERROR)
-            {
-                bubble("Packet got errors - frameState BITERROR");
+                if (frameState == COLLISION)
+                {
+                    bubble("Packets collided - frameState COLLISION");
+                }
+                else if (frameState == BITERROR)
+                {
+                    bubble("Packet got errors - frameState BITERROR");
+                }
             }
 
-            numGivenUp++;
+            numReceivedButGivenUp++;
         }
         else
         {
             numReceivedCorrectly++;
         }
 
-        if ((numReceivedCorrectly + numGivenUp) % 50 == 0)
-        {
-            lossRate = (double) numGivenUp / ((double) numReceivedCorrectly + (double) numGivenUp);
-            emit(lossRateSignal, lossRate);
-            numReceivedCorrectly = 0;
-            numGivenUp = 0;
-        }
         sendUp(airframe);
     }
     // all other messages are noise
@@ -986,9 +984,18 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
             addNewSnr();
         }
 
+        // noise messages are also count as "received but given up"
+        numReceivedButGivenUp++;
+
         // message should be deleted
         delete airframe;
         radioEV << "Message deleted \n";
+    }
+
+    if ((numReceivedCorrectly + numReceivedButGivenUp) % 10 == 0)
+    {
+        lossRate = (double) numReceivedButGivenUp / ((double) numReceivedCorrectly + (double) numReceivedButGivenUp);
+        emit(lossRateSignal, lossRate);
     }
 
     // check the RadioState and update if necessary

@@ -200,8 +200,8 @@ void IEEE802154Mac::initialize(int stage)
         // pkt counter
         numUpperPkt = 0;
         numUpperPktLost = 0;
-        numCollision = 0;
-        numBitError = 0;
+        numCollisions = 0;
+        numBitErrors = 0;
         numLostBcn = 0;
         numTxBcnPkt = 0;
         numTxDataSucc = 0;
@@ -226,8 +226,8 @@ void IEEE802154Mac::initialize(int stage)
         WATCH(inRxSD_rxSDTimer);
         WATCH(numUpperPkt);
         WATCH(numUpperPktLost);
-        WATCH(numCollision);
-        WATCH(numBitError);
+        WATCH(numCollisions);
+        WATCH(numBitErrors);
         WATCH(numLostBcn);
         WATCH(numTxBcnPkt);
         WATCH(numTxDataSucc);
@@ -1976,13 +1976,13 @@ bool IEEE802154Mac::filter(mpdu* pdu)
     if (pdu->getKind() == COLLISION)
     {
         macEV << "Frame is corrupted due to collision, dropped \n";
-        numCollision++;
+        numCollisions++;
         return true;
     }
     else if (pdu->getKind() == BITERROR)
     {
         macEV << "Frame is corrupted, was received with bit errors, dropped \n";
-        numBitError++;
+        numBitErrors++;
         return true;
     }
     // check if this Msg is send indirect and we are coordinator
@@ -2019,6 +2019,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
             error("[MAC]: Filtering error - unknown frame type!");
             //return true;
         }
+
         if (frmType == Beacon)
         {
             // check source PAN ID for beacon frame
@@ -3992,7 +3993,7 @@ void IEEE802154Mac::handleBcnRxTimer()
 
         if (bcnLossCounter != 0)
         {
-            numCollision++;
+            numCollisions++;
         }
         bcnLossCounter++;
         startBcnRxTimer();
@@ -5251,8 +5252,8 @@ void IEEE802154Mac::finish()
     recordScalar("Num of DATA pkts received", numRxDataPkt);
     recordScalar("Num of DATA pkts received in GTS", numRxGTSPkt);
     recordScalar("Num of ACK pkts received", numRxAckPkt);
-    recordScalar("Num of collisions", numCollision);
-    recordScalar("Num of bit errors", numBitError);
+    recordScalar("Num of collisions", numCollisions);
+    recordScalar("Num of bit errors", numBitErrors);
 
     return;
 }

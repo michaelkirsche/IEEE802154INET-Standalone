@@ -496,12 +496,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // num of incoming beacons lost in a row */
         unsigned char bcnLossCounter;
 
-        // num of Collisions
-        unsigned int numCollision;
-
-        // num of BitErrors
-        unsigned int numBitError;
-
         bool waitGTSConf;
         bool csmacaAckReq;
         bool csmacaWaitNextBeacon;
@@ -621,43 +615,50 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         /** @name Statistical variables */
         // number of data packets received from upper layer, counted in <handleUpperMsg()>
-        unsigned short numUpperPkt;
+        unsigned long numUpperPkt;
 
         // number of data packets from upper layer dropped by MAC due to busy MAC or invalid size (e.g. oversize), counted in <handleUpperMsg()>
-        unsigned short numUpperPktLost;
+        unsigned long numUpperPktLost;
 
         // number of incoming beacons lost, counted in <handleBcnRxTimer()>
-        unsigned short numLostBcn;
+        unsigned long numLostBcn;
 
         // number of transmitted beacons, counted in <taskSuccess('b')>
-        unsigned short numTxBcnPkt;
+        unsigned long numTxBcnPkt;
 
         // number of successfully transmitted data frames, counted in <taskSuccess('d')>
-        unsigned short numTxDataSucc;
+        unsigned long numTxDataSucc;
 
         // number of data frames that MAC failed to transmit, counted in <taskFailed()>
-        unsigned short numTxDataFail;
+        unsigned long numTxDataFail;
 
         // number of successfully transmitted data frames in GTS, counted in <taskSuccess('g')>
-        unsigned short numTxGTSSucc;
+        unsigned long numTxGTSSucc;
 
         // number of data frames that MAC failed to transmit in GTS, counted in <taskFailed()>
-        unsigned short numTxGTSFail;
+        unsigned long numTxGTSFail;
 
         // number of transmitted ACK frames, counted in <taskSuccess()>
-        unsigned short numTxAckPkt;
+        unsigned long numTxAckPkt;
 
         // number of received beacons, counted in <handleBeacon()>
-        unsigned short numRxBcnPkt;
+        unsigned long numRxBcnPkt;
 
         // number of received data frames, counted in <MCPS_DATA_indication()>
-        unsigned short numRxDataPkt;
+        unsigned long numRxDataPkt;
 
         // number of received data frames in GTS, counted in <MCPS_DATA_indication()>
-        unsigned short numRxGTSPkt;
+        unsigned long numRxGTSPkt;
 
         // count only ACKs received before timeout, for both Command and Data in <handleAck()>
-        unsigned short numRxAckPkt;
+        unsigned long numRxAckPkt;
+
+        // number of Collisions detected during frame reception and reported back from PHY to MAC
+        unsigned long numCollisions;
+
+        // num of BitErrors detected during frame reception and reported back from PHY to MAC
+        unsigned long numBitErrors;
+
 
         // outgoing PAN descriptor transmitted used by coordinators (TBD)
         PAN_ELE txPanDescriptor;

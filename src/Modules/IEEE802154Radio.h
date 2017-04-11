@@ -192,13 +192,6 @@ class IEEE802154Radio : public ChannelAccess
         IRadioModel *radioModel;
         IReceptionModel *receptionModel;
 
-        /** @name Statistics */
-        //@{
-        long numGivenUp;
-        long numReceivedCorrectly;
-        double lossRate;
-        //@}
-
         /** Power used to transmit messages */
         double transmitterPower;
 
@@ -313,11 +306,16 @@ class IEEE802154Radio : public ChannelAccess
         /** ID of this Module, required for RadioID */
         int iD;
 
-        /** statistics: */
+        /** @name Statistics */
         static simsignal_t bitrateSignal;
         static simsignal_t IEEE802154RadioStateSignal; //enum
         static simsignal_t channelNumberSignal;
         static simsignal_t lossRateSignal;
+
+        unsigned long numReceivedButGivenUp;
+        unsigned long numReceivedCorrectly;
+        double lossRate;
+
 };
 
 #endif /* IEEE802154Radio_H */
