@@ -22,7 +22,9 @@
 #include "MACAddressExt.h"
 #include "InterfaceToken.h"
 
-unsigned int MACAddressExt::autoAddressCtr;
+unsigned int MACAddressExt::autoAddressCtr = 0; // WARNING: variable is not resetted when simulations are "rebuild" from GUI
+                                                // always restart completely or else MAC addresses "add up" and
+                                                // configurations (from omnetpp.ini) might not work
 
 const MACAddressExt MACAddressExt::UNSPECIFIED_ADDRESS;
 const MACAddressExt MACAddressExt::BROADCAST_ADDRESS("FF:FF:FF:FF:FF:FF:FF:FF");
