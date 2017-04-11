@@ -413,24 +413,21 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                 delete (msg);       // undisposed object fix
                 return;
             }
-            else
+            // conditions changed to "support" INET's IDLE radio states
+            // or else IDLE would lead to a deadlock situation, when radio is switched to IDLE mode
+            // and the higher layers do not have any timers running to set it back to receive mode
+            // both IDLE (channel is empty -> radio is in receive mode) and
+            // and RECV (channel is busy -> radio is in receive mode)
+            // are actually receiving modes, decisions about corrupt packets are made later
+            else if ((rs.getState() == RadioState::RECV) || (rs.getState() == RadioState::IDLE))
             {
-                if (rs.getState() == RadioState::RECV)
-                {
                     handleLowerMsgStart(airframe);
                     bufferMsg(airframe);
-                }
-                else
-                {
-                    radioEV << "Radio is not in receive mode during this frame \n";
-                    delete (msg);       // undisposed object fix
-                    return;
-                }
             }
         }
         else
         {
-            radioEV << "Radio disabled. ignoring airframe! \n";
+            radioEV << "Radio not connected / disabled -- ignoring airframe! \n";
             delete msg;
             return;
         }
@@ -895,7 +892,7 @@ void IEEE802154Radio::handleLowerMsgStart(AirFrame* airframe)
 
         // update the RadioState if the noiseLevel exceeded the threshold
         // and the radio is currently not in receive or in send mode
-        if (BASE_NOISE_LEVEL >= receptionThreshold && rs.getState() == RadioState::IDLE)
+        if ((BASE_NOISE_LEVEL >= receptionThreshold) && (rs.getState() == RadioState::IDLE))
         {
             // Set new RadioState
             radioEV << "Setting radio state to RECV \n";

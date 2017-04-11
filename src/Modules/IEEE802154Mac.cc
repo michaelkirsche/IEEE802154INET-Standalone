@@ -227,6 +227,7 @@ void IEEE802154Mac::initialize(int stage)
         WATCH(numUpperPkt);
         WATCH(numUpperPktLost);
         WATCH(numCollision);
+        WATCH(numBitError);
         WATCH(numLostBcn);
         WATCH(numTxBcnPkt);
         WATCH(numTxDataSucc);
