@@ -201,6 +201,7 @@ void IEEE802154Mac::initialize(int stage)
         numUpperPkt = 0;
         numUpperPktLost = 0;
         numCollision = 0;
+        numBitError = 0;
         numLostBcn = 0;
         numTxBcnPkt = 0;
         numTxDataSucc = 0;
@@ -470,8 +471,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                 data->setFcf(fcf->genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
                 data->setIsGTS(false);
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
                 txData = data;
                 csmacaEntry('d');
@@ -484,8 +485,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 data->setFcf(fcf->genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
                 data->setIsGTS(false);
                 waitDataAck = true;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
                 txData = data;
                 csmacaEntry('d');
@@ -498,8 +499,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
                 data->setIsGTS(true);
                 waitDataAck = false;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txGTS == NULL);
                 txGTS = data;
                 csmacaEntry('d');
@@ -512,8 +513,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 data->setFcf(fcf->genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
                 data->setIsGTS(true);
                 waitDataAck = true;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txGTS == NULL);
                 txGTS = data;
                 csmacaEntry('d');
@@ -527,8 +528,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = false;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
                 txData = data;
                 csmacaEntry('d');
@@ -542,8 +543,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = true;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
                 txData = data;
                 csmacaEntry('d');
@@ -661,8 +662,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
 
                         // Associate Requests always direct to Coordinator
                         taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                        taskP.taskStep(task)++;strcpy
-                        (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                        taskP.taskStep(task)++; // advance to next task step
+                        strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
                         txData = holdMe;
                         csmacaEntry('d');
@@ -718,8 +719,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     {
                         case DIRECT_TRANS:
                         case INDIRECT_TRANS: {
-                            taskP.taskStep(task)++;strcpy
-                            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                            taskP.taskStep(task)++; // advance to next task step
+                            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                             ASSERT(txData == NULL);
                             txData = holdMe;
                             csmacaEntry('d');
@@ -727,10 +728,9 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         }
 
                         case GTS_TRANS: {
-                            taskP.taskStep(task)++;
+                            taskP.taskStep(task)++; // advance to next task step
                             // waiting for GTS arriving, callback from handleGtsTimer()
-                            strcpy
-                            (taskP.taskFrFunc(task), "handleGtsTimer");
+                            strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                             ASSERT(txData == NULL);
                             txData = holdMe;
                             numGTSRetry = 0;
@@ -777,11 +777,10 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     else
                     {
                         if (((disAss->getDeviceAddrMode() == addrLong) && (disAss->getDeviceAddress() == mpib.getMacCoordExtendedAddress()))
-                                || ((disAss->getDeviceAddrMode() == addrShort) && disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress()))
+                        || ((disAss->getDeviceAddrMode() == addrShort) && disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress()))
                         {
                             genDisAssoCmd(disAss, false);
                         }
-
                         else
                         {
                             genMLMEDisasConf(mac_INVALID_PARAMETER);
@@ -864,8 +863,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     {
                         case DIRECT_TRANS:
                         case INDIRECT_TRANS: {
-                            taskP.taskStep(task)++;strcpy
-                            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                            taskP.taskStep(task)++; // advance to next task step
+                            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                             ASSERT(txData == NULL);
                             txData = holdMe;
                             csmacaEntry('d');
@@ -873,10 +872,9 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         }
 
                         case GTS_TRANS: {
-                            taskP.taskStep(task)++;
+                            taskP.taskStep(task)++; // advance to next task step
                             // waiting for GTS arriving, callback from handleGtsTimer()
-                            strcpy
-                            (taskP.taskFrFunc(task), "handleGtsTimer");
+                            strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                             ASSERT(txData == NULL);
                             txData = holdMe;
                             numGTSRetry = 0;
@@ -1137,8 +1135,8 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
                 Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                 taskP.taskStatus(task) = true;
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
 
                 csmacaEntry('c');
 
@@ -1225,18 +1223,19 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
         return;
     }
 
-    unsigned short frmCtrl = frame->getFcf();
-    frameType frmType;
-    frmType = (frameType) ((frmCtrl & ftMask) >> ftShift);
-
-    macEV << (frmType == Beacon ? "Beacon" : (frmType == Data ? "Data" : (frmType == Ack ? "Ack" : "Command"))) << " frame received from PHY layer, start filtering now\n";
-    // perform MAC frame filtering
+    // perform MAC frame filtering (e.g., for collided or erroneous packets)
     if (filter(frame))
     {
-        macEV << "The received frame is filtered, drop frame \n";
+        macEV << "The received frame is filtered, frame dropped \n";
         delete frame;
         return;
     }
+
+    // determine the frame type (e.g., Data, Beacon, ACK, Command)
+    unsigned short frmCtrl = frame->getFcf();
+    frameType frmType;
+    frmType = (frameType) ((frmCtrl & ftMask) >> ftShift);
+    macEV << (frmType == Beacon ? "Beacon" : (frmType == Data ? "Data" : (frmType == Ack ? "Ack" : "Command"))) << " frame received from PHY, start filtering now\n";
 
     // check timing for GTS (debug)
     if (frmType == Data && frame->getIsGTS())
@@ -1972,16 +1971,17 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
 
 bool IEEE802154Mac::filter(mpdu* pdu)
 {
-    // First check flag set by PHY layer, COLLISION or RX_DURING_CCA
-    if (pdu->getKind() == phy_COLLISION)
+    // First check flag set by PHY layer, COLLISION or BITERROR
+    if (pdu->getKind() == COLLISION)
     {
-        macEV << "Frame corrupted due to collision, dropped \n";
+        macEV << "Frame is corrupted due to collision, dropped \n";
         numCollision++;
         return true;
     }
-    else if (pdu->getKind() == phy_RX_DURING_CCA)
+    else if (pdu->getKind() == BITERROR)
     {
-        macEV << "Frame corrupted due to being received during CCA, dropped \n";
+        macEV << "Frame is corrupted, was received with bit errors, dropped \n";
+        numBitError++;
         return true;
     }
     // check if this Msg is send indirect and we are coordinator
@@ -2150,7 +2150,7 @@ void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
     dataInd->setDstPANId(rxData->getDestPANid());
     dataInd->setDstAddr(rxData->getDest());
     dataInd->encapsulate(rxData->decapsulate());
-    dataInd->setMpduLinkQuality(rxData->getKind());  // extract LQI from msg kind - non-standard-compliant solution
+    //dataInd->setMpduLinkQuality(rxData->getKind());  // FIXME LQI should be extracted from PD-Indication ppduLinkQuality
     dataInd->setDSN(rxData->getSqnr());
 
     if (mpib.getMacSecurityEnabled())
@@ -2292,8 +2292,8 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
         {
             case DIRECT_TRANS:
             case INDIRECT_TRANS: {
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
                 txData = holdMe;
                 csmacaEntry('d');
@@ -2301,10 +2301,9 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
             }  // CASES DIRECT_TRANS & INDIRECT_TRANS
 
             case GTS_TRANS: {
-                taskP.taskStep(task)++;
+                taskP.taskStep(task)++; // advance to next task step
                 // waiting for GTS arriving, callback from handleGtsTimer()
-                strcpy
-                (taskP.taskFrFunc(task), "handleGtsTimer");
+                strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                 ASSERT(txData == NULL);
                 txData = holdMe;
                 numGTSRetry = 0;
@@ -2374,8 +2373,8 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
         {
             case DIRECT_TRANS:
             case INDIRECT_TRANS: {
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "csmacaDisAssociation");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "csmacaDisAssociation");
                 ASSERT(txData == NULL);
                 txData = holdMe;
                 csmacaEntry('d');
@@ -2383,10 +2382,9 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
             }  // cases DIRECT_TRANS & INDIRECT_TRANS
 
             case GTS_TRANS: {
-                taskP.taskStep(task)++;
+                taskP.taskStep(task)++; // advance to next task step
                 // waiting for GTS arriving, callback from handleGtsTimer()
-                strcpy
-                (taskP.taskFrFunc(task), "handleGtsTimer");
+                strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                 ASSERT(txData == NULL);
                 txGTS = holdMe;
                 numGTSRetry = 0;
@@ -2562,8 +2560,8 @@ void IEEE802154Mac::genOrphanInd()
     holdMe->setSrcPANid(mpib.getMacPANId());
     holdMe->setFcf(fcf->genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
     holdMe->setIsGTS(false);
-    taskP.taskStep(task)++;strcpy
-    (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+    taskP.taskStep(task)++; // advance to next task step
+    strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
     ASSERT(txData == NULL);
     txData = holdMe;
     csmacaEntry('d');
@@ -2687,8 +2685,8 @@ void IEEE802154Mac::doScan()
                 Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                 taskP.taskStatus(task) = true;
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 csmacaEntry('c');
                 scanStep++;
                 return;
@@ -2914,7 +2912,7 @@ void IEEE802154Mac::csmacaResume()
         // not during transmission
         if ((txBcnCmd) && (!waitBcnCmdAck))
         {
-            backoffStatus = 99;
+            backoffStatus = 99; // is backing off
             strcpy(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), "csmacaCallBack");  // the transmission may be interrupted and need to backoff again
             taskP.taskStep(TP_MCPS_DATA_REQUEST) = 1;  // also set the step
             // look up at bit 10 if it is set
@@ -3935,7 +3933,6 @@ simtime_t IEEE802154Mac::calDuration(mpdu* frame)
 // Check if this Frame is for our Coordinator or not
 bool IEEE802154Mac::toParent(mpdu* frame)
 {
-    //frame->getSrc();  //XXX not needed?!?
     if ((frame->getDest().getInt() == mpib.getMacCoordExtendedAddress().getInt()))
     {
         return true;
@@ -4523,8 +4520,8 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                     case DIRECT_TRANS:
                     case INDIRECT_TRANS: {
                         taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                        taskP.taskStep(task)++;strcpy
-                        (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                        taskP.taskStep(task)++; // advance to next task step
+                        strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         csmacaEntry('d');
@@ -4533,10 +4530,9 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
 
                     case GTS_TRANS: {
                         taskP.mcps_data_request_TxOption = GTS_TRANS;
-                        taskP.taskStep(task)++;
+                        taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
-                        strcpy
-                        (taskP.taskFrFunc(task), "handleGtsTimer");
+                        strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         numGTSRetry = 0;
@@ -4600,8 +4596,8 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                     case DIRECT_TRANS:
                     case INDIRECT_TRANS: {
                         taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                        taskP.taskStep(task)++;strcpy
-                        (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                        taskP.taskStep(task)++; // advance to next task step
+                        strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         csmacaEntry('d');
@@ -4610,10 +4606,9 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
 
                     case GTS_TRANS: {
                         taskP.mcps_data_request_TxOption = GTS_TRANS;
-                        taskP.taskStep(task)++;
+                        taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
-                        strcpy
-                        (taskP.taskFrFunc(task), "handleGtsTimer");
+                        strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         numGTSRetry = 0;
@@ -4695,8 +4690,8 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                     case DIRECT_TRANS:
                     case INDIRECT_TRANS: {
                         taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                        taskP.taskStep(task)++;strcpy
-                        (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                        taskP.taskStep(task)++; // advance to next task step
+                        strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         csmacaEntry('d');
@@ -4705,10 +4700,9 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
 
                     case GTS_TRANS: {
                         taskP.mcps_data_request_TxOption = GTS_TRANS;
-                        taskP.taskStep(task)++;
+                        taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
-                        strcpy
-                        (taskP.taskFrFunc(task), "handleGtsTimer");
+                        strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         numGTSRetry = 0;
@@ -4770,8 +4764,8 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                     case DIRECT_TRANS:
                     case INDIRECT_TRANS: {
                         taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                        taskP.taskStep(task)++;strcpy
-                        (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                        taskP.taskStep(task)++; // advance to next task step
+                        strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         csmacaEntry('d');
@@ -4780,10 +4774,9 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
 
                     case GTS_TRANS: {
                         taskP.mcps_data_request_TxOption = GTS_TRANS;
-                        taskP.taskStep(task)++;
+                        taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
-                        strcpy
-                        (taskP.taskFrFunc(task), "handleGtsTimer");
+                        strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
                         ASSERT(txData == NULL);
                         txData = getTxMsg();
                         numGTSRetry = 0;
@@ -4849,8 +4842,8 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
             case 1: {
                 if (pStatus == phy_IDLE)  // CSMA/CA succeeds
                 {
-                    taskP.taskStep(task)++;strcpy
-                    (taskP.taskFrFunc(task), "handle_PD_DATA_confirm");
+                    taskP.taskStep(task)++; // advance to next task step
+                    strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_confirm");
                     // enable the transmitter
                     genSetTrxState(phy_TX_ON);
                 }
@@ -4865,8 +4858,8 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
             case 2: {
                 if (((txData->getFcf()) & arequMask) >> arequShift)
                 {
-                    taskP.taskStep(task)++;strcpy
-                    (taskP.taskFrFunc(task), "handleAck");
+                    taskP.taskStep(task)++; // advance to next task step
+                    strcpy(taskP.taskFrFunc(task), "handleAck");
                     macEV << "[MAC-TASK-handleAck]: Data transmitted and timer for ACK is started now \n";
                     genSetTrxState(phy_RX_ON);
                     startAckTimeoutTimer();
@@ -4935,8 +4928,8 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
             case 1: {
                 // two possible callbacks, one from handleGtsTimer() at the starting of one GTS
                 // the other directly from MCPS_DATA_request(), only possible for devices when receiving a data from upper layer during the GTS
-                taskP.taskStep(task)++;strcpy
-                (taskP.taskFrFunc(task), "handle_PD_DATA_confirm");
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_confirm");
                 // should transmit right now, since the timing is very strictly controlled in GTS,
                 // we can simply use phy_FORCE_TRX_OFF and then phy_TX_ON to turn on transmitter immediately
                 genSetTrxState(phy_FORCE_TRX_OFF);
@@ -4949,8 +4942,8 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
             {
                 if (((txGTS->getFcf()) & arequMask) >> arequShift)  // check if ACK requested
                 {
-                    taskP.taskStep(task)++;strcpy
-                    (taskP.taskFrFunc(task), "handleAck");
+                    taskP.taskStep(task)++; // advance to next task step
+                    strcpy(taskP.taskFrFunc(task), "handleAck");
                     // enable the receiver
                     macEV << "[GTS]: data successfully transmitted, turn on radio and wait for ACK \n";
                     genSetTrxState(phy_RX_ON);
@@ -4983,11 +4976,10 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     macEV << "[GTS]: ACK for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << " received successfully, turn off radio now \n";
                     genSetTrxState(phy_FORCE_TRX_OFF);
                     macEV << "[GTS]: need to delay IFS before next GTS transmission can proceed \n";
-                    taskP.taskStep(task)++;
+                    taskP.taskStep(task)++; // advance to next task step
                     // XXX cancel the ACK timeout timer here?
                     //cancelEvent(ackTimeoutTimer);
-                    strcpy
-                    (taskP.taskFrFunc(task), "handleIfsTimer");
+                    strcpy(taskP.taskFrFunc(task), "handleIfsTimer");
                     if (txGTS->getByteLength() <= aMaxSIFSFrameSize)
                     {
                         startIfsTimer(true);
@@ -5136,7 +5128,6 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
         {
             ASSERT((taskP.taskStatus(TP_MCPS_DATA_REQUEST)) && (strcmp(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), frFunc) == 0));
 
-            //frmCtrl = txData->getFcf();   // not needed here
             if (taskP.taskStatus(TP_MCPS_DATA_REQUEST))
             {
                 FSM_MCPS_DATA_request(pStatus);  // mStatus ignored
@@ -5260,6 +5251,7 @@ void IEEE802154Mac::finish()
     recordScalar("Num of DATA pkts received in GTS", numRxGTSPkt);
     recordScalar("Num of ACK pkts received", numRxAckPkt);
     recordScalar("Num of collisions", numCollision);
+    recordScalar("Num of bit errors", numBitError);
 
     return;
 }

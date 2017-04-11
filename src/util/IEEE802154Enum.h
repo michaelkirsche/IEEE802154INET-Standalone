@@ -231,14 +231,6 @@ enum Ieee802154MacTaskType {
     TP_RX_ON_CSMACA
 };
 
-// for msgKind set by PHY layer
-enum PktErrorType {
-    phy_COLLISION = 1,    // FIXME already provided by PhyControlInfo.msg
-    phy_BITERROR,         // FIXME already provided by PhyControlInfo.msg
-    phy_BITERROR_FORCE_TRX_OFF,
-    phy_RX_DURING_CCA                   // packets received during CCA need to be discarded
-};
-
 enum PDStatus {
     PD_DATA_SUCCESS = 0,
     PD_DATA_RX_ON   = 1,

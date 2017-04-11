@@ -30,14 +30,16 @@
 
 #include "PPDU_m.h"
 #include "MPDU_m.h"
+#include "mcpsData_m.h"
 
 #include "macFrameControlField.h"
 #include "MACAddressExt.h"
 #include "IEEE802154Enum.h"
-#include "RadioState.h"
 #include "IEEE802154Fields.h"
-#include "NotificationBoard.h"
-#include "mcpsData_m.h"
+#include "RadioState.h"             // from INET - provides RadioState enums
+#include "PhyControlInfo_m.h"       // from INET - provides PhyIndication enums
+#include "NotificationBoard.h"      // from INET - provides NotificationBoard access
+
 
 #define macEV (ev.isDisabled()||!macDebug) ? EV : EV << "[802154_MAC]: "    // switchable debug output
 
@@ -70,7 +72,7 @@ const unsigned char  aMinLIFSPeriod = 40; // min # of symbols comprising a LIFS 
 const unsigned char  aMinSIFSPeriod = 12; // min # of symbols comprising a SIFS period
 // ------------------------------------------ //
 
-//---Additional MAC constants (from the 802.15.4-2006 Revision)
+//---Additional MAC constants (from the 802.15.4-2006 Revision)---
 const unsigned char  maxGTSAllocations = 7; // max # of allocated Guranteed Time Slots (GTS) (see Sec. 7.5.7 GTS allocation and management)
 
 //---Frequency bands and data rates (currently according 802.15.4-2003 Specs Table 1)---
@@ -493,8 +495,12 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         int bPeriodsLeft; // backoff periods left
         // num of incoming beacons lost in a row */
         unsigned char bcnLossCounter;
+
         // num of Collisions
-        unsigned short numCollision;
+        unsigned int numCollision;
+
+        // num of BitErrors
+        unsigned int numBitError;
 
         bool waitGTSConf;
         bool csmacaAckReq;

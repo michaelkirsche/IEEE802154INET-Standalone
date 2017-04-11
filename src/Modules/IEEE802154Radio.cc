@@ -247,6 +247,9 @@ void IEEE802154Radio::initialize(int stage)
     {
         registerBattery();
 
+        WATCH(numGivenUp);
+        WATCH(numReceivedCorrectly);
+
         // tell initial values to MAC; must be done in stage 1, because they subscribe in stage 0
         nb->fireChangeNotification(NF_RADIOSTATE_CHANGED, &rs);
         nb->fireChangeNotification(NF_RADIO_CHANNEL_CHANGED, &rs);
@@ -472,29 +475,34 @@ AirFrame *IEEE802154Radio::encapsulatePacket(cPacket *frame)
     airframe->setSenderPos(getRadioPosition());
     airframe->setCarrierFrequency(carrierFrequency);
 
-    radioEV<<"Frame ("<< frame->getClassName()<<")"<<frame->getName()<<" will be transmitted at "<<(airframe->getBitrate() / 1e3)<<"Kbps in "<<airframe->getDuration()<<"sec \n";
+    radioEV << "Frame (" << frame->getClassName() << ")" << frame->getName() << " will be transmitted at "
+            << (airframe->getBitrate() / 1e3) << "Kbps in " << airframe->getDuration() << "sec \n";
     return airframe;
 }
 
 void IEEE802154Radio::sendUp(AirFrame *airframe)
 {
     cPacket *frame = airframe->decapsulate();    // this is the Data request
-    radioEV<<"PD-Data.indication with SNR ratio: "<<airframe->getSnr()<<" and LossRate: "<< airframe->getLossRate()<<" and ReceivedPower: "<< airframe->getPowRec()<<endl;
+    radioEV << "Sending up PD-Data.indication with SNR ratio: " << airframe->getSnr() << " and LossRate: "
+            << airframe->getLossRate() <<" and ReceivedPower: " << airframe->getPowRec() << endl;
 
     pdDataInd* dataInd = new pdDataInd("PD-DATA.indication");
-    dataInd->setPpduLinkQuality(airframe->getSnr());
+    dataInd->setPpduLinkQuality(airframe->getSnr());    // setting LQI for the received packet, for later evaluation in MAC and App layer
     dataInd->setPsduLength(frame->getByteLength());
 
     if (frame->getEncapsulatedPacket() != NULL)
     {
+        short saveMsgKind = frame->getEncapsulatedPacket()->getKind();
         dataInd->encapsulate(frame->decapsulate());  // encapsulate the data from it
+        dataInd->getEncapsulatedPacket()->setKind(saveMsgKind);
+        // FIXME decapsulation is not necessary here, pdDataIndication should directly be sent to MAC, which unwrapps it
+        // and uses (e.g.) the LinkQualityIndicator
     }
     else
     {
         dataInd->encapsulate(frame);
     }
 
-    radioEV << "Sending up frame " << frame->getName() << endl;
     send(dataInd, upperLayerOut);
 }
 
@@ -937,8 +945,17 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
         PhyIndication frameState = radioModel->isReceivedCorrectly(airframe, list);
         if (frameState != FRAMEOK)
         {
-            airframe->getEncapsulatedPacket()->setKind(frameState);
-            airframe->setName(frameState == COLLISION ? "COLLISION" : "BITERROR");
+            airframe->getEncapsulatedPacket()->getEncapsulatedPacket()->setKind(frameState);    // fix for setting of PhyIndications
+            airframe->setName(frameState == COLLISION ? "COLLISION" : "BITERROR");  // msg name not evaluated for now
+
+            if (frameState == COLLISION)
+            {
+                bubble("Packets collided - frameState COLLISION");
+            }
+            else if (frameState == BITERROR)
+            {
+                bubble("Packet got errors - frameState BITERROR");
+            }
 
             numGivenUp++;
         }
@@ -1137,7 +1154,7 @@ void IEEE802154Radio::setBitrate(int bitrate, bool firstTime)
             break;
     }
 
-    radioEV << "Setting bit rate to " << (bitrate / 1e3) << "Kbps" << endl;
+    radioEV << "Setting bit rate to " << (bitrate / 1e3) << "Kbps \n";
 
     // Don't emit signal during Radio::initialize, only afterwards
     if (!firstTime)

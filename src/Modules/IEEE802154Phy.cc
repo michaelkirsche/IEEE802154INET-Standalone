@@ -206,10 +206,11 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             pdDataInd *pdu = check_and_cast<pdDataInd*>(msg);
             if (pdu->getEncapsulatedPacket() != NULL)
             {
-                cPacket* payload = pdu->decapsulate();
-
-                payload->setKind(pdu->getPpduLinkQuality()); // XXX we hide LQI in kind - why not directly create an indication???
-
+                cPacket* payload = pdu->decapsulate();  // use cPacket since it can either be an MPDU or an ACK
+                //payload->setKind(pdu->getPpduLinkQuality());  // FIXME we cannot hide LQI in kind because PhyIndication enums are saved there for MAC filtering
+                // XXX PHY should actually forward the pdDataIndication to the MAC, not decapsulate and only forward the PPDU
+                // LQI from pdDataIndication is needed for mscp.DataIndication
+                // in function: void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
                 phyEV << "is sending up the Payload of " << pdu->getName() << " which is a " << payload->getName() << endl;
 
                 send(payload, "outPD");
