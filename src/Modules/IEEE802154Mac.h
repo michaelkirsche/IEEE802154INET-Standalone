@@ -70,6 +70,9 @@ const unsigned char  aMinLIFSPeriod = 40; // min # of symbols comprising a LIFS 
 const unsigned char  aMinSIFSPeriod = 12; // min # of symbols comprising a SIFS period
 // ------------------------------------------ //
 
+//---Additional MAC constants (from the 802.15.4-2006 Revision)
+const unsigned char  maxGTSAllocations = 7; // max # of allocated Guranteed Time Slots (GTS) (see Sec. 7.5.7 GTS allocation and management)
+
 //---Frequency bands and data rates (currently according 802.15.4-2003 Specs Table 1)---
 // TODO: Add Specs from 2009 and newer revisions (frequencies / data & symbol rates)
 const double BR_868M = 20;      // 20 kb/s   -- ch 0
@@ -471,8 +474,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // number of GTS descriptors being maintained
         unsigned char gtsCount;
 
-        // list of GTS descriptors for all existing GTS being maintained */
-        GTSDescriptor gtsList[7];
+        // list of GTS descriptors for all existing GTS being maintained - max # defined as constant */
+        GTSDescriptor gtsList[maxGTSAllocations];
 
         simtime_t gtsTransDuration;
 

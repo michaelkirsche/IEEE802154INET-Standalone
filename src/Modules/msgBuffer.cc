@@ -136,7 +136,7 @@ void msgBuffer::handleMessage(cMessage* msg)
                             send(toMac, "outMLME");
                     }
                 }
-                delete (msg);    // XXX solving undisposed object error for Buffer-get-Elem
+                delete (msg);    // solving undisposed object error for Buffer-get-Elem
             }
             else
             {
@@ -178,7 +178,7 @@ cMessage* msgBuffer::getElem()
         return NULL;
     }
 
-    while (dynamic_cast<cMessage*>(buffer.get(start)) == NULL && start < end)
+    while ((dynamic_cast<cMessage*>(buffer.get(start)) == NULL) && (start < end))
     {
         start++;
     }

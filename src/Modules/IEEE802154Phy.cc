@@ -22,14 +22,8 @@ Define_Module(IEEE802154Phy);
 
 void IEEE802154Phy::initialize()
 {
-    if (hasPar("phyDebug"))
-    {
-        phyDebug = par("phyDebug").boolValue();
-    }
-    else
-    {
-        phyDebug = false;
-    }
+    // initialize the debug ouput bool from NED parameter value
+    phyDebug = (hasPar("phyDebug") ? (par("phyDebug").boolValue()) : (false));
 
     trxState = phy_IDLE;
 
@@ -213,10 +207,9 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             if (pdu->getEncapsulatedPacket() != NULL)
             {
                 cPacket* payload = pdu->decapsulate();
-                //if (pdu->getLqi() > 0)
-                //{
+
                 payload->setKind(pdu->getPpduLinkQuality()); // XXX we hide LQI in kind - why not directly create an indication???
-                //}
+
                 phyEV << "is sending up the Payload of " << pdu->getName() << " which is a " << payload->getName() << endl;
 
                 send(payload, "outPD");

@@ -25,14 +25,8 @@ Define_Module(llc);
 
 void llc::initialize()
 {
-    if (hasPar("llcDebug"))
-    {
-        llcDebug = par("llcDebug").boolValue();
-    }
-    else
-    {
-        llcDebug = false;
-    }
+    // initialize the debug ouput bool from NED parameter value
+    llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
 
     /* This is for Application layers which cannot send out MCPS primitives
      * if a true LLC is available, it will take care of it
@@ -265,13 +259,13 @@ void llc::handleMessage(cMessage *msg)
                 {
                     llcEV << "Beacon Notify received and associated - no further processing of the Beacon Notify \n";
                 }
-            }
+            } // (dynamic_cast<beaconNotify*>(msg))
 
             if (dynamic_cast<StartConfirm*>(msg))
             {
                 // TODO divide between "started your own PAN" and "found a PAN and starting association process" ??
                 llcEV << "Got MLME-START.confirm from lower layer \n";
-            }
+            } // (dynamic_cast<StartConfirm*>(msg))
 
             if (dynamic_cast<ScanConfirm*>(msg))
             {
@@ -331,20 +325,20 @@ void llc::handleMessage(cMessage *msg)
                     startMsg->setPANCoordinator(false);
                     send(startMsg, "outMngt");
                 }
-            }
+            } // (dynamic_cast<ScanConfirm*>(msg))
 
             if (dynamic_cast<AssociationConfirm*>(msg))
             {
                 llcEV << "Association Confirm received - association process was successful \n";
                 associateSuccess = true;
-            }
+            } // (dynamic_cast<AssociationConfirm*>(msg))
 
             if (dynamic_cast<OrphanIndication*>(msg))
             {
                 // just for convenience of functional tests
                 OrphanIndication* oi = check_and_cast<OrphanIndication*>(msg);
                 genOrphanResp(oi);
-            }
+            } // (dynamic_cast<OrphanIndication*>(msg))
 
             // Since we are converting assume application layer won't understand any MLME messages
             llcEV << "convertingMode -> deleting MLME Message without forwarding it to higher layer -> " << msg->getFullName() << endl;
@@ -368,18 +362,16 @@ void llc::handleMessage(cMessage *msg)
                 cPacket* payload = ind->decapsulate();
                 llcEV << "Forwarding MCPS-Data.indication for Message #" << (int) ind->getDSN() << " to the higher layer \n";
                 send(payload, "outApp");
-                //delete (msg); // XXX fix for undisposed object: (mcpsDataInd) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.indication
                 return;
-            }
+            } // (dynamic_cast<mcpsDataInd*>(msg))
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
                 mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
                 llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #"
                       << (int) conf->getMsduHandle() << endl;
                 send(conf, "outApp");
-                //delete (msg); // XXX fix for undisposed object: (mcpsDataConf) net.IEEE802154Nodes[0].Network.stdLLC.MCPS-DATA.confirmation
                 return;
-            }
+            } // (dynamic_cast<mcpsDataConf*>(msg))
             else
             {
                 error("[LLC]: Undefined Message arrived on inData gate!");
@@ -391,7 +383,7 @@ void llc::handleMessage(cMessage *msg)
             send(msg, "outApp");
             return;
         }
-    }
+    } // msg->arrivedOn("inMngt")
 }
 
 llc::llc()

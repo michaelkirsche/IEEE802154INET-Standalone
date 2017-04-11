@@ -26,14 +26,8 @@ void IEEE802154Mac::initialize(int stage)
     cSimpleModule::initialize(stage);
     if (stage == 0)
     {
-        if (hasPar("macDebug"))
-        {
-            macDebug = par("macDebug").boolValue();
-        }
-        else
-        {
-            macDebug = false;
-        }
+        // initialize the debug ouput bool from NED parameter value
+        macDebug = (hasPar("macDebug") ? (par("macDebug").boolValue()) : (false));
 
         macEV << "Initializing Stage 0 \n";
         syncLoss = false;
@@ -179,7 +173,7 @@ void IEEE802154Mac::initialize(int stage)
 
         // GTS variables for PAN coordinator
         gtsCount = 0;
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < maxGTSAllocations; i++)
         {
             gtsList[i].devShortAddr = myMacAddr.getShortAddr();
             gtsList[i].startSlot = 0;
@@ -1235,8 +1229,7 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
     frameType frmType;
     frmType = (frameType) ((frmCtrl & ftMask) >> ftShift);
 
-    macEV
-    << (frmType == Beacon ? "Beacon" : (frmType == Data ? "Data" : (frmType == Ack ? "Ack" : "Command"))) << " frame received from the PHY layer, performing filtering now... \n";
+    macEV << (frmType == Beacon ? "Beacon" : (frmType == Data ? "Data" : (frmType == Ack ? "Ack" : "Command"))) << " frame received from PHY layer, start filtering now\n";
     // perform MAC frame filtering
     if (filter(frame))
     {
@@ -2171,7 +2164,9 @@ void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
     dataInd->setMsduLength(dataInd->getByteLength());
 
     if (mpib.getMacTimestampSupported())
+    {
         dataInd->setTimestamp(simTime());
+    }
 
     send(dataInd, "outMCPS");
     return;

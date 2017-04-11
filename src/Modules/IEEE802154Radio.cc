@@ -95,14 +95,8 @@ void IEEE802154Radio::initialize(int stage)
 
     if (stage == 0)
     {
-        if (hasPar("radioDebug"))
-        {
-            radioDebug = par("radioDebug").boolValue();
-        }
-        else
-        {
-            radioDebug = false;
-        }
+        // initialize the debug ouput bool from NED parameter value
+        radioDebug = (hasPar("radioDebug") ? (par("radioDebug").boolValue()) : (false));
 
         radioEV << "Initializing IEEE802154Radio, stage=" << stage << endl;
 
@@ -965,7 +959,7 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
     // all other messages are noise
     else
     {
-        radioEV << "Reception of noise message over, removing rcvdPower from noiseLevel....\n";
+        radioEV << "Reception of noise message over, removing rcvdPower from noiseLevel\n";
         // get the rcvdPower and subtract it from the noiseLevel
         noiseLevel -= recvBuff[airframe];
 
@@ -986,7 +980,7 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
     // check the RadioState and update if necessary
     // change to idle if noiseLevel smaller than threshold and state was not idle before
     // do not change state if currently sending or receiving a message!!!
-    if (BASE_NOISE_LEVEL < receptionThreshold && rs.getState() == RadioState::RECV && snrInfo.ptr == NULL)
+    if ((BASE_NOISE_LEVEL < receptionThreshold) && (rs.getState() == RadioState::RECV) && (snrInfo.ptr == NULL))
     {
         // set the new RadioState:
         radioEV << "Setting radio state to IDLE. \n";
@@ -1032,7 +1026,9 @@ void IEEE802154Radio::changeChannel(int channel)
     noiseLevel = thermalNoise;
 
     if (rs.getState() != RadioState::IDLE)
+    {
         rs.setState(RadioState::IDLE);  // Force IEEE802154Radio to Idle
+    }
 
     // Do channel switch
     radioEV << "Changing to channel #" << channel << endl;
@@ -1210,7 +1206,7 @@ void IEEE802154Radio::registerBattery()
         double mUsageIEEE802154RadioRecv = par("usage_IEEE802154Radio_recv");
         double mUsageIEEE802154RadioSleep = par("usage_IEEE802154Radio_sleep");
         double mUsageIEEE802154RadioSend = par("usage_IEEE802154Radio_send");
-        if (mUsageIEEE802154RadioIdle < 0 || mUsageIEEE802154RadioRecv < 0 || mUsageIEEE802154RadioSleep < 0 || mUsageIEEE802154RadioSend < 0)
+        if ( (mUsageIEEE802154RadioIdle < 0) || (mUsageIEEE802154RadioRecv < 0) || (mUsageIEEE802154RadioSleep < 0) || (mUsageIEEE802154RadioSend < 0))
         {
             return;
         }
