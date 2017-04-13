@@ -381,6 +381,10 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         unsigned int txBuffSlot;
         unsigned int rxBuffSlot;
 
+        /* temporary fix for LQI issue */
+        unsigned char currentPDULength;
+        unsigned char currentPDULinkQuality;
+
         // Receive Buffer for Coordinator
         cArray rxBuff;
 
@@ -404,6 +408,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // small tx Buffer for responses on messages on MAC layer
         cArray txBuff;
+
         // for ack frames to be transmitted (no wait)
         AckFrame* txAck;
 

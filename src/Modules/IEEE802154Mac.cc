@@ -197,6 +197,11 @@ void IEEE802154Mac::initialize(int stage)
          rxPaFields.numExtendedAddr = 0;
          */
 
+        /* temporary fix for LQI issue */
+        // memory for PD-DATA.indication header infos
+        currentPDULength = 0;
+        currentPDULinkQuality = 0;
+
         // pkt counter
         numUpperPkt = 0;
         numUpperPktLost = 0;
@@ -366,9 +371,37 @@ void IEEE802154Mac::handleMessage(cMessage *msg)
     {
         handleUpperMsg(msg);
     }
-    else
+    else if (msg->arrivedOn("inPLME"))
     {
         handleLowerMsg(msg);
+    }
+    else if (msg->arrivedOn("inPD"))
+    {
+        //packet pdDataInd:
+        //unsigned char psduLength;       // ≤ aMaxPHYPacketSize
+        //unsigned char ppduLinkQuality;  // 0x00–0xff
+        // PSDU Payload is just encapsulated
+        //save the ppduLinkQuality for later and decapsulate the the ppdu
+
+        //
+        // XXX which messages can be encapsulated in a PD-DATA.indication???
+        // XXX you would need to check for all of them (possible candidates: MPDUs, Beacon Requests, Acknowledgments)
+        //
+        if (dynamic_cast<pdDataInd*>(msg))
+        {
+            pdDataInd *pdu = check_and_cast<pdDataInd*>(msg);
+            currentPDULength = pdu->getPsduLength();
+            currentPDULinkQuality = pdu->getPpduLinkQuality();
+            handleLowerMsg(pdu->decapsulate());
+        }
+        else
+        {
+            handleLowerMsg(msg);
+        }
+    }
+    else
+    {
+        error("message arrived at unknown gate AND is not a self-message!");
     }
     return;
 }
@@ -1093,8 +1126,7 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
         }
         return;
     }
-
-    if (dynamic_cast<CmdFrame*>(msg))
+    else if (dynamic_cast<CmdFrame*>(msg))
     {
         CmdFrame* bcnReq = check_and_cast<CmdFrame*>(msg);
         if (bcnReq->getCmdType() == Ieee802154_BEACON_REQUEST)
@@ -1150,7 +1182,6 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
                 return;
             }
         }
-
     }
     else if ((!msg->isPacket()) && msg->getKind() > CONF)
     {
@@ -1230,6 +1261,10 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
         macEV << "The received frame is filtered, frame dropped \n";
         delete frame;
         return;
+    }
+    else
+    {
+        frame->setKind(currentPDULinkQuality);  /* tempory fix for LQI assignment problem */
     }
 
     // determine the frame type (e.g., Data, Beacon, ACK, Command)
@@ -1353,7 +1388,6 @@ void IEEE802154Mac::handleLowerMsg(cMessage *msg)
             return;
         }
     }
-
 }
 
 void IEEE802154Mac::handleSelfMsg(cMessage* msg)
@@ -2152,7 +2186,8 @@ void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
     dataInd->setDstPANId(rxData->getDestPANid());
     dataInd->setDstAddr(rxData->getDest());
     dataInd->encapsulate(rxData->decapsulate());
-    //dataInd->setMpduLinkQuality(rxData->getKind());  // FIXME LQI should be extracted from PD-Indication ppduLinkQuality
+    dataInd->setMpduLinkQuality(rxData->getKind());  /* fix for LQI - setKind is set inserted as msgKind after filtering */
+    macEV << "current Link Quality : " << (int) currentPDULinkQuality << " | msgKind : " << (int) dataInd->getMpduLinkQuality() << endl;
     dataInd->setDSN(rxData->getSqnr());
 
     if (mpib.getMacSecurityEnabled())

@@ -91,7 +91,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             send(msg, "outToRadio");
             return;
         }
-        else if (dynamic_cast<CmdFrame*>(msg))
+        else if (dynamic_cast<CmdFrame*>(msg) != NULL)
         {
             send(msg, "outToRadio");     // should be a beacon request forward
             return;
@@ -146,7 +146,6 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                     send(ccaConf, "outPLME");
                 }
                 break;
-
             }
 
             case ED: {
@@ -156,7 +155,6 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                     performED();
                 }
                 break;
-
             }
 
             default: {
@@ -167,19 +165,20 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
     else if (msg->arrivedOn("PD_SAP")) // --> Message arrived from MAC layer over PHY-DATA SAP
     {
         // check which type of MAC packet is arriving to decide how to generate a PPDU and calculate correct MAC payload size
-        if (dynamic_cast<AckFrame *>(msg) != 0)
+        if (dynamic_cast<AckFrame *>(msg) != NULL)
         {
             ppdu *pdu = generatePPDU(msg, true);
             send(pdu, "outToRadio");
+            return;
         }
         else
         {
             ppdu *pdu = generatePPDU(msg, false);
             send(pdu, "outToRadio");
+            return;
         }
-    }
-    // Message from radioInterface
-    else
+    } // else if (msg->arrivedOn("PLME_SAP"))
+    else if (msg->arrivedOn("inFromRadio")) // --> Message arrived from radio
     {
         // create Conf message for the MAC layer
         if (mappedMsgTypes[msg->getName()] == ED)
@@ -192,58 +191,72 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
         {
             msg->setName("PLME-CCA.confirm");
             send(msg, "outPLME");
+            return;
         }
         else if (dynamic_cast<AssoCmdreq *>(msg) != NULL)
         {
             send(msg, "outPLME");
+            return;
         }
         else if (dynamic_cast<AssoCmdresp *>(msg) != NULL)
         {
             send(msg, "outPLME");
+            return;
         }
         else if (dynamic_cast<pdDataInd *>(msg) != NULL)
         {
             pdDataInd *pdu = check_and_cast<pdDataInd*>(msg);
             if (pdu->getEncapsulatedPacket() != NULL)
             {
-                cPacket* payload = pdu->decapsulate();  // use cPacket since it can either be an MPDU or an ACK
-                //payload->setKind(pdu->getPpduLinkQuality());  // FIXME we cannot hide LQI in kind because PhyIndication enums are saved there for MAC filtering
-                // XXX PHY should actually forward the pdDataIndication to the MAC, not decapsulate and only forward the PPDU
-                // LQI from pdDataIndication is needed for mscp.DataIndication
-                // in function: void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
-                phyEV << "is sending up the Payload of " << pdu->getName() << " which is a " << payload->getName() << endl;
-
-                send(payload, "outPD");
-                delete (pdu);
+//                //cPacket* payload = pdu->decapsulate();  // use cPacket since it can either be an MPDU or an ACK
+//                //payload->setKind(pdu->getPpduLinkQuality());  // FIXME we cannot hide LQI in kind because PhyIndication enums are saved there for MAC filtering
+//                // XXX PHY should actually forward the pdDataIndication to the MAC, not decapsulate and only forward the PPDU
+//                // LQI from pdDataIndication is needed for mscp.DataIndication
+//                // in function: void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
+//
+//                phyEV << "is sending up the " << pdu->getName() << " which is a " << pdu->getEncapsulatedPacket()->getName() << endl;
+//
+                send(msg, "outPD");
             }
             else
             {
                 // this is a beacon request command
                 send(msg, "outPLME");
             }
+            return;
         }
-        else if (dynamic_cast<AckFrame *>(msg) != 0)
+        else if (dynamic_cast<AckFrame *>(msg) != NULL)
         {
             send(msg, "outPLME");
+            return;
         }
-        else if (dynamic_cast<DisAssoCmd*>(msg) != 0)
+        else if (dynamic_cast<DisAssoCmd*>(msg) != NULL)
         {
             send(msg, "outPLME");
+            return;
         }
-        else if (dynamic_cast<GTSCmd*>(msg) != 0)
+        else if (dynamic_cast<GTSCmd*>(msg) != NULL)
         {
             send(msg, "outPLME");
+            return;
         }
         else if (mappedMsgTypes[msg->getName()] == CONF)
         {
             send(msg, "outPD");
+            return;
         }
         else
         {
             phyEV << "Forwarding unknown MSG-Type to MAC \n";
             send(msg, "outPD");
+            return;
         }
+    } // else if (msg->arrivedOn("inFromRadio"))
+    else
+    {
+        error("message from unknown input");
     }
+    return;
 }
 
 // Just inform the Radio Module to perform a CCA

@@ -494,8 +494,6 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
         short saveMsgKind = frame->getEncapsulatedPacket()->getKind();
         dataInd->encapsulate(frame->decapsulate());  // encapsulate the data from it
         dataInd->getEncapsulatedPacket()->setKind(saveMsgKind);
-        // FIXME decapsulation is not necessary here, pdDataIndication should directly be sent to MAC, which unwrapps it
-        // and uses (e.g.) the LinkQualityIndicator
     }
     else
     {
