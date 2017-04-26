@@ -131,7 +131,46 @@ void IEEE802154Mac::initialize(int stage)
             unsigned short tmpSo = par("SuperframeOrder");
             mpib.setMacSuperframeOrder(tmpSo);
         }
-        dataTransMode = (Ieee802154TxOption) 0;
+
+        // XXX dataTransferMode is never set to anything else than 0
+        // must be set to the selected data transfer mode (set by llc::TXoption)
+        //dataTransMode = (Ieee802154TxOption) 0;
+
+        ASSERT(getModuleByPath("^.^.^.Network.stdLLC") != NULL);    // getModuleByPath returns the LLC module (and thus the parameter)
+        unsigned short llcTXoption = getModuleByPath("^.^.^.Network.stdLLC")->par("TXoption");
+
+        ASSERT(llcTXoption <= 7);  // check if TXoption value is a recognized value
+        switch (llcTXoption)
+        {
+            case 0: // direct CAP without ACK
+            case 1: // direct CAP with ACK
+            {
+                dataTransMode = DIRECT_TRANS;
+                break;
+            }
+            case 2: // direct GTS without ACK
+            case 3: // direct GTS with ACK
+            {
+                ASSERT(mpib.getMacBeaconOrder() < 15);  // check if beacon order is lower than 15 -> superframe must be enabled for GTS use
+                dataTransMode = GTS_TRANS;
+                break;
+            }
+            case 4:  // indirect CAP without ACK
+            case 5:  // indirect CAP with ACK
+            {
+                dataTransMode = INDIRECT_TRANS;
+                break;
+            }
+                /*
+                 * case 6:   // indirect GTS without ACK
+                 * case 7:   // indirect GTS with ACK
+                 * XXX check if these two options are valid cases at all according to the standard
+                 */
+            default: {
+                error("[MAC]: wrong TXOption set / unknown value set!");
+            }
+        }
+
         panCoorName = par("panCoordinatorName").stdstringValue();
         isRecvGTS = par("isRecvGts");
         gtsPayload = par("gtsPayload");
