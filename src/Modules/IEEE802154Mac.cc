@@ -46,7 +46,7 @@ void IEEE802154Mac::initialize(int stage)
         isFFD = par("isFFD");
         mpib.setMacSecurityEnabled(secuOn);
         mpib.setMacAssociatedPANCoord(false);
-        mpib.setMacBeaconOrder(15);  // it will change if we receive a Beacon
+        mpib.setMacBeaconOrder(15);  // it will change if we receive a Beacon or if we are the PAN coordinator
         mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + ppib.getSHR() + (6 - ppib.getSymbols()));
 
         mpib.setMacRxOnWhenIdle(true);  // if not, we wont receive any Messages during CFP / CAP
@@ -1635,13 +1635,14 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             if (isCoordinator)
             {
                 // Discard
-                macEV << "Coordinator got a Associate Response dropping it \n";
+                macEV << "Coordinator got a Associate Response -- dropping it \n";
                 delete frame;
                 return;
             }
             else
             {
-                genACK(frame->getSqnr(), false);
+                genACK(frame->getSqnr(), false);    // generate an ACK for the incomming MLME-ASSOCIATE.response
+
                 AssociationConfirm* assoConf = new AssociationConfirm("MLME-ASSOCIATE.confirm");
                 AssoCmdresp* aresp = check_and_cast<AssoCmdresp *>(cmdFrame);
                 assoConf->setStatus(aresp->getStatus());
@@ -1656,7 +1657,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
                 if (aresp->getStatus() == Success)
                 {
-                    macEV << "Associate Successful \n";
+                    macEV << "Association Successful \n";
                     mpib.setMacAssociatedPANCoord(true);
                     mpib.setMacPANId(aresp->getSrcPANid());
                     mpib.setMacCoordExtendedAddress(aresp->getSrc());
@@ -1677,6 +1678,8 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             rxCmd = cmdFrame;
             if (isCoordinator)
             {
+                genACK(frame->getSqnr(), false);    // generate an ACK for the incomming MLME-ASSOCIATE.request
+
                 AssoCmdreq* tmpAssoReq = check_and_cast<AssoCmdreq*>(cmdFrame);
                 Association* assoInd = new Association("MLME-Associate.indication");
                 assoInd->setAddr(tmpAssoReq->getSrc());
@@ -1701,9 +1704,10 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
         case Ieee802154_DISASSOCIATION_NOTIFICATION: {
             ASSERT(rxCmd == NULL);
             rxCmd = cmdFrame;
-            DisAssoCmd* tmpDisCmd = check_and_cast<DisAssoCmd*>(cmdFrame);
-            genACK(frame->getSqnr(), false);
 
+            genACK(frame->getSqnr(), false);    // generate an ACK for the incomming MLME-DISASSOCIATE.indication
+
+            DisAssoCmd* tmpDisCmd = check_and_cast<DisAssoCmd*>(cmdFrame);
             DisAssociation* assoInd = new DisAssociation("MLME-DISASSOCIATE.indication");
             assoInd->setDeviceAddress(tmpDisCmd->getSrc());
             assoInd->setDisassociateReason(tmpDisCmd->getDisassociateReason());
@@ -1732,9 +1736,9 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
         case Ieee802154_GTS_REQUEST: {
             if (isCoordinator)
             {
-                // ack and indication
+                genACK(frame->getSqnr(), false);    // generate an ACK for the incomming MLME-GTS.request
+
                 GTSCmd* gtsRequ = check_and_cast<GTSCmd*>(frame);
-                genACK(frame->getSqnr(), false);
                 // add GTS to GTS descriptor
                 gts_request_cmd(gtsRequ->getGTSCharacteristics().devShortAddr, gtsRequ->getGTSCharacteristics().length, true);
                 // gen indication
@@ -1764,10 +1768,12 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
         case Ieee802154_POLL_REQUEST: {
             if (findRxMsg(frame->getSrc()))
             {
-                genACK(frame->getSqnr(), true);
+                genACK(frame->getSqnr(), true); // generate an ACK for the incomming MLME-POLL.request with FramePending = true
             }
             else
-                genACK(frame->getSqnr(), false);
+            {
+                genACK(frame->getSqnr(), false); // generate an ACK for the incomming MLME-POLL.request with FramePending = false
+            }
 
             break;
         }  // case Ieee802154_POLL_REQUEST
@@ -1785,7 +1791,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
 void IEEE802154Mac::handle_PLME_SET_TRX_STATE_confirm(phyState status)
 {
-    macEV << "A PLME_SET_TRX_STATE_confirm with phyState " << phyStateToString(status) << " received from PHY, the requested state is " << phyStateToString(trx_state_req) << endl;
+    macEV << "PLME_SET_TRX_STATE_confirm with phyState " << phyStateToString(status) << " received from PHY, the requested state is " << phyStateToString(trx_state_req) << endl;
     simtime_t delay;
 
     if (mlmeReset)
