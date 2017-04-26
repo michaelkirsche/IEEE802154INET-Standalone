@@ -36,6 +36,8 @@ void llc::initialize()
     convertingMode = par("convertMode").boolValue();
 
     TXoption = par("TXoption");
+    ASSERT(TXoption <= 7);  // check if TXoption value is a recognized value
+
     logicalChannel = par("LogicalChannel");
 
     firstDevice = true;
@@ -239,9 +241,15 @@ void llc::handleMessage(cMessage *msg)
             send(msg, "outData");
         }
     } // if (msg->arrivedOn("inApp"))
-    else if (msg->arrivedOn("inMngt"))
+
+    if (msg->arrivedOn("inMngt"))
     {
-        if (convertingMode)
+        if (convertingMode == false)
+        {
+            llcEV << "Forwarding MLME Message (" << msg->getFullName() << ") to the higher layer \n";
+            send(msg, "outApp");
+        }
+        else
         {
             if (dynamic_cast<beaconNotify*>(msg))
             {
@@ -252,12 +260,16 @@ void llc::handleMessage(cMessage *msg)
                     coordPANId = bN->getPANDescriptor().CoordPANId;
                     coordAddress = bN->getPANDescriptor().CoordAddress;  // shared by both 16 bit short address or 64 bit extended address
                     logicalChannel = bN->getPANDescriptor().LogicalChannel;
-                    llcEV << "Beacon Notify received an not yet associated -> generate Association Request for the existing PAN Coordinator \n";
+                    llcEV << "Beacon Notify received and not yet associated -> generate Association Request for the existing PAN Coordinator \n";
                     genAssoReq();
+                    delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                    return;
                 }
                 else
                 {
-                    llcEV << "Beacon Notify received and associated - no further processing of the Beacon Notify \n";
+                    llcEV << "Beacon Notify received and already associated - no further processing of the Beacon Notify \n";
+                    delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                    return;
                 }
             } // (dynamic_cast<beaconNotify*>(msg))
 
@@ -265,6 +277,11 @@ void llc::handleMessage(cMessage *msg)
             {
                 // TODO divide between "started your own PAN" and "found a PAN and starting association process" ??
                 llcEV << "Got MLME-START.confirm from lower layer \n";
+
+                llcEV << "TODO - add processing of StartConfirm message \n";
+
+                delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                return;
             } // (dynamic_cast<StartConfirm*>(msg))
 
             if (dynamic_cast<ScanConfirm*>(msg))
@@ -292,11 +309,15 @@ void llc::handleMessage(cMessage *msg)
 
                         firstDevice = false;
                         send(startMsg, "outMngt");
+                        delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                        return;
                     }
                     else
                     {
                         llcEV << "No results - scan again \n";
                         genScanReq();
+                        delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                        return;
                     }
                 }
                 else
@@ -324,36 +345,52 @@ void llc::handleMessage(cMessage *msg)
 
                     startMsg->setPANCoordinator(false);
                     send(startMsg, "outMngt");
+                    delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                    return;
                 }
             } // (dynamic_cast<ScanConfirm*>(msg))
 
-            if (dynamic_cast<AssociationConfirm*>(msg))
+            if (dynamic_cast<AssociationConfirm*>(msg)) // MLME-Association.confirm
             {
-                llcEV << "Association Confirm received - association process was successful \n";
+                llcEV << "Association Confirm received --> association process was successful \n";
                 associateSuccess = true;
+                delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                return;
             } // (dynamic_cast<AssociationConfirm*>(msg))
+
+            if (dynamic_cast<Association*>(msg))    // MLME-Association.indication
+            {
+                llcEV << "Association Indication received --> association response will be sent automatically by the MAC \n";
+
+                delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
+                return;
+            } // (dynamic_cast<Association*>(msg))
 
             if (dynamic_cast<OrphanIndication*>(msg))
             {
                 // just for convenience of functional tests
                 OrphanIndication* oi = check_and_cast<OrphanIndication*>(msg);
                 genOrphanResp(oi);
+                delete (msg);
+                return;
             } // (dynamic_cast<OrphanIndication*>(msg))
 
-            // Since we are converting assume application layer won't understand any MLME messages
+            // For all other msg types -> since we are converting assume application layer won't understand any MLME messages
             llcEV << "convertingMode -> deleting MLME Message without forwarding it to higher layer -> " << msg->getFullName() << endl;
             delete (msg);
             return;
-        }
-
-        llcEV << "Forwarding MLME Message (" << msg->getFullName() << ") to the higher layer \n";
-        send(msg, "outApp");
-
+        }   // if (convertingMode)
     } // if (msg->arrivedOn("inMngt"))
 
     if (msg->arrivedOn("inData"))
     {
-        if (convertingMode)
+        if (convertingMode == false)
+        {
+            llcEV << "Forwarding MCPS-Data to the higher layer -> " << msg->getFullName() << endl;
+            send(msg, "outApp");
+            return;
+        }
+        else
         {
             // this can only be a confirm or indication
             if (dynamic_cast<mcpsDataInd*>(msg))
@@ -367,8 +404,7 @@ void llc::handleMessage(cMessage *msg)
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
                 mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
-                llcEV << "Got a Confirmation from MAC entity with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #"
-                      << (int) conf->getMsduHandle() << endl;
+                llcEV << "Got CONFIRM from MAC with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle() << endl;
                 send(conf, "outApp");
                 return;
             } // (dynamic_cast<mcpsDataConf*>(msg))
@@ -376,14 +412,8 @@ void llc::handleMessage(cMessage *msg)
             {
                 error("[LLC]: Undefined Message arrived on inData gate!");
             }
-        }
-        else
-        {
-            llcEV << "Forwarding MCPS-Data to the higher layer -> " << msg->getFullName() << endl;
-            send(msg, "outApp");
-            return;
-        }
-    } // msg->arrivedOn("inMngt")
+        } // if (convertingMode)
+    } // if msg->arrivedOn("inData")
 }
 
 llc::llc()
