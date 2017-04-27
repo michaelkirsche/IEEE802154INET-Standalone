@@ -48,8 +48,9 @@ void llc::initialize()
 
     if (convertingMode)
     {
+        ASSERT(getModuleByPath("^.^.NIC.MAC.IEEE802154Mac") != NULL);    // getModuleByPath shall return the MAC module
         // Check if startWithoutStartRequest was enabled by user
-        if (getModuleByPath("net.IEEE802154Nodes[0].NIC.MAC.IEEE802154Mac")->par("startWithoutStartReq").boolValue() == false)
+        if (getModuleByPath("^.^.NIC.MAC.IEEE802154Mac")->par("startWithoutStartReq").boolValue() == false)
         {
             llcEV << "Sending Start Request in " << seed << endl;
             selfMsg = new cMessage("LLC-Start");
