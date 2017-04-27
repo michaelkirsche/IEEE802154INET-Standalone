@@ -37,8 +37,8 @@
 class MACAddressExt
 {
     private:
-        uint64 address;   // 8*8=64bit address
-        unsigned short shortAddr;   // 16bit short address, value of 0xffff (65.535) indicates that the device does not have a short address
+        uint64 address; // 8*8=64bit address
+        unsigned short shortAddr; // 16bit short address, value of 0xffff (65.535) indicates that the device does not have a short address
         static unsigned int autoAddressCtr; // counter for generateAutoAddress()
 
     public:
@@ -239,10 +239,16 @@ class MACAddressExt
         int compareTo(const MACAddressExt& other) const;
 
         /**
-         * Generates a unique address which begins with 0a:aa and ends in a unique
-         * suffix.
+         * Generates a unique address which begins with 0a:aa and ends in a unique suffix.
+         * WARNING: Uses static (global) counter, which is only resetted when simulation is completely restarted!
          */
         static MACAddressExt generateAutoAddress();
+
+        /**
+         * Generates a unique MAC address which begins with 0a:aa and ends in a unique suffix
+         * based on the node index
+         */
+        static MACAddressExt generateMacAddressWithNodeIndex(unsigned int index);
 
         bool operator<(const MACAddressExt& other) const
         {

@@ -166,3 +166,10 @@ MACAddressExt MACAddressExt::generateAutoAddress()
     MACAddressExt addr(genAddr);
     return addr;
 }
+
+MACAddressExt MACAddressExt::generateMacAddressWithNodeIndex(unsigned int index)
+{
+    uint64_t genMacAddr = 0x0AAA000000000000 + (index & MAC_ADDRESS_MASK);
+    MACAddressExt addr(genMacAddr);
+    return addr;
+}

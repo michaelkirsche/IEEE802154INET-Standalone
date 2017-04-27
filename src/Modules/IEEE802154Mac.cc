@@ -64,19 +64,25 @@ void IEEE802154Mac::initialize(int stage)
         const char *addressString = par("macAddr");
         if (myMacAddr.isUnspecified())
         {
-            macEV << "MAC myMacAddr is Unspecified...\n";
             if (!strcmp(addressString, "auto"))
             {
-                // assign automatic address
-                myMacAddr = MACAddressExt::generateAutoAddress();
-                macEV << "Assigning generateAutoAddress=" << myMacAddr << endl;
+                ASSERT(getModuleByPath("^.^.^.") != NULL);    // getModuleByPath shall return the IEEE802154Node module
+
+                // uses static counter variable which is not "cleared" when new simulation run starts
+                // problematic with multiple runs and re-runs / new configurations
+                //myMacAddr = MACAddressExt::generateAutoAddress();
+
+                // new approach - generate MAC address with node index (e.g., node[3] -> MAC ...:03)
+                myMacAddr = MACAddressExt::generateMacAddressWithNodeIndex(getModuleByPath("^.^.^.")->getIndex());
+                macEV << "myMacAddr is unspecified -> assigning generated address = " << myMacAddr << endl;
+
                 // change module parameter from "auto" to the auto-generated address
                 par("macAddr").setStringValue(myMacAddr.str().c_str());
             }
             else
             {
                 myMacAddr.setAddress(addressString);
-                macEV << "Assigning User settings (macAddr Par in omnetpp.ini) =" << myMacAddr << endl;
+                macEV << "myMacAddr is unspecified -> assigning user set address (macAddr in omnetpp.ini) = " << myMacAddr << endl;
             }
         }
 
