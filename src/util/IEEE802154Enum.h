@@ -192,10 +192,10 @@ enum Ieee802154MacCmdType {
 };
 
 enum Ieee802154TxOption {
-    //UNDEFINED         = 0,
-    DIRECT_TRANS        = 1,
-    INDIRECT_TRANS      = 2,
-    GTS_TRANS           = 3
+    UNDEFINED       = 0,    // for initialization purpose only, must be set to valid value (1-3) during simulation
+    DIRECT_TRANS    = 1,
+    INDIRECT_TRANS  = 2,
+    GTS_TRANS       = 3
 };
 
 // MAC timer type

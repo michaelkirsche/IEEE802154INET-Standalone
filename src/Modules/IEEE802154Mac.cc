@@ -32,7 +32,6 @@ void IEEE802154Mac::initialize(int stage)
         macEV << "Initializing Stage 0 \n";
         syncLoss = false;
         mpib = MacPIB();
-        inTxSD_txSDTimer = false;
         scanning = false;
         scanStep = 0;
         bool secuOn = par("SecurityEnabled");
@@ -157,7 +156,6 @@ void IEEE802154Mac::initialize(int stage)
             case 2: // direct GTS without ACK
             case 3: // direct GTS with ACK
             {
-                ASSERT(mpib.getMacBeaconOrder() < 15);  // check if beacon order is lower than 15 -> superframe must be enabled for GTS use
                 dataTransMode = GTS_TRANS;
                 break;
             }
@@ -174,6 +172,7 @@ void IEEE802154Mac::initialize(int stage)
                  */
             default: {
                 error("[IEEE802154MAC]: wrong TXOption set / unknown value set!");
+                break;
             }
         }
 
@@ -766,6 +765,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     {
                         case DIRECT_TRANS:
                         case INDIRECT_TRANS: {
+                            taskP.mcps_data_request_TxOption = DIRECT_TRANS;   // XXX fix for missing taskPending->TxOption
                             taskP.taskStep(task)++; // advance to next task step
                             strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                             ASSERT(txData == NULL);
@@ -775,6 +775,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         }
 
                         case GTS_TRANS: {
+                            taskP.mcps_data_request_TxOption = GTS_TRANS;   // XXX fix for missing taskPending->TxOption
                             taskP.taskStep(task)++; // advance to next task step
                             // waiting for GTS arriving, callback from handleGtsTimer()
                             strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
@@ -912,6 +913,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     {
                         case DIRECT_TRANS:
                         case INDIRECT_TRANS: {
+                            taskP.mcps_data_request_TxOption = DIRECT_TRANS;   // XXX fix for missing taskPending->TxOption
                             taskP.taskStep(task)++; // advance to next task step
                             strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                             ASSERT(txData == NULL);
@@ -921,6 +923,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         }
 
                         case GTS_TRANS: {
+                            taskP.mcps_data_request_TxOption = GTS_TRANS;   // XXX fix for missing taskPending->TxOption
                             taskP.taskStep(task)++; // advance to next task step
                             // waiting for GTS arriving, callback from handleGtsTimer()
                             strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
@@ -1867,6 +1870,12 @@ void IEEE802154Mac::handle_PLME_SET_TRX_STATE_confirm(phyState status)
     {
         // to synchronize better, we don't transmit the beacon here
     }
+    else if (txGTS)
+    {
+        // send data frame in GTS here, no delay
+        txPkt = txGTS;
+        sendDown(check_and_cast<mpdu *>(txGTS->dup()));
+    }
     else if (txAck)
     {
         // although no CSMA-CA is required for the transmission of ACK,
@@ -1876,7 +1885,7 @@ void IEEE802154Mac::handle_PLME_SET_TRX_STATE_confirm(phyState status)
         {
             delay = 0.0;
         }
-        else if (rxData->getIsGTS())
+        else if ((rxData != NULL) && (rxData->getIsGTS()))
         {
             delay = 0.0;
         }
@@ -1895,12 +1904,6 @@ void IEEE802154Mac::handle_PLME_SET_TRX_STATE_confirm(phyState status)
         {
             startTxAckBoundTimer(delay);
         }
-    }
-    else if (txGTS)
-    {
-        // send data frame in GTS here, no delay
-        txPkt = txGTS;
-        sendDown(check_and_cast<mpdu *>(txGTS->dup()));
     }
     else  // TX Command or data
     {
@@ -2349,6 +2352,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
         {
             case DIRECT_TRANS:
             case INDIRECT_TRANS: {
+                taskP.mcps_data_request_TxOption = DIRECT_TRANS;   // XXX fix for missing taskPending->TxOption
                 taskP.taskStep(task)++; // advance to next task step
                 strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
@@ -2358,6 +2362,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
             }  // CASES DIRECT_TRANS & INDIRECT_TRANS
 
             case GTS_TRANS: {
+                taskP.mcps_data_request_TxOption = GTS_TRANS;   // XXX fix for missing taskPending->TxOption
                 taskP.taskStep(task)++; // advance to next task step
                 // waiting for GTS arriving, callback from handleGtsTimer()
                 strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
@@ -2380,6 +2385,11 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
                 }
                 break;
             }  // case GTS_TRANS
+
+            default: {
+                error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                return;
+            }  // default
         }  // switch
     }
 
@@ -2424,12 +2434,12 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
 
         Ieee802154MacTaskType task = TP_MLME_DISASSOCIATE_REQUEST;
         taskP.taskStatus(task) = true;
-        taskP.mcps_data_request_TxOption = dataTransMode;
 
         switch (dataTransMode)
         {
             case DIRECT_TRANS:
             case INDIRECT_TRANS: {
+                taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                 taskP.taskStep(task)++; // advance to next task step
                 strcpy(taskP.taskFrFunc(task), "csmacaDisAssociation");
                 ASSERT(txData == NULL);
@@ -2439,6 +2449,7 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
             }  // cases DIRECT_TRANS & INDIRECT_TRANS
 
             case GTS_TRANS: {
+                taskP.mcps_data_request_TxOption = GTS_TRANS;
                 taskP.taskStep(task)++; // advance to next task step
                 // waiting for GTS arriving, callback from handleGtsTimer()
                 strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
@@ -4884,6 +4895,8 @@ void IEEE802154Mac::checkTaskOverflow(Ieee802154MacTaskType task)
 void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
 {
     Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+
+    ASSERT(((Ieee802154TxOption) taskP.mcps_data_request_TxOption >= 1) && ((Ieee802154TxOption) taskP.mcps_data_request_TxOption <= 3)); // check if TxOption for task pending message is valid
     Ieee802154TxOption txOption = taskP.mcps_data_request_TxOption;
 
     if (txOption == DIRECT_TRANS)
@@ -4996,7 +5009,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
 
             case 2:  // data successfully transmitted
             {
-                if (((txGTS->getFcf()) & arequMask) >> arequShift)  // check if ACK requested
+                if (((txGTS->getFcf()) & arequMask) >> arequShift)    // check if ACK requested
                 {
                     taskP.taskStep(task)++; // advance to next task step
                     strcpy(taskP.taskFrFunc(task), "handleAck");
@@ -5033,8 +5046,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     genSetTrxState(phy_FORCE_TRX_OFF);
                     macEV << "[GTS]: need to delay IFS before next GTS transmission can proceed \n";
                     taskP.taskStep(task)++; // advance to next task step
-                    // XXX cancel the ACK timeout timer here?
-                    //cancelEvent(ackTimeoutTimer);
+                    cancelEvent(ackTimeoutTimer);   // XXX cancel the ACK timeout timer here?
                     strcpy(taskP.taskFrFunc(task), "handleIfsTimer");
                     if (txGTS->getByteLength() <= aMaxSIFSFrameSize)
                     {
@@ -5047,7 +5059,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 }
                 else  // time out when waiting for ACK, normally impossible in GTS
                 {
-                    macEV << "[IEEE802154MAC]: ACK timeout for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << endl;
+                    macEV << "[GTS]: ACK timeout for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << endl;
                     numGTSRetry++;
                     if (numGTSRetry <= aMaxFrameRetries)
                     {

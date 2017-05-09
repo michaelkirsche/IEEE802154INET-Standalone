@@ -104,6 +104,7 @@ struct taskPending
         {
             mcps_data_request = false;
             mcps_data_request_STEP = 0;
+            mcps_data_request_TxOption = (Ieee802154TxOption) 0; // needs to be changed to a valid option (1 - 3)
             CCA_csmaca = false;
             CCA_csmaca_STEP = 0;
             RX_ON_csmaca = false;
