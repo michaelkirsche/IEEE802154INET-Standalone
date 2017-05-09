@@ -115,14 +115,22 @@ struct taskPending
             switch (task)
             {
                 case TP_MCPS_DATA_REQUEST:
+                {
                     return mcps_data_request;
+                }
                 case TP_CCA_CSMACA:
+                {
                     return CCA_csmaca;
+                }
                 case TP_RX_ON_CSMACA:
+                {
                     return RX_ON_csmaca;
+                }
                 default:
+                {
                     ASSERT(0);
                     return RX_ON_csmaca;
+                }
             }
         }
 
@@ -131,14 +139,22 @@ struct taskPending
             switch (task)
             {
                 case TP_MCPS_DATA_REQUEST:
+                {
                     return mcps_data_request_STEP;
+                }
                 case TP_CCA_CSMACA:
+                {
                     return CCA_csmaca_STEP;
+                }
                 case TP_RX_ON_CSMACA:
+                {
                     return RX_ON_csmaca_STEP;
+                }
                 default:
+                {
                     ASSERT(0);
                     return RX_ON_csmaca_STEP;
+                }
             }
         }
 
@@ -147,10 +163,14 @@ struct taskPending
             switch (task)
             {
                 case TP_MCPS_DATA_REQUEST:
+                {
                     return mcps_data_request_frFunc;
+                }
                 default:
+                {
                     ASSERT(0);
                     return mcps_data_request_frFunc;
+                }
             }
             return mcps_data_request_frFunc;
         }

@@ -132,15 +132,16 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             }
 
             case CCA: {
-                phyEV << "Performing CCA \n";
                 if (trxState)
                 {
+                    phyEV << "CCARequest arrived -> performing CCA \n";
                     performCCA(pib.getCCA());
                     delete (msg);
                     return;
                 }
                 else
                 {
+                    phyEV << "CCARequest arrived -> returning PLME-CCA.confirm \n";
                     cPacket* ccaConf = new cPacket("PLME-CCA.confirm");
                     ccaConf->setKind(phy_TRX_OFF);
                     send(ccaConf, "outPLME");
@@ -150,9 +151,9 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             }
 
             case ED: {
-                phyEV << "Performing ED \n";
                 if (trxState)
                 {
+                    phyEV << "Performing ED \n";
                     performED();
                 }
                 break;
@@ -160,7 +161,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             }
 
             default: {
-                throw cRuntimeError("Message arrived on PLME-SAP is not Defined \n");
+                throw cRuntimeError("Message arrived on PLME-SAP is not defined! \n");
             }
         } // switch (mappedMsgTypes[msg->getName()])
     } // if (msg->arrivedOn("PLME_SAP"))
@@ -177,9 +178,8 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             ppdu *pdu = generatePPDU(msg, false);
             send(pdu, "outToRadio");
         }
-    }
-    // Message from radioInterface
-    else
+    } // if (msg->arrivedOn("PD_SAP"))
+    else if (msg->arrivedOn("inFromRadio")) // --> Message arrived from radioInterface
     {
         // create Conf message for the MAC layer
         if (mappedMsgTypes[msg->getName()] == ED)
@@ -243,7 +243,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             phyEV << "Forwarding unknown MSG-Type to MAC \n";
             send(msg, "outPD");
         }
-    }
+    } // if (msg->arrivedOn("inFromRadio"))
 }
 
 // Just inform the Radio Module to perform a CCA

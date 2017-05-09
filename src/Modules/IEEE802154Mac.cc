@@ -173,7 +173,7 @@ void IEEE802154Mac::initialize(int stage)
                  * XXX check if these two options are valid cases at all according to the standard
                  */
             default: {
-                error("[MAC]: wrong TXOption set / unknown value set!");
+                error("[IEEE802154MAC]: wrong TXOption set / unknown value set!");
             }
         }
 
@@ -303,7 +303,7 @@ void IEEE802154Mac::initialize(int stage)
             {
                 if (false == isFFD)
                 {
-                    error("[MAC]: you want to start up a PAN Coordinator who is not an FFD!!!");
+                    error("[IEEE802154MAC]: you want to start up a PAN Coordinator who is not an FFD!!!");
                 }
                 mpib.setMacCoordExtendedAddress(myMacAddr);
                 mpib.setMacShortAddress(myMacAddr.getShortAddr());  // simply use MAC short address
@@ -322,7 +322,7 @@ void IEEE802154Mac::initialize(int stage)
                 }
                 else
                 {
-                    error("[MAC]: undefined Beacon Order found during startup");
+                    error("[IEEE802154MAC]: undefined Beacon Order found during startup");
                 }
             }  // if == isCoordinator
             else
@@ -598,7 +598,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             }
 
             default: {
-                error("[MAC]: got invalid TXoption in MCPS-DATA.request");
+                error("[IEEE802154MAC]: got invalid TXoption in MCPS-DATA.request");
                 break;
             }
         }  // switch
@@ -754,6 +754,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
 
                     Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                     taskP.taskStatus(task) = true;
+
                     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
                     holdMe->encapsulate(assoCmdResp);
                     holdMe->setDest(assoCmdResp->getDest());
@@ -799,6 +800,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
 
                         default: {
                             error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                            break;
                         }
                     }  // switch (dataTransMode)
                 }  // if isCoordinator
@@ -898,6 +900,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     gtsRequCmd->setFcs(0);
                     Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                     taskP.taskStatus(task) = true;
+
                     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
                     holdMe->encapsulate(gtsRequCmd);
                     holdMe->setDest(gtsRequCmd->getDest());
@@ -942,7 +945,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         }
 
                         default:
-                            error("[MAC]: undefined txOption: %d!", dataTransMode);
+                            error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                            break;
                     }  // switch (dataTransMode)
                 }
                 break;
@@ -1455,7 +1459,7 @@ void IEEE802154Mac::handleSelfMsg(cMessage* msg)
             break;
 
         default:
-            error("[MAC]: unknown MAC timer type!");
+            error("[IEEE802154MAC]: unknown MAC timer type!");
             break;
     }
     return;
@@ -1723,7 +1727,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             assoInd->setKeyIndex(tmpDisCmd->getAsh().KeyIdentifier.KeyIndex);
             send(assoInd, "outMLME");
             delete (tmpDisCmd);
-            delete (frame);
+            delete (frame);   // XXX fix for undisposed mpdu frame
             break;
         }  // case Ieee802154_DISASSOCIATION_NOTIFICATION
 
@@ -2017,7 +2021,7 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
     }
     else
     {
-        error("[MAC]: transmission failed");
+        error("[IEEE802154MAC]: transmission failed");
     }
 }
 
@@ -2067,7 +2071,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         // check packet type
         if ((frmType != Beacon) && (frmType != Data) && (frmType != Ack) && (frmType != Command))
         {
-            error("[MAC]: Filtering error - unknown frame type!");
+            error("[IEEE802154MAC]: Filtering error - unknown frame type!");
             //return true;
         }
 
@@ -3932,14 +3936,14 @@ int IEEE802154Mac::calFrameByteLength(mpdu* frame)
             }
 
             default: {
-                error("[MAC]: cannot calculate the size of a MAC command frame with unknown type!");
+                error("[IEEE802154MAC]: cannot calculate the size of a MAC command frame with unknown type!");
                 break;
             }
         }  // switch
     }
     else
     {
-        error("[MAC]: cannot calculate the size of a MAC frame with unknown type!");
+        error("[IEEE802154MAC]: cannot calculate the size of a MAC frame with unknown type!");
     }
 
     macEV << "Header size is " << MHRLength << " Bytes \n";
@@ -3970,7 +3974,7 @@ int IEEE802154Mac::calMacHeaderByteLength(unsigned char addrModeSum, bool secu)
         case 6:
             return (23 + ashSize);  //+ ASH
         default: {
-            error("[MAC]: cannot calculate MAC header byte length due to impossible address mode sum!");
+            error("[IEEE802154MAC]: cannot calculate MAC header byte length due to impossible address mode sum!");
             break;
         }
     }  // switch
@@ -4276,8 +4280,7 @@ void IEEE802154Mac::handleGtsTimer()
     {
         indexCurrGts = index_gtsTimer;
         macEV << "[GTS]: GTS with index = " << (int) indexCurrGts << " in my GTS list starts now! \n";
-        macEV
-        << "allocated for MAC address = " << (int) gtsList[indexCurrGts].devShortAddr << ", startSlot = " << (int) gtsList[indexCurrGts].startSlot << ", length = "
+        macEV << "allocated for MAC address = " << (int) gtsList[indexCurrGts].devShortAddr << ", startSlot = " << (int) gtsList[indexCurrGts].startSlot << ", length = "
                 << (int) gtsList[indexCurrGts].length << ", isRecvGTS = " << gtsList[indexCurrGts].isRecvGTS << ", isTxPending = " << gtsList[indexCurrGts].isTxPending << endl;
 
         // is transmit GTS relative to device , turn on radio receiver
@@ -4607,7 +4610,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                     }
 
                     default: {
-                        error("[MAC]: undefined txOption: %d!", dataTransMode);
+                        error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
                         break;
                     }
                 }
@@ -4683,7 +4686,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                     }
 
                     default: {
-                        error("[MAC]: undefined txOption: %d!", dataTransMode);
+                        error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
                         break;
                     }
                 }
@@ -4777,7 +4780,7 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                     }
 
                     default: {
-                        error("[MAC]: undefined txOption: %d!", dataTransMode);
+                        error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
                         break;
                     }
                 }
@@ -4851,7 +4854,7 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                     }
 
                     default: {
-                        error("[MAC]: undefined txOption: %d!", dataTransMode);
+                        error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
                         break;
                     }
                 }  // switch
@@ -4888,7 +4891,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
         switch (taskP.taskStep(task))
         {
             case 0: {
-                // something impossible happened here
+                error("[IEEE802154MAC]: FSM processing MCPS_DATA.request -> something impossible happened here");
                 break;
             }
 
@@ -5044,7 +5047,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 }
                 else  // time out when waiting for ACK, normally impossible in GTS
                 {
-                    macEV << "[MAC]: ACK timeout for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << endl;
+                    macEV << "[IEEE802154MAC]: ACK timeout for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << endl;
                     numGTSRetry++;
                     if (numGTSRetry <= aMaxFrameRetries)
                     {
@@ -5079,13 +5082,14 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 break;
             }
 
-            default:
+            default: {
                 break;
+            }
         }
     }  // else if (txOption == GTS_TRANS)
     else
     {
-        error("[MAC]: undefined txOption: %d!", txOption);
+        error("[IEEE802154MAC]: the used txOption: %d is not processed -> unknown option", txOption);
     }
 }
 

@@ -317,7 +317,7 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
         return;
     }
 
-    if (msg->getArrivalGateId() == upperLayerIn && !msg->isPacket())
+    if ((msg->getArrivalGateId() == upperLayerIn) && !(msg->isPacket()))
     {
         if (msg->getKind() == 0)
         {
@@ -630,7 +630,9 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
 
         case phy_CHANGE_TRANSMITTER_POWER: {
             if (prop == NULL)
+            {
                 error("[RADIO]: got a Change Transmitter Power command without Par");
+            }
 
             double newTransmitterPower = prop->doubleValue();
             if (newTransmitterPower != -1)
@@ -697,10 +699,10 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
         }
 
         case CCA: {
-            radioEV << "Initializing CCA \n";
+            radioEV << "Initiating CCA \n";
             if (!snrInfo.sList.empty())
             {
-                radioEV << "Receiving CCA channel not clear right now! \n";
+                radioEV << "[CCA]: currently receicing - channel not clear right now! \n";
                 genCCAConf(false);
             }
             else
@@ -714,7 +716,6 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
             radioEV << "Initiating ED \n";
             performED();
             return;
-
         }
 
         default: {
@@ -1483,23 +1484,34 @@ void IEEE802154Radio::performCCA()
     switch (ccaMode)
     {
         case 1:  // Mode 1 - Energy above threshold
+        {
             ccaMode1 = true;
             ccaMode2 = false;
+            radioEV << "[CCA]: Mode 1 - Energy above threshold \n";
             break;
+        }
 
         case 2:  // Mode 2 - Carrier sensing only
+        {
             ccaMode1 = false;
             ccaMode2 = true;
+            radioEV << "[CCA]: Mode 2 - Carrier sensing only \n";
             break;
+        }
 
-        case 3:  // Mode 3 - Carrier sensing and Energy above threshold
+        case 3:  // Mode 3 - Carrier sensing and energy above threshold
+        {
             ccaMode1 = true;
             ccaMode2 = true;
+            radioEV << "[CCA]: Mode 3 - Carrier sensing and energy above threshold \n";
             break;
+        }
 
         default:
+        {
             error("performCCA(): unsupported message parameter for CCA mode in IEEE802154Radio");
             break;
+        }
     }
 
     return;
