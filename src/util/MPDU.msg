@@ -30,7 +30,6 @@ class noncobject DevCapability;
 class noncobject Ash;
 class noncobject PAN_ELE;
 
-enum PhyPIB_Status;
 enum Ieee802154MacCmdType;
 enum AddrMode;
 enum MlmeAssociationStatus;
@@ -39,7 +38,6 @@ enum MACenum;
 enum RxEnableStatus;
 enum ScanType;
 enum ScanStatus;
-enum Attributes;
 
 // see the generated C++ header for more info
 packet mpdu  
@@ -75,9 +73,9 @@ packet beaconNotify
 
 packet CmdFrame extends mpdu
 {
-    int cmdType @enum(Ieee802154MacCmdType);// refer to IEEE802154Enum.h
-        
+    int cmdType @enum(Ieee802154MacCmdType);// refer to IEEE802154Enum.h       
 }
+
 packet RealignCmd extends CmdFrame 
 {
     unsigned short PANId;
@@ -178,19 +176,6 @@ packet GTSConfirm
 {
     GTSDescriptor gts;
     unsigned short status @enum(MACenum);       // refer to IEEE802154Enum.h
-}
-
-packet GetRequest
-{
-    unsigned short PIBattr @enum(Attributes);   // refer to IEEE802154Enum.h
-    unsigned short PIBind;
-}
-
-packet GetConfirm extends GetRequest
-{ 
-    // also used for SET request and Confirm
-    unsigned short status @enum(PhyPIB_Status); // refer to IEEE802154Enum.h
-    double value;
 }
 
 message MLMEReset

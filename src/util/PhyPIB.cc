@@ -21,10 +21,9 @@
 #include "PhyPIB.h"
 #include "omnetpp.h"
 
-PhyPIB::PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned char transPow, unsigned short int CCAMode, unsigned short int currPage,
+PhyPIB::PhyPIB(unsigned short currChann, unsigned int channSupp[], unsigned char transPow, unsigned short CCAMode, unsigned short currPage,
         unsigned short SHRdur, double symbols)
 {
-
     phyCurrentChannel = currChann;
     // Copy arrays into each other
     for (int i = 0; i < 3; i++)
@@ -35,18 +34,17 @@ PhyPIB::PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned 
     phyTransmitPower = transPow;
     phyCCAMode = CCAMode;
     phyCurrentPage = currPage;
-    phyMaxFrameDuration = SHRdur + ceil(128 * symbols);
-    phySHRDuration = SHRdur;
     phySymbolsPerOctet = symbols;
-
+    phySHRDuration = SHRdur;
+    phyMaxFrameDuration = phySHRDuration + ceil((aMaxPHYPacketSize+1) * phySymbolsPerOctet);
 }
 
-unsigned short int PhyPIB::getCurrChann()
+unsigned short PhyPIB::getCurrChann()
 {
     return phyCurrentChannel;
 }
 
-void PhyPIB::setCurrChann(unsigned short int currChann)
+void PhyPIB::setCurrChann(unsigned short currChann)
 {
     phyCurrentChannel = currChann;
     return;
@@ -104,7 +102,7 @@ unsigned short PhyPIB::getSHR()
 void PhyPIB::setSHR(unsigned short shr)
 {
     phySHRDuration = shr;
-    phyMaxFrameDuration = SHRduration + ceil(128 * phySymbolsPerOctet);
+    phyMaxFrameDuration = phySHRDuration + ceil((aMaxPHYPacketSize+1) * phySymbolsPerOctet);
     return;
 }
 
@@ -116,6 +114,6 @@ double PhyPIB::getSymbols()
 void PhyPIB::setSymbols(double sym)
 {
     phySymbolsPerOctet = sym;
-    phyMaxFrameDuration = SHRduration + ceil(128 * phySymbolsPerOctet);
+    phyMaxFrameDuration = phySHRDuration + ceil((aMaxPHYPacketSize+1) * phySymbolsPerOctet);
     return;
 }

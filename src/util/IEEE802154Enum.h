@@ -26,12 +26,13 @@ enum PIBMsgTypes {
     SET,
     CCA,
     ED,
-    CONF,
-    SETCONF
+    CONF//,
+    //SETCONF   // XXX not needed anymore
 };
 
 enum phyState {
-    phy_BUSY = SETCONF+1,
+    //phy_BUSY = SETCONF+1, // XXX SETCONF not needed anymore
+    phy_BUSY = CONF+1,
     phy_BUSY_RX,
     phy_BUSY_TX,
     phy_FORCE_TRX_OFF,
@@ -69,6 +70,52 @@ inline const char* phyStateToString(phyState x)
     }
 }
 
+enum PhyPIB_Attributes {
+    currentChannel   = 0,
+    channelSupported = 1,
+    transmitPower    = 2,
+    CCA_Mode         = 3,
+    currentPage      = 4,
+    maxFrameDuration = 5,
+    SHRDuration      = 6,
+    symbolsPerSecond = 7
+};
+
+inline const char* PhyPIB_AttributesToString(PhyPIB_Attributes u)
+{
+    switch (u)
+    {
+        case currentChannel:    return "currentChannel";
+        case channelSupported:  return "channelSupported";
+        case transmitPower:     return "transmitPower";
+        case CCA_Mode:          return "CCA_Mode";
+        case currentPage:       return "currentPage";
+        case maxFrameDuration:  return "maxFrameDuration";
+        case SHRDuration:       return "SHRDuration";
+        case symbolsPerSecond:  return "symbolsPerSecond";
+        default:                return "[Unknown PhyPIB_Attribute]";
+    }
+}
+
+enum PhyPIB_Status {
+    PhyPIB_SUCCESS                  = 10,
+    PhyPIB_UNSUPPORTED_ATTRIBUTE    = 11,
+    PhyPIB_INVALID_PARAMETER        = 12,
+    PhyPIB_READ_ONLY                = 13
+};
+
+inline const char* PhyPIB_StatusToString(PhyPIB_Status z)
+{
+    switch (z)
+    {
+        case PhyPIB_SUCCESS:                return "PhyPIB_SUCCESS";
+        case PhyPIB_UNSUPPORTED_ATTRIBUTE:  return "PhyPIB_UNSUPPORTED_ATTRIBUTE";
+        case PhyPIB_INVALID_PARAMETER:      return "PhyPIB_INVALID_PARAMETER";
+        case PhyPIB_READ_ONLY:              return "PhyPIB_READ_ONLY";
+        default:                            return "[Unknown PhyPIB_Status]";
+    }
+}
+
 enum mlmeRequestTypes {
     MLMEASSOCIATE       = 5,
     MLMEDISASSOCIATE    = 6,
@@ -85,6 +132,28 @@ enum mlmeRequestTypes {
     MLMEASSOCIATERESP   = 17,
     MLMEORPHANRESP      = 18
 };
+
+inline const char* mlmeRequestTypesToString(mlmeRequestTypes w)
+{
+    switch (w)
+    {
+        case MLMEASSOCIATE:     return "MLME-ASSOCIATE";
+        case MLMEDISASSOCIATE:  return "MLME-DISASSOCIATE";
+        case MLMEGET:           return "MLME-GET";
+        case MLMEGTS:           return "MLME-GTS";
+        case MLMERESET:         return "MLME-RESET";
+        case MLMERXENABLE:      return "MLME-RXENABLE";
+        case MLMESCAN:          return "MLME-SCAN";
+        case MLMECOMMSTATUS:    return "MLME-COMMSTATUS";
+        case MLMESET:           return "MLME-SET";
+        case MLMESTART:         return "MLME-START";
+        case MLMESYNC:          return "MLME-SYNC";
+        case MLMEPOLL:          return "MLME-POLL";
+        case MLMEASSOCIATERESP: return "MLME-ASSOCIATE-RESPONCE";
+        case MLMEORPHANRESP:    return "MLME-ORPHAN-RESPONSE";
+        default:                return "[Unknown MLME Request Type]";
+    }
+}
 
 enum MCPSStatus {
     SUCCESS = 1,
@@ -243,23 +312,6 @@ enum purgeStatus {
     purge_INVALID_HANDLE
 };
 
-enum Attributes {
-    currentChannel      = 0,
-    channelSupported    = 1,
-    transmitPower       = 2,
-    CCA_Mode            = 3,
-    currentPage         = 4,
-    SHRduration         = 5,
-    symbolsPerSecond    = 6
-};
-
-enum PhyPIB_Status {
-    PhyPIB_SUCCESS                  = 10,
-    PhyPIB_UNSUPPORTED_ATTRIBUTE    = 11,
-    PhyPIB_INVALID_PARAMETER        = 12,
-    PhyPIB_READ_ONLY                = 13
-};
-
 enum EDval {
     ED_SUCCESS  = 0,
     ED_TRX_OFF  = 1,
@@ -328,9 +380,9 @@ enum ScanStatus {
     scan_INVALID_PARAMETER
 };
 
-inline const char* ScanStatusToString(ScanStatus v)
+inline const char* ScanStatusToString(ScanStatus y)
 {
-    switch (v)
+    switch (y)
     {
         case scan_SUCCESS:              return "scan_SUCCESS";
         case scan_LIMIT_REACHED:        return "scan_LIMIT_REACHED";

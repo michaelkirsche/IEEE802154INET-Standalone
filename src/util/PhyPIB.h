@@ -24,6 +24,7 @@
 #include "math.h"
 #include "stdlib.h"
 #include "omnetpp.h"
+#include "IEEE802154Consts.h"
 #include "IEEE802154Enum.h"
 
 // This Class Represents the PHY - PAN information Base
@@ -31,13 +32,13 @@ class PhyPIB
 {
     public:
         PhyPIB() {}; // Standard Ctor
-        PhyPIB(unsigned short int currChann, unsigned int channSupp[], unsigned char transPow, unsigned short int CCAMode, unsigned short int currPage,
+        PhyPIB(unsigned short currChann, unsigned int channSupp[], unsigned char transPow, unsigned short CCAMode, unsigned short currPage,
                 unsigned short SHRdur, double symbols);
         virtual ~PhyPIB() {};   // Standard Dtor
 
         // Getters & Setters ....
-        unsigned short int getCurrChann();
-        void setCurrChann(unsigned short int currChann);
+        unsigned short getCurrChann();
+        void setCurrChann(unsigned short currChann);
         std::vector<int> getChannSupp();
         void setChannSupp(std::vector<int> channSupp);
         unsigned char getTransPow();
@@ -52,15 +53,14 @@ class PhyPIB
         void setSymbols(double sym);
 
     private:
-        unsigned short int phyCurrentChannel;
+        unsigned short phyCurrentChannel;
         std::vector<int> phyChannelsSupported;
         unsigned char phyTransmitPower;
-        unsigned short int phyCCAMode;
-        unsigned short int phyCurrentPage;
-        unsigned short int phyMaxFrameDuration;
-        unsigned short int phySHRDuration;
+        unsigned short phyCCAMode;
+        unsigned short phyCurrentPage;
+        unsigned short phyMaxFrameDuration;
+        unsigned short phySHRDuration;
         float phySymbolsPerOctet;
-
 };
 
 #endif /* PhyPIB_H_ */

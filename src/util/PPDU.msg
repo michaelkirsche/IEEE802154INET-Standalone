@@ -19,25 +19,56 @@
 //  TODO:  Preamble length and Start of Frame Delimiter have to be adapted to different PHYs / frequencies 
 
 cplusplus {{
+    #include "IEEE802154Fields.h"
     #include "IEEE802154Enum.h"
 }}
 
 enum phyState;
 enum PDStatus;
+enum PhyPIB_Status;
+enum PhyPIB_Attributes;
 
-packet pdDataInd{
+packet pdDataInd
+{
     unsigned char psduLength;       // ≤ aMaxPHYPacketSize
     unsigned char ppduLinkQuality;  // 0x00–0xff
     // PSDU Payload is just encapsulated
 }
 
-packet ppdu {
+packet ppdu 
+{
     unsigned char Preamble[4];      // Synchronization Header (SHR) 
     unsigned char SFD;              // Start of Frame Delimiter (8-bit except ASK)
     unsigned char PHR;              // PHY Header containing 7 Bits Frame Length & 1 Bit Reserved
 }
 
-packet edConf{
-	unsigned char status @enum(phyState);  // compare IEEE802154Enum.h
+packet edConf
+{
+	unsigned char status @enum(phyState);  // refer to IEEE802154Enum.h
 	unsigned char EnergyLevel;             // 0x00–0xff
+}
+
+message GetRequest
+{
+    unsigned short PIBattr @enum(PhyPIB_Attributes);   // refer to IEEE802154Enum.h
+    unsigned short PIBind;
+}
+
+message GetConfirm extends GetRequest
+{ 
+    unsigned short status @enum(PhyPIB_Status); // refer to IEEE802154Enum.h
+    double value;
+}
+
+message SetRequest
+{
+    unsigned short PIBattr @enum(PhyPIB_Attributes);    // refer to IEEE802154Enum.h
+    unsigned short PIBind;
+    double value;
+}
+
+message SetConfirm
+{
+    unsigned short PIBattr @enum(PhyPIB_Attributes);    // refer to IEEE802154Enum.h
+    unsigned short status @enum(PhyPIB_Status); // refer to IEEE802154Enum.h
 }
