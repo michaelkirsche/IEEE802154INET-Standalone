@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "PhyPIB.h"
+//#include "PhyPIB.h"   // XXX use PLME-GET messages instead
 #include "MacPIB.h"
 
 #include "PPDU_m.h"
@@ -34,55 +34,14 @@
 
 #include "macFrameControlField.h"
 #include "MACAddressExt.h"
+#include "IEEE802154Consts.h"
 #include "IEEE802154Enum.h"
 #include "IEEE802154Fields.h"
 #include "RadioState.h"             // from INET - provides RadioState enums
 #include "PhyControlInfo_m.h"       // from INET - provides PhyIndication enums
 #include "NotificationBoard.h"      // from INET - provides NotificationBoard access
 
-
 #define macEV (ev.isDisabled()||!macDebug) ? EV : EV << "[802154_MAC]: "    // switchable debug output
-
-//---PHY sublayer constants (802.15.4-2006 Revision Table 22)---
-const unsigned char  aMaxPHYPacketSize = 127;   // max PSDU size, in octets, that the PHY shall be able to receive
-const unsigned char  aTurnaroundTime = 12;      // RX-to-TX or TX-to-RX max turn-around time (in symbol period)
-const unsigned char  phyHeaderLength = 6;       // Bytes (currently according to 802.15.4-2003 Revision - Figure 16)
-
-//---MAC sublayer constants (802.15.4-2006 Revision Table 85)---
-const unsigned char  aBaseSlotDuration = 60; // # of symbols comprising a superframe slot of order 0
-const unsigned char  aNumSuperframeSlots = 16; // # of slots contained in a superframe
-const unsigned short aBaseSuperframeDuration = aBaseSlotDuration * aNumSuperframeSlots; // # of symbols comprising a superframe of order 0
-// aExtendedAddress  *device specific*   // The 64 bit (IEEE) address assigned to the device.
-const unsigned char  aGTSDescPersistenceTime = 4; // # of superframes that a GTS descriptor exists in the beacon frame of a PAN coordinator
-const unsigned char  aMaxBeaconOverhead = 75; // max # of octets added by the MAC sublayer to the payload of its beacon frame
-const unsigned char  aMaxBeaconPayloadLength = aMaxPHYPacketSize - aMaxBeaconOverhead; // max size, in octets, of a beacon payload
-const unsigned char  aMaxLostBeacons = 4; // max # of consecutive beacons the MAC sublayer can miss w/o declaring a loss of synchronization
-
-const unsigned char  aMaxFrameOverhead = 25; // max # of octets added by the MAC sublayer to its payload w/o security.
-const unsigned short aMaxFrameResponseTime = 1220; // max # of symbols (or CAP symbols) to wait for a response frame
-const unsigned char  aMaxFrameRetries = 3; // max # of retries allowed after a transmission failures
-const unsigned char  aMaxMACFrameSize = 127 - aMaxFrameOverhead; // max # of octets that can be transmitted in the MAC frame payload field
-const unsigned char  aMaxSIFSFrameSize = 18; // max size of a frame, in octets, that can be followed by a SIFS period
-const unsigned short aMinCAPLength = 440; // min # of symbols comprising the CAP
-const unsigned short aResponseWaitTime = 32 * aBaseSuperframeDuration; // max # of symbols a device shall wait for a response command following a request command
-const unsigned char  aUnitBackoffPeriod = 20; // # of symbols comprising the basic time period used by the CSMA-CA algorithm
-// ------------------------------------------ //
-const unsigned char  aMaxBE = 5; // max value of the backoff exponent in the CSMA-CA algorithm
-const unsigned char  aMinLIFSPeriod = 40; // min # of symbols comprising a LIFS period
-const unsigned char  aMinSIFSPeriod = 12; // min # of symbols comprising a SIFS period
-// ------------------------------------------ //
-
-//---Additional MAC constants (from the 802.15.4-2006 Revision)---
-const unsigned char  maxGTSAllocations = 7; // max # of allocated Guranteed Time Slots (GTS) (see Sec. 7.5.7 GTS allocation and management)
-
-//---Frequency bands and data rates (currently according 802.15.4-2003 Specs Table 1)---
-// TODO: Add Specs from 2009 and newer revisions (frequencies / data & symbol rates)
-const double BR_868M = 20;      // 20 kb/s   -- ch 0
-const double BR_915M = 40;      // 40 kb/s   -- ch 1,2,3,...,10
-const double BR_2_4G = 250;     // 250 kb/s  -- ch 11,12,13,...,26
-const double SR_868M = 20;      // 20 ks/s
-const double SR_915M = 40;      // 40 ks/s
-const double SR_2_4G = 62.5;    // 62.5 ks/s
 
 // MAC Commands with fixed size (currently according to 802.15.4-2003 Specs)
 #define SIZE_OF_802154_ASSOCIATION_RESPONSE             29  // Fig 50: MHR (23) + Payload (4) + FCS (2)
@@ -217,18 +176,32 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         /**
          * @name Message handlers
          */
-        void handleMessage(cMessage *msg);
-        void handleUpperMsg(cMessage *msg);
-        void handleLowerMsg(cMessage *msg);
+        void handleMessage(cMessage* msg);
+
+        void handleUpperMsg(cMessage* msg); // XXX refactor into separate functions for MCPS and MLME
+        void handleUpperMLMEMsg(cMessage* msg);
+        void handleUpperMCPSMsg(cMessage* msg);
+
+        void handleLowerMsg(cMessage* msg); // XXX refactor into separate functions for PLME and PD
+        void handleLowerPLMEMsg(cMessage* msg);
+        void handleLowerPDMsg(cMessage* msg);
+
         void handleSelfMsg(cMessage* msg);
-        void handleBeacon(mpdu *frame);
+        void handleBeacon(mpdu* frame);
+
         void handleData(mpdu* frame);
         void handleAck(cMessage* frame);
         void handleCommand(mpdu* frame);
+
         void handle_PLME_SET_TRX_STATE_confirm(phyState state);
-        void handle_PD_DATA_confirm(phyState status);
         void handle_PLME_CCA_confirm(phyState status);
+        void handle_PLME_GET_confirm(cMessage* msg);
+        void handle_PLME_SET_confirm(cMessage* msg);
+
+        void handle_PD_DATA_confirm(phyState status);
+
         void setDefMpib();
+        void calcMacAckWaitDuration();
         void genMLMEResetConf();
         void genMLMEDisasConf(MACenum status);
         void genDisAssoCmd(DisAssociation* disAss, bool direct);
@@ -320,7 +293,17 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void handleFinalCapTimer();
         void handleScanTimer();
 
+        /**
+         * @name Get/Set functions for PHY / PHY-PIB values
+         */
         double getRate(char bs);
+        void getRadioChannel();
+        void setRadioChannel(unsigned short newRadioChannel);
+        void getCurrentChannelPage();
+        void setCurrentChannelPage(unsigned int newChannelPage);
+        void getSHRDuration();
+        void getSymbolsPerOctet();
+
         /*
          * @name State control and task management functions
          */
@@ -337,7 +320,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // MAC PAN Information Base
         MacPIB mpib;
         // PHY PAN Information Base
-        PhyPIB ppib;
+        //PhyPIB ppib;    // XXX need to use the actual PIB from the PHY via PLME-GET messages
         Ieee802154TxOption dataTransMode; // see IEEE802154Enum.h
         int sequ; // Msg Sequence Number
         frameType ft; // see IEEE802154Enum.h
@@ -355,8 +338,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         ScanType scanType; // see IEEE802154Enum.h
         unsigned int scanChannels; // 27 bit indicating the channels to be scanned
         unsigned int scanDuration; // The time spent scanning each channel is
-        // [aBaseSuperframeDuration * (2n + 1)] symbols, where n is the value of the
-        // ScanDuration parameter
+        // [aBaseSuperframeDuration * (2n + 1)] symbols, where n is the value of the ScanDuration parameter
         unsigned int* scanEnergyDetectList;
         PAN_ELE* scanPANDescriptorList;
         unsigned short channelPage;
@@ -364,9 +346,10 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         bool startNow;
         bool Poll;
+
         unsigned int scanSteps;     // Channel list to go through
         unsigned short scanCount;   // current channels that is scanned
-        unsigned int scanStep;      // the step in the scanning procedure
+        unsigned short scanStep;    // the step in the scanning procedure
         unsigned short scanResultListSize;
 
         // PAN Variables
@@ -630,6 +613,9 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // current symbol rate at PHY
         double phy_symbolrate;
+
+        // current radio channel at PHY
+        unsigned short phy_channel;
 
         // Temporary requested state to set in PHY
         phyState trx_state_req;

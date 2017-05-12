@@ -261,7 +261,7 @@ void llc::handleMessage(cMessage *msg)
                     coordPANId = bN->getPANDescriptor().CoordPANId;
                     coordAddress = bN->getPANDescriptor().CoordAddress;  // shared by both 16 bit short address or 64 bit extended address
                     logicalChannel = bN->getPANDescriptor().LogicalChannel;
-                    llcEV << "Beacon Notify received and not yet associated -> generate Association Request for the existing PAN Coordinator \n";
+                    llcEV << "Beacon Notify received and not yet associated -> generate Association Request for beacon received from existing PAN Coordinator \n";
                     genAssoReq();
                     delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
                     return;

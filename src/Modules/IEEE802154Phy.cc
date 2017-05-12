@@ -20,24 +20,37 @@
 
 Define_Module(IEEE802154Phy);
 
-void IEEE802154Phy::initialize()
+void IEEE802154Phy::initialize(int stage)
 {
-    // initialize the debug ouput bool from NED parameter value
-    phyDebug = (hasPar("phyDebug") ? (par("phyDebug").boolValue()) : (false));
+    cSimpleModule::initialize(stage);
+    if (stage == 0)
+    {
+        // initialize the debug ouput bool from NED parameter value
+        phyDebug = (hasPar("phyDebug") ? (par("phyDebug").boolValue()) : (false));
 
-    trxState = phy_IDLE;
+        trxState = phy_IDLE;
 
-    mappedMsgTypes["SET-TRX-STATE"] = SETTRXSTATE;
-    mappedMsgTypes["GET"] = GET;
-    mappedMsgTypes["SET"] = SET;
-    mappedMsgTypes["CCA"] = CCA;
-    mappedMsgTypes["ED"] = ED;
-    mappedMsgTypes["PD-DATA.confirm"] = CONF;
-    mappedMsgTypes["PHY-SET.confirm"] = SETCONF;
+        // assign the message names for Upper Layer messages (typically requests)
+        mappedUpperLayerMsgTypes["PLME-SET-TRX-STATE.request"] = SETTRXSTATE;
+        mappedUpperLayerMsgTypes["PLME-GET.request"] = GET;
+        mappedUpperLayerMsgTypes["PLME-SET.request"] = SET;
+        mappedUpperLayerMsgTypes["PLME-CCA.request"] = CCA;
+        mappedUpperLayerMsgTypes["PLME-ED.request"] = ED;
+        mappedUpperLayerMsgTypes["PD-DATA.request"] = CONF;
+        //mappedMsgTypes["PHY-SET.confirm"] = SETCONF;  // XXX not needed anymore
 
-    tokenizePages();
+        // assign the message names for Lower Layer messages (typically confirms)
+        mappedLowerLayerMsgTypes["PLME-SET-TRX-STATE.confirm"] = SETTRXSTATE;
+        mappedLowerLayerMsgTypes["PLME-GET.confirm"] = GET;
+        mappedLowerLayerMsgTypes["PLME-SET.confirm"] = SET;
+        mappedLowerLayerMsgTypes["PLME-CCA.confirm"] = CCA;
+        mappedLowerLayerMsgTypes["PLME-ED.confirm"] = ED;
+        mappedLowerLayerMsgTypes["PD-DATA.confirm"] = CONF;
 
-    pib = PhyPIB(par("currentChannel"), suppPages, par("transmitPower"), par("CCAMode"), par("currentPage"), par("SHRDuration"), par("symbolsPerOctet"));
+        tokenizePages();
+
+        pib = PhyPIB(par("currentChannel"), suppPages, par("transmitPower"), par("CCAMode"), par("currentPage"), par("SHRDuration"), par("symbolsPerOctet"));
+    }
 }
 
 void IEEE802154Phy::tokenizePages()
@@ -91,13 +104,13 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             send(msg, "outToRadio");
             return;
         }
-        else if (dynamic_cast<CmdFrame*>(msg))
+        else if (dynamic_cast<CmdFrame*>(msg) != NULL)
         {
-            send(msg, "outToRadio");     // should be a beacon request forward
+            send(msg, "outToRadio");
             return;
         }
 
-        switch (mappedMsgTypes[msg->getName()])
+        switch (mappedUpperLayerMsgTypes[msg->getName()])
         {
             case SETTRXSTATE: {
                 if (trxState == msg->getKind())
@@ -115,53 +128,55 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             }
 
             case GET: {
-                phyEV << "Sending PhyPIB upwards \n";
+                phyEV << "PLME-GET.request received -> sending PhyPIB attribute with PLME-GET.confirm upwards \n";
                 GetRequest* PhyPIBGet;
                 PhyPIBGet = check_and_cast<GetRequest *>(msg);
-                sendPhyPIB(PhyPIBGet->getPIBattr(), PhyPIBGet->getPIBind());
+                getPhyPIB(PhyPIBGet->getPIBattr(), PhyPIBGet->getPIBind());
+                delete (msg);       // XXX fix for undisposed object
                 break;
             }
 
             case SET: {
-                phyEV << "Setting PhyPIB-Attributes \n";
-                GetConfirm* PhyPIBSet;
-                PhyPIBSet = check_and_cast<GetConfirm *>(msg);
+                phyEV << "PLME-SET.request received -> setting PhyPIB attribute and confirming with PLME-SET.confirm \n";
+                SetRequest* PhyPIBSet;
+                PhyPIBSet = check_and_cast<SetRequest *>(msg);
                 setPhyPIB(PhyPIBSet);
-                delete PhyPIBSet;           // XXX fix for undisposed object GetConfirm
+                delete PhyPIBSet;   // XXX fix for undisposed object
                 break;
             }
 
             case CCA: {
                 if (trxState)
                 {
-                    phyEV << "CCARequest arrived -> performing CCA \n";
+                    phyEV << "PLME-CCA.request arrived -> performing CCA \n";
                     performCCA(pib.getCCA());
-                    delete (msg);
                     return;
                 }
                 else
                 {
-                    phyEV << "CCARequest arrived -> returning PLME-CCA.confirm \n";
+                    phyEV << "PLME-CCA.request arrived -> returning PLME-CCA.confirm \n";
                     cPacket* ccaConf = new cPacket("PLME-CCA.confirm");
+                    ccaConf->setName("PLME-CCA.confirm");
                     ccaConf->setKind(phy_TRX_OFF);
                     send(ccaConf, "outPLME");
                 }
+                delete (msg);   // XXX fix for undisposed object
                 break;
-
             }
 
             case ED: {
                 if (trxState)
                 {
-                    phyEV << "Performing ED \n";
+                    phyEV << "PLME-ED.request arrived -> performing ED \n";
                     performED();
                 }
+                delete (msg);   // XXX fix for undisposed object
                 break;
-
             }
 
             default: {
-                throw cRuntimeError("Message arrived on PLME-SAP is not defined! \n");
+                error("Message with kind: %d and name: %s arrived on PLME-SAP is not defined! \n", msg->getKind(), msg->getName());
+                break;
             }
         } // switch (mappedMsgTypes[msg->getName()])
     } // if (msg->arrivedOn("PLME_SAP"))
@@ -172,34 +187,47 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
         {
             ppdu *pdu = generatePPDU(msg, true);
             send(pdu, "outToRadio");
+            return;
         }
-        else
+        else    // PD-DATA.request
         {
             ppdu *pdu = generatePPDU(msg, false);
             send(pdu, "outToRadio");
-        }
-    } // if (msg->arrivedOn("PD_SAP"))
-    else if (msg->arrivedOn("inFromRadio")) // --> Message arrived from radioInterface
-    {
-        // create Conf message for the MAC layer
-        if (mappedMsgTypes[msg->getName()] == ED)
-        {
-            msg->setName("PLME-ED.confirm");
-            send(msg, "outPLME");
             return;
         }
-        else if (mappedMsgTypes[msg->getName()] == CCA)
+    } // if (msg->arrivedOn("PD_SAP"))
+    else if (msg->arrivedOn("inFromRadio")) // --> Message arrived from lower layer radioInterface
+    {
+        if (dynamic_cast<AckFrame *>(msg) != NULL)
         {
-            msg->setName("PLME-CCA.confirm");
-            send(msg, "outPLME");
+            send(msg, "outPD");
+            return;
         }
         else if (dynamic_cast<AssoCmdreq *>(msg) != NULL)
         {
-            send(msg, "outPLME");
+            send(msg, "outPD");
+            return;
         }
         else if (dynamic_cast<AssoCmdresp *>(msg) != NULL)
         {
-            send(msg, "outPLME");
+            send(msg, "outPD");
+            return;
+        }
+        else if (dynamic_cast<DisAssoCmd*>(msg) != NULL)
+        {
+            send(msg, "outPD");
+            return;
+        }
+        else if (dynamic_cast<GTSCmd*>(msg) != NULL)
+        {
+            send(msg, "outPD");
+            return;
+        }
+        else if (dynamic_cast<CmdFrame*>(msg) != NULL)
+        {
+            error("just for testing remove later, this should be a beacon request, name is %s \n", msg->getName()); // XXX remove after testing
+            send(msg, "outPD");
+            return;
         }
         else if (dynamic_cast<pdDataInd *>(msg) != NULL)
         {
@@ -218,30 +246,34 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             }
             else
             {
-                // this is a beacon request command
-                send(msg, "outPLME");
+                // this should be a beacon request command
+                error("just for testing remove later, this should be a beacon request, name is %s \n", msg->getName()); // XXX remove after testing
+                send(msg, "outPD"); // can probably be removed
             }
+            return;
         }
-        else if (dynamic_cast<AckFrame *>(msg) != 0)
+
+        // forward PLME-xxx.confirm messages from the lower radio layer to the MAC layer
+        switch (mappedLowerLayerMsgTypes[msg->getName()])
         {
-            send(msg, "outPLME");
-        }
-        else if (dynamic_cast<DisAssoCmd*>(msg) != 0)
-        {
-            send(msg, "outPLME");
-        }
-        else if (dynamic_cast<GTSCmd*>(msg) != 0)
-        {
-            send(msg, "outPLME");
-        }
-        else if (mappedMsgTypes[msg->getName()] == CONF)
-        {
-            send(msg, "outPD");
-        }
-        else
-        {
-            phyEV << "Forwarding unknown MSG-Type to MAC \n";
-            send(msg, "outPD");
+            case CONF: {
+                send(msg, "outPD");
+                return;
+            }
+
+            case SETTRXSTATE:
+            case GET:
+            case SET:
+            case CCA:
+            case ED: {
+                send(msg, "outPLME");
+                return;
+            }
+
+            default: {
+                error("[802154PHY] Undetermined msg kind %d | msg name %s -->", msg->getKind(), msg->getName());
+                break;
+            }
         }
     } // if (msg->arrivedOn("inFromRadio"))
 }
@@ -249,11 +281,12 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
 // Just inform the Radio Module to perform a CCA
 void IEEE802154Phy::performCCA(unsigned short mode)
 {
-    cMessage* ccaRequ = new cMessage("ccaRequ");
+    cMessage* ccaRequ = new cMessage("PLME-CCA.request");
     cMsgPar* ccaMode = new cMsgPar();
     ccaMode->setLongValue(mode);
     ccaRequ->addPar(ccaMode);
     ccaRequ->setKind(CCA);
+    ccaRequ->setName("PLME-CCA.request");
     send(ccaRequ, "outToRadio");
     return;
 }
@@ -264,21 +297,22 @@ void IEEE802154Phy::performED()
     // send a ED request out to the antenna module and wait for its answer
     cMessage* edRequ = new cMessage("PLME-ED.request");
     edRequ->setKind(ED);
+    edRequ->setName("PLME-ED.request");
     send(edRequ, "outToRadio");
     return;
 }
 
-void IEEE802154Phy::setPhyPIB(GetConfirm * PhyPIBSet)
+void IEEE802154Phy::setPhyPIB(SetRequest * PhyPIBSet)
 {
-    GetConfirm * PhyPIBSetConf = new GetConfirm("PLME-SET.confirm");
+    SetConfirm * PhyPIBSetConf = new SetConfirm("PLME-SET.confirm");
     PhyPIBSetConf->setPIBattr(PhyPIBSet->getPIBattr());
-    PhyPIBSetConf->setPIBind(PhyPIBSet->getPIBind());
-    PhyPIBSetConf->setStatus(Success);
+    PhyPIBSetConf->setName("PLME-SET.confirm");
+    PhyPIBSetConf->setStatus(PhyPIB_SUCCESS);
 
     switch (PhyPIBSet->getPIBattr())
     {
         case currentChannel: {
-            cMessage* radioPropMsg = new cMessage();
+            cMessage* radioPropMsg = new cMessage("phy_change_Channel");
             cMsgPar* prop = new cMsgPar();
 
             pib.setCurrChann(PhyPIBSet->getValue());
@@ -296,7 +330,7 @@ void IEEE802154Phy::setPhyPIB(GetConfirm * PhyPIBSet)
         }
 
         case transmitPower: {
-            cMessage* radioPropMsg = new cMessage();
+            cMessage* radioPropMsg = new cMessage("phy_change_Transmitter_Power");
             cMsgPar* prop = new cMsgPar();
 
             pib.setTransPow(PhyPIBSet->getValue());
@@ -318,18 +352,20 @@ void IEEE802154Phy::setPhyPIB(GetConfirm * PhyPIBSet)
             break;
         }
 
-        case SHRduration: {
-            pib.setSHR(PhyPIBSet->getValue());
+        case SHRDuration: {
+            //pib.setSHR(PhyPIBSet->getValue());
+            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY);
             break;
         }
 
         case symbolsPerSecond: {
-            pib.setSymbols(PhyPIBSet->getValue());
+            //pib.setSymbols(PhyPIBSet->getValue());
+            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY);
             break;
         }
 
         default: {
-            PhyPIBSet->setStatus(PhyPIB_UNSUPPORTED_ATTRIBUTE);
+            PhyPIBSetConf->setStatus(PhyPIB_UNSUPPORTED_ATTRIBUTE);
             break;
         }
     } // switch (PhyPIBSet->getPIBattr())
@@ -339,66 +375,68 @@ void IEEE802154Phy::setPhyPIB(GetConfirm * PhyPIBSet)
     return;
 }
 
-void IEEE802154Phy::sendPhyPIB(int attr, int index)
+void IEEE802154Phy::getPhyPIB(int attr, int index)
 {
-    GetConfirm* PhyPIBGet = new GetConfirm("PLME-GET.confirm");
-
-    PhyPIBGet->setPIBattr(attr);
-    PhyPIBGet->setPIBind(index);
-    PhyPIBGet->setStatus(PhyPIB_SUCCESS);
+    GetConfirm* PhyPIBGetConf = new GetConfirm("PLME-GET.confirm");
+    PhyPIBGetConf->setName("PLME-GET.confirm");
+    PhyPIBGetConf->setPIBattr(attr);
+    PhyPIBGetConf->setPIBind(index);
+    PhyPIBGetConf->setStatus(PhyPIB_SUCCESS);
 
     switch (attr)
     {
         case currentChannel: {
-            PhyPIBGet->setValue(pib.getCurrChann());
+            PhyPIBGetConf->setValue(pib.getCurrChann());
             break;
         }
 
         case channelSupported: {
-            PhyPIBGet->setValue(pib.getChannSupp()[index]);
+            PhyPIBGetConf->setValue(pib.getChannSupp()[index]);
             break;
         }
 
         case transmitPower: {
-            PhyPIBGet->setValue(pib.getTransPow());
+            PhyPIBGetConf->setValue(pib.getTransPow());
             break;
         }
 
         case CCA_Mode: {
-            PhyPIBGet->setValue(pib.getCCA());
+            PhyPIBGetConf->setValue(pib.getCCA());
             break;
         }
 
         case currentPage: {
-            PhyPIBGet->setValue(pib.getCurrPage());
+            PhyPIBGetConf->setValue(pib.getCurrPage());
             break;
         }
 
-        case SHRduration: {
-            PhyPIBGet->setValue(pib.getSHR());
+        case SHRDuration: {
+            PhyPIBGetConf->setValue(pib.getSHR());
             break;
         }
 
         case symbolsPerSecond: {
-            PhyPIBGet->setValue(pib.getSymbols());
+            PhyPIBGetConf->setValue(pib.getSymbols());
             break;
         }
 
         default: {
-            PhyPIBGet->setStatus(PhyPIB_UNSUPPORTED_ATTRIBUTE);
+            PhyPIBGetConf->setStatus(PhyPIB_UNSUPPORTED_ATTRIBUTE);
+            PhyPIBGetConf->setValue(0);
             break;
         }
     } // switch (attr)
 
-    send(PhyPIBGet, "outPLME");
+    send(PhyPIBGetConf, "outPLME");
 
     return;
 }
 
 void IEEE802154Phy::sendTrxConf(phyState status)
 {
-    cMessage* mlmeMsg = new cMessage("PLME-SET-TRX-STATE.confirm");
-    mlmeMsg->setKind(status);
-    send(mlmeMsg, "outPLME");
+    cMessage* setTRXStateConf = new cMessage("PLME-SET-TRX-STATE.confirm");
+    setTRXStateConf->setName("PLME-SET-TRX-STATE.confirm");
+    setTRXStateConf->setKind(status);
+    send(setTRXStateConf, "outPLME");
     return;
 }

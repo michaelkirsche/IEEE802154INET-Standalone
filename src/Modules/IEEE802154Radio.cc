@@ -1415,7 +1415,11 @@ void IEEE802154Radio::connectReceiver()
 
 void IEEE802154Radio::getSensitivityList(cXMLElement* xmlConfig)
 {
-    sensitivityList.empty();        // TODO check if sensitivityList should be cleared or if-case for empty list checking
+    //sensitivityList.empty();      // TODO check if sensitivityList should be cleared or if-case for empty list checking
+    if (!sensitivityList.empty())
+    {
+        sensitivityList.clear();    // XXX fix for previously unused empty check (returns bool)
+    }
 
     if (xmlConfig == 0)
     {
@@ -1520,7 +1524,8 @@ void IEEE802154Radio::performCCA()
 // false if Radio Channel seems to be free (CCA)
 void IEEE802154Radio::genCCAConf(bool success)
 {
-    cPacket* ccaConf = new cPacket("CCA");
+    cMessage* ccaConf = new cMessage("PLME-CCA.confirm");
+    ccaConf->setName("PLME-CCA.confirm");
     if (success)
     {
         ccaConf->setKind(phy_IDLE);
@@ -1564,7 +1569,8 @@ void IEEE802154Radio::performED()
 
 void IEEE802154Radio::generateEDconf(double rcvdPower, int status)
 {
-    cPacket* edConf = new cPacket("ED");
+    cMessage* edConf = new cMessage("PLME-ED.confirm");
+    edConf->setName("PLME-ED.confirm");
     // add a double value for received power if ED was a success, otherwise only set the status
     if (status == ED_SUCCESS)
     {
@@ -1585,7 +1591,7 @@ void IEEE802154Radio::generateEDconf(double rcvdPower, int status)
 
 void IEEE802154Radio::genPhyConf(phyState state)
 {
-    cPacket* conf = new cPacket("PD-DATA.confirm");
+    cMessage* conf = new cMessage("PD-DATA.confirm");
     conf->setKind(state);
     send(conf, "upperLayerOut");
 }

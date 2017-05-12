@@ -26,6 +26,7 @@
 #include "PPDU_m.h"
 #include "PhyPIB.h"
 #include "MPDU_m.h"
+#include "IEEE802154Consts.h"
 #include "IEEE802154Enum.h"
 
 #define phyEV (ev.isDisabled()||!phyDebug) ? EV : EV << "[802154_PHY]: "    // switchable debug output
@@ -42,19 +43,20 @@ class IEEE802154Phy : public cSimpleModule
         bool phyDebug = false;
 
         virtual ppdu *generatePPDU(cMessage *psdu, bool ackFlag);
-        virtual void initialize();
+        void initialize(int stage);
         virtual void handleMessage(cMessage *msg);
         void sendTrxConf(phyState status);
         void tokenizePages();
-        void sendPhyPIB(int attr, int index);
-        void setPhyPIB(GetConfirm *IEEE802154PhyPIBSet);
+        void getPhyPIB(int attr, int index);
+        void setPhyPIB(SetRequest *IEEE802154PhyPIBSet);
         void performCCA(unsigned short mode);
         void performED();
 
     private:
         phyState trxState;
         // Map to associate the strings with the enum values (cp. IEEE802154Enum.h)
-        std::map<std::string, PIBMsgTypes> mappedMsgTypes;
+        std::map<std::string, PIBMsgTypes> mappedUpperLayerMsgTypes;    // messages from upper layer are typically requests
+        std::map<std::string, PIBMsgTypes> mappedLowerLayerMsgTypes;    // messages from lower layer are typically confirms
         PhyPIB pib;
 
         unsigned int suppPages[3];
