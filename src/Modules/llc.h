@@ -69,7 +69,8 @@ class llc : public cSimpleModule
 
         simtime_t pollFreq;
 
-        bool associateSuccess;  // We associate on first beacon notify until successful
+        bool associateStarted;      // association process started
+        bool associateSuccess;      // We associate on first beacon notify until successful
 
         unsigned char coordAddrMode;
         unsigned short coordPANId;

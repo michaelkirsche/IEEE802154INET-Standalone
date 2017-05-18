@@ -45,6 +45,7 @@ void llc::initialize()
 
     WATCH(firstDevice);
     WATCH(associateSuccess);
+    WATCH(associateStarted);
 
     if (convertingMode)
     {
@@ -355,6 +356,7 @@ void llc::handleMessage(cMessage *msg)
             {
                 llcEV << "Association Confirm received --> association process was successful \n";
                 associateSuccess = true;
+                associateStarted = false;
                 delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
                 return;
             } // (dynamic_cast<AssociationConfirm*>(msg))
@@ -362,6 +364,11 @@ void llc::handleMessage(cMessage *msg)
             if (dynamic_cast<Association*>(msg))    // MLME-Association.indication
             {
                 llcEV << "Association Indication received --> association response will be sent automatically by the MAC \n";
+
+                // actually need to wait for ACK to confirm the correct association
+                // as the LLC currently does not cover processes / tasks, check during the reception of mcpsDataConf
+                // if an acknowledge was received
+                associateStarted = true;
 
                 delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
                 return;
@@ -377,7 +384,7 @@ void llc::handleMessage(cMessage *msg)
             } // (dynamic_cast<OrphanIndication*>(msg))
 
             // For all other msg types -> since we are converting assume application layer won't understand any MLME messages
-            llcEV << "convertingMode -> deleting MLME Message without forwarding it to higher layer -> " << msg->getFullName() << endl;
+            llcEV << "convertingMode -> deleting MLME Message: " << msg->getFullName() << " without forwarding it to higher layer \n";
             delete (msg);
             return;
         }   // if (convertingMode)
@@ -405,13 +412,30 @@ void llc::handleMessage(cMessage *msg)
             else if (dynamic_cast<mcpsDataConf*>(msg))
             {
                 mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
-                llcEV << "Got CONFIRM from MAC with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle() << endl;
+                if (associateStarted)
+                {
+                    if (conf->getStatus() == SUCCESS)
+                    {
+                        associateSuccess = true;
+                        associateStarted = false;
+                        llcEV << "Acknowledge for MLME-ASSOCIATE.response received --> association process was successful \n";
+                    }
+                    else if (conf->getStatus() == NO_ACK)
+                    {
+                        llcEV << "No ACK for MLME-ASSOCIATE.response received --> association process was NOT successful!!! \n";
+                    }
+                }
+                else
+                {
+
+                    llcEV << "Got CONFIRM from MAC with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle() << endl;
+                }
                 send(conf, "outApp");
                 return;
             } // (dynamic_cast<mcpsDataConf*>(msg))
             else
             {
-                error("[LLC]: Undefined Message arrived on inData gate!");
+                error("[LLC]: Undefined Message arrived at inData gate!");
             }
         } // if (convertingMode)
     } // if msg->arrivedOn("inData")
@@ -424,6 +448,7 @@ llc::llc()
     TXoption = 0;
     msgHandle = 0;
     associateSuccess = false;
+    associateStarted = false;
     coordAddrMode = 0;
     coordPANId = 0;
     scanChannels = 0;
