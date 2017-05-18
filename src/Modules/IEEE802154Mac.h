@@ -182,7 +182,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void handleUpperMLMEMsg(cMessage* msg);
         void handleUpperMCPSMsg(cMessage* msg);
 
-        void handleLowerMsg(cMessage* msg); // XXX refactor into separate functions for PLME and PD
+        // XXX to be deleted after final testing
+        //void handleLowerMsg(cMessage* msg);
         void handleLowerPLMEMsg(cMessage* msg);
         void handleLowerPDMsg(cMessage* msg);
 
@@ -243,7 +244,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void csmacaTrxBeacon(char trx);
         int calFrameByteLength(mpdu* mpdu);
         int calMacHeaderByteLength(unsigned char mhr, bool secu);
-        simtime_t calDuration(mpdu* mpdu);
+        simtime_t calDuration(cPacket* mpdu);
         bool toParent(mpdu* mpdu);
         void doScan();
 
