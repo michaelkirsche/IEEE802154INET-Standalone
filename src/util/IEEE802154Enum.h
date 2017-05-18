@@ -397,4 +397,9 @@ inline const char* ScanStatusToString(ScanStatus y)
     }
 }
 
+enum IFSType {  // indicates the type of Inter Frame Spacing
+        SIFS    = 0,    // Short inter frame spacing -> waiting time after reception of short frames
+        LIFS    = 1,    // Long inter frame spacing -> waiting time after reception of long frames > aMaxSIFSFrameSize
+};
+
 #endif /* IEEE_802154_ENUM_H */

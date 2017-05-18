@@ -260,7 +260,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void startAckTimeoutTimer();
         void startTxAckBoundTimer(simtime_t wtime);
         void startTxCmdDataBoundTimer(simtime_t wtime);
-        void startIfsTimer(bool sifs);
+        void startIfsTimer(IFSType ifsType);
         void startTxSDTimer();
         void startRxSDTimer();
         void startGtsTimer(simtime_t wtime);

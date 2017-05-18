@@ -1913,28 +1913,6 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
     return;
 }
 
-void IEEE802154Mac::handleData(mpdu* frame)
-{
-    unsigned short frmCtrl = frame->getFcf();
-    // pass the data packet to upper layer
-    // (we need some time to process the packet -- so delay SIFS/LIFS symbols from now or after finishing sending the ACK)
-    // (refer to Figure 68 of the 802.15.4-2006 Spec. for details of SIFS/LIFS)
-    ASSERT(rxData == NULL);
-    rxData = frame;
-
-    if (!((frmCtrl & arequMask) >> arequShift))
-    {
-        bool isSIFS = false;
-
-        if (frame->getByteLength() <= aMaxSIFSFrameSize)
-        {
-            isSIFS = true;
-        }
-        startIfsTimer(isSIFS);
-    }
-    return;
-}
-
 void IEEE802154Mac::handleAck(cMessage* frame)
 {
     AckFrame* ack = check_and_cast<AckFrame*>(frame);
@@ -1959,6 +1937,22 @@ void IEEE802154Mac::handleAck(cMessage* frame)
     return;
 }
 
+void IEEE802154Mac::handleData(mpdu* frame)
+{
+    unsigned short frmCtrl = frame->getFcf();
+    // we need some time to process the packet -- so delay SIFS/LIFS symbols from now or after finishing sending the ACK
+    // (refer to Figure 68 of the 802.15.4-2006 Spec. for details of SIFS/LIFS)
+    ASSERT(rxData == NULL);
+    rxData = frame;
+
+    if (!((frmCtrl & arequMask) >> arequShift))
+    {
+        (frame->getByteLength() <= aMaxSIFSFrameSize) ? startIfsTimer(SIFS) : startIfsTimer(LIFS);
+    }
+    return;
+}
+
+
 void IEEE802154Mac::handleCommand(mpdu* frame)
 {
     // all commands in this environment are encapsulated in MPDU
@@ -1981,6 +1975,8 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 send(assoInd, "outMLME");
                 // we associate with everyone
                 genAssoResp(Success, tmpAssoReq);
+                // XXX set Transceiver to ON (and thus handle_PLME_SET_TRX_STATE and eventually transfer) ?!?
+                //genSetTrxState(phy_TX_ON);
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 return;
 
@@ -2064,7 +2060,13 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
         }  // case Ieee802154_DISASSOCIATION_NOTIFICATION
 
         case Ieee802154_DATA_REQUEST: {
-            genACK(frame->getSqnr(), false);
+            genACK(cmdFrame->getSqnr(), false);
+            // TODO: does data request already contain the ACK flag set in the FCF? If so, genACK is obsolete here
+
+            // TODO: further processing of DATA_REQUEST command necessary
+            //send(cmdFrame, "outMLME");
+
+            //rxCmd = NULL;   // XXX delete command message buffer after processing
             break;
         }  // case Ieee802154_DATA_REQUEST
 
@@ -4331,23 +4333,27 @@ void IEEE802154Mac::startTxCmdDataBoundTimer(simtime_t wtime)
     scheduleAt(simTime() + wtime, txCmdDataBoundTimer);
 }
 
-void IEEE802154Mac::startIfsTimer(bool sifs)
+void IEEE802154Mac::startIfsTimer(IFSType ifsType)
 {
-    simtime_t wtime;
-    if (sifs)  // SIFS
-    {
-        wtime = aMinSIFSPeriod / phy_symbolrate;
-    }
-    else
-    {
-        // LIFS
-        wtime = aMinLIFSPeriod / phy_symbolrate;
-    }
-
     if (ifsTimer->isScheduled())
     {
         cancelEvent(ifsTimer);
     }
+
+    simtime_t wtime;
+
+    wtime = (ifsType == SIFS) ? aMinSIFSPeriod / phy_symbolrate : aMinLIFSPeriod / phy_symbolrate;
+
+//    if (ifsType == SIFS)
+//    {
+//        wtime = aMinSIFSPeriod / phy_symbolrate;
+//    }
+//    else if (ifsType == LIFS)
+//    {
+//        wtime = aMinLIFSPeriod / phy_symbolrate;
+//    }
+    macEV << "startIfsTimer for IFS Type: " << ((ifsType == SIFS) ? "SIFS" : "LIFS") << " with wtime: " << wtime << endl;
+
     scheduleAt(simTime() + wtime, ifsTimer);
 }
 
@@ -5557,14 +5563,8 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     macEV << "[GTS]: need to delay IFS before next GTS transmission can proceed \n";
                     taskP.taskStep(task) = 4;
                     strcpy(taskP.taskFrFunc(task), "handleIfsTimer");
-                    if (txGTS->getByteLength() <= aMaxSIFSFrameSize)
-                    {
-                        startIfsTimer(true);
-                    }
-                    else
-                    {
-                        startIfsTimer(false);
-                    }
+
+                    (txGTS->getByteLength() <= aMaxSIFSFrameSize) ? startIfsTimer(SIFS) : startIfsTimer(LIFS);
                 }
                 break;
             }  // case 2
@@ -5579,14 +5579,8 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     taskP.taskStep(task)++; // advance to next task step
                     cancelEvent(ackTimeoutTimer);   // cancel the ACK timeout timer here
                     strcpy(taskP.taskFrFunc(task), "handleIfsTimer");
-                    if (txGTS->getByteLength() <= aMaxSIFSFrameSize)
-                    {
-                        startIfsTimer(true);
-                    }
-                    else
-                    {
-                        startIfsTimer(false);
-                    }
+
+                    (txGTS->getByteLength() <= aMaxSIFSFrameSize) ? startIfsTimer(SIFS) : startIfsTimer(LIFS);
                 }
                 else  // time out when waiting for ACK, normally impossible in GTS
                 {
@@ -5638,7 +5632,6 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
 
 void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_state, MACenum mStatus)
 {
-    bool isSIFS = false;
     /*****************************************/
     /************<csmacaCallBack()>**********/
     /***************************************/
@@ -5683,22 +5676,17 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
         {
             if (rxCmd != NULL)  // ACK for CMD
             {
-                if (rxCmd->getByteLength() <= aMaxSIFSFrameSize)
-                {
-                    isSIFS = true;
-                }
-                startIfsTimer(isSIFS);
+
+                (rxCmd->getByteLength() <= aMaxSIFSFrameSize) ? startIfsTimer(SIFS) : startIfsTimer(LIFS);
+
                 resetTRX();
                 taskSuccess('a');
                 txAck = 0;
             }
             else if (rxData != NULL)  // default handling (virtually the only handling needed) for <rxData>
             {
-                if (rxData->getByteLength() <= aMaxSIFSFrameSize)
-                {
-                    isSIFS = true;
-                }
-                startIfsTimer(isSIFS);
+                (rxData->getByteLength() <= aMaxSIFSFrameSize) ? startIfsTimer(SIFS) : startIfsTimer(LIFS);
+
                 if (rxData->getIsGTS())  // received in GTS
                 {
                     if (isCoordinator)
