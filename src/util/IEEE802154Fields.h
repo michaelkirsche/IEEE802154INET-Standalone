@@ -17,8 +17,6 @@
 //
 #pragma once
 
-// TODO: Update documentation in compliance with 802.15.4-2006 Revision
-
 #ifndef IEEE802154FIELDS_H_
 #define IEEE802154FIELDS_H_
 
@@ -52,7 +50,6 @@ struct Ash
         SecurityControl secu;
         unsigned int FrameCount;
         KeyIdField KeyIdentifier;
-
 };
 
 // Elements of PAN descriptor (Table 41)

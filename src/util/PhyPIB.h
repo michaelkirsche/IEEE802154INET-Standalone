@@ -32,8 +32,8 @@ class PhyPIB
 {
     public:
         PhyPIB() {}; // Standard Ctor
-        PhyPIB(unsigned short currChann, unsigned int channSupp[], unsigned char transPow, unsigned short CCAMode, unsigned short currPage,
-                unsigned short SHRdur, double symbols);
+        PhyPIB(unsigned short currChann, unsigned int channSupp[], unsigned char transPow, unsigned short CCAMode,
+               unsigned short currPage, unsigned short SHRdur, double symbols);
         virtual ~PhyPIB() {};   // Standard Dtor
 
         // Getters & Setters ....

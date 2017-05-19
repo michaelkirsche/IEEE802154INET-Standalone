@@ -41,26 +41,25 @@ void sscs::handleMessage(cMessage *msg)
             dataMsg->setDstAddrMode(addrLong);
             dataMsg->setDstAddr(maRequ->getDstAddr());
 
-            sscsEV << "from inApp -> MCPS-DATA.Request -- Forwarding to outMCPS\n";
+            sscsEV << "from inApp -> MCPS-DATA.Request -- Forwarding to outMCPS \n";
             cPacket *payload = dynamic_cast<cPacket *>(msg);
             dataMsg->encapsulate(payload);
             send(msg, "outMCPS");
         }
         else
         {
-            sscsEV << "from inApp -> Unknown Packet type -- Forwarding to outMCPS\n";
+            sscsEV << "from inApp -> Unknown Packet type -- Forwarding to outMCPS \n";
             send(msg, "outMCPS");
         }
-    }
-
-    if (msg->arrivedOn("inMCPS"))
+    } // if (msg->arrivedOn("inApp")
+    else if (msg->arrivedOn("inMCPS"))
     {
 
         cPacket *packet = dynamic_cast<cPacket *>(msg);
         cPacket* appMsg = packet->decapsulate();
         if (dynamic_cast<MaUnitdata *>(appMsg))
         {
-            sscsEV << "from inMCPS -> application Message -- Forwarding to outApp\n";
+            sscsEV << "from inMCPS -> application Message -- Forwarding to outApp \n";
             send(appMsg, "outApp");
         }
         else if (dynamic_cast<mcpsDataInd*>(msg))
@@ -72,13 +71,13 @@ void sscs::handleMessage(cMessage *msg)
             dataInd->setDstAddr(mcpsInd->getDstAddr());
             dataInd->encapsulate(appMsg);
 
-            sscsEV << "from inMCPS -> MA-UNITDATA.indication -- Forwarding to outApp\n";
+            sscsEV << "from inMCPS -> MA-UNITDATA.indication -- Forwarding to outApp \n";
             // everything else NULL
             send(dataInd, "outApp");
         }
         else
         {
-            sscsEV << "Unknown Packet type -- Doing nothing at all\n";
+            sscsEV << "Unknown Packet type -- Doing nothing at all \n";
         }
-    }
+    }   // if (msg->arrivedOn("inMCPS")
 }

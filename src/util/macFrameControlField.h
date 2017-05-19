@@ -27,9 +27,6 @@ class macFrameControlField
         macFrameControlField(){};   // Std Ctor
         ~macFrameControlField(){};  // Std Dtor
         unsigned short genFCF(frameType ft, bool sec, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fV, AddrMode sam); // Frame....
-
-//    private:
-//        bool ackReq;  // variable not used anymore
 };
 
 #endif /* MACFRAMECONTROLFIELD_H_ */

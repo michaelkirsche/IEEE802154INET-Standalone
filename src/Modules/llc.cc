@@ -427,7 +427,6 @@ void llc::handleMessage(cMessage *msg)
                 }
                 else
                 {
-
                     llcEV << "Got CONFIRM from MAC with Status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << " for Message #" << (int) conf->getMsduHandle() << endl;
                 }
                 send(conf, "outApp");
@@ -435,7 +434,7 @@ void llc::handleMessage(cMessage *msg)
             } // (dynamic_cast<mcpsDataConf*>(msg))
             else
             {
-                error("[LLC]: Undefined Message arrived at inData gate!");
+                error("[802154LLC]: Undefined Message arrived at inData gate!");
             }
         } // if (convertingMode)
     } // if msg->arrivedOn("inData")

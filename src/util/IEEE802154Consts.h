@@ -62,5 +62,4 @@ const double SR_868M = 20;      // 20 ks/s
 const double SR_915M = 40;      // 40 ks/s
 const double SR_2_4G = 62.5;    // 62.5 ks/s
 
-
 #endif /* IEEE802154CONSTS_H_ */

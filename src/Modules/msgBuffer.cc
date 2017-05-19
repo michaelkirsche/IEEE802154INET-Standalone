@@ -39,7 +39,6 @@ void msgBuffer::initialize()
         sprintf(buf, "Size: %d pks | Holding : %u pks | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
         getDisplayString().setTagArg("t", 0, buf);
     }
-
 }
 
 int msgBuffer::spacesFree()

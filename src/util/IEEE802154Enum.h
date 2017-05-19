@@ -26,12 +26,10 @@ enum PIBMsgTypes {
     SET,
     CCA,
     ED,
-    CONF//,
-    //SETCONF   // XXX not needed anymore
+    CONF
 };
 
 enum phyState {
-    //phy_BUSY = SETCONF+1, // XXX SETCONF not needed anymore
     phy_BUSY = CONF+1,
     phy_BUSY_RX,
     phy_BUSY_TX,

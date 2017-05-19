@@ -37,7 +37,6 @@ void IEEE802154Phy::initialize(int stage)
         mappedUpperLayerMsgTypes["PLME-CCA.request"] = CCA;
         mappedUpperLayerMsgTypes["PLME-ED.request"] = ED;
         mappedUpperLayerMsgTypes["PD-DATA.request"] = CONF;
-        //mappedMsgTypes["PHY-SET.confirm"] = SETCONF;  // XXX not needed anymore
 
         // assign the message names for Lower Layer messages (typically confirms)
         mappedLowerLayerMsgTypes["PLME-SET-TRX-STATE.confirm"] = SETTRXSTATE;
@@ -76,9 +75,10 @@ ppdu *IEEE802154Phy::generatePPDU(cMessage *psdu, bool ackFlag)
     else
     {
         pdu->setPHR(pk->getByteLength() + 6);
-        phyEV << "The Frame length (PHR in PHY) is set to " << (unsigned short) pdu->getPHR() << endl;
         pdu->setByteLength(pk->getByteLength() + 6); // needed for calculation in Radio Module
     }
+
+    phyEV << "The Frame length (PHR in PHY) is set to " << (unsigned short) pdu->getPHR() << endl;
     pdu->encapsulate(pk);
     return pdu;
 }
@@ -90,7 +90,6 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
     {
         if (dynamic_cast<AssoCmdreq *>(msg) != NULL)
         {
-            // just forwarding it
             send(msg, "outToRadio");
             return;
         }
@@ -325,7 +324,7 @@ void IEEE802154Phy::setPhyPIB(SetRequest * PhyPIBSet)
         }
 
         case channelSupported: {
-            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY);
+            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY); // Read-Only according to the specification
             break;
         }
 
@@ -353,14 +352,12 @@ void IEEE802154Phy::setPhyPIB(SetRequest * PhyPIBSet)
         }
 
         case SHRDuration: {
-            //pib.setSHR(PhyPIBSet->getValue());
-            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY);
+            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY); // Read-Only according to the specification
             break;
         }
 
         case symbolsPerSecond: {
-            //pib.setSymbols(PhyPIBSet->getValue());
-            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY);
+            PhyPIBSetConf->setStatus(PhyPIB_READ_ONLY); // Read-Only according to the specification
             break;
         }
 

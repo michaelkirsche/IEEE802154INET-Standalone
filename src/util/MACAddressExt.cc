@@ -22,10 +22,6 @@
 #include "MACAddressExt.h"
 #include "InterfaceToken.h"
 
-unsigned int MACAddressExt::autoAddressCtr = 0; // WARNING: variable is not resetted when simulations are "rebuild" from GUI
-                                                // always restart completely or else MAC addresses "add up" and
-                                                // configurations (from omnetpp.ini) might not work
-
 const MACAddressExt MACAddressExt::UNSPECIFIED_ADDRESS;
 const MACAddressExt MACAddressExt::BROADCAST_ADDRESS("FF:FF:FF:FF:FF:FF:FF:FF");
 const MACAddressExt MACAddressExt::MULTICAST_PAUSE_ADDRESS("01:80:C2:00:00:00:00:01");
@@ -157,14 +153,6 @@ int MACAddressExt::compareTo(const MACAddressExt& other) const
 {
     // note: "return address-other.address" is not OK because 64-bit result does not fit into the return type
     return (address < other.address) ? -1 : (address == other.address) ? 0 : 1;
-}
-
-MACAddressExt MACAddressExt::generateAutoAddress()
-{
-    ++autoAddressCtr;
-    uint64_t genAddr = 0x0AAA000000000000 + (autoAddressCtr & MAC_ADDRESS_MASK);
-    MACAddressExt addr(genAddr);
-    return addr;
 }
 
 MACAddressExt MACAddressExt::generateMacAddressWithNodeIndex(unsigned int index)

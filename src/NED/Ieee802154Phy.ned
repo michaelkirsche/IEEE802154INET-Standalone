@@ -44,5 +44,4 @@ simple IEEE802154Phy
         // Antenna interfaces
         input inFromRadio;
         output outToRadio;
-
 }

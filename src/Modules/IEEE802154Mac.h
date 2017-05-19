@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include "PhyPIB.h"   // XXX use PLME-GET messages instead
 #include "MacPIB.h"
 
 #include "PPDU_m.h"
@@ -178,12 +177,11 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
          */
         void handleMessage(cMessage* msg);
 
+        // XXX to be deleted after final testing
         void handleUpperMsg(cMessage* msg); // XXX refactor into separate functions for MCPS and MLME
         void handleUpperMLMEMsg(cMessage* msg);
         void handleUpperMCPSMsg(cMessage* msg);
 
-        // XXX to be deleted after final testing
-        //void handleLowerMsg(cMessage* msg);
         void handleLowerPLMEMsg(cMessage* msg);
         void handleLowerPDMsg(cMessage* msg);
 
@@ -305,7 +303,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void getSHRDuration();
         void getSymbolsPerOctet();
 
-        /*
+        /**
          * @name State control and task management functions
          */
         void dispatch(phyState pStatus, const char *frFunc, phyState req_state = phy_SUCCESS, MACenum mStatus = mac_SUCCESS);
@@ -321,7 +319,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // MAC PAN Information Base
         MacPIB mpib;
         // PHY PAN Information Base
-        //PhyPIB ppib;    // XXX need to use the actual PIB from the PHY via PLME-GET messages
         Ieee802154TxOption dataTransMode; // see IEEE802154Enum.h
         int sequ; // Msg Sequence Number
         frameType ft; // see IEEE802154Enum.h
@@ -410,6 +407,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // small tx Buffer for responses on messages on MAC layer
         cArray txBuff;
+
         // for ack frames to be transmitted (no wait)
         AckFrame* txAck;
 
@@ -482,14 +480,14 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // number of GTS descriptors being maintained
         unsigned char gtsCount;
 
-        // list of GTS descriptors for all existing GTS being maintained - max # defined as constant */
+        // list of GTS descriptors for all existing GTS being maintained - max # defined as constant
         GTSDescriptor gtsList[maxGTSAllocations];
 
         simtime_t gtsTransDuration;
 
         unsigned char gtsStartSlot;
 
-        // number of superframe slots for the GTS, calculated in handleBeacon()  */
+        // number of superframe slots for the GTS, calculated in handleBeacon()
         unsigned char gtsLength;
 
         unsigned short numTxAckInactive;
@@ -498,18 +496,20 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         unsigned char CW;
         unsigned char BE;
 
-        int bPeriodsLeft; // backoff periods left
-        // num of incoming beacons lost in a row */
+        // backoff periods left
+        int bPeriodsLeft;
+
+        // num of incoming beacons lost in a row
         unsigned char bcnLossCounter;
 
         bool waitGTSConf;
         bool csmacaAckReq;
         bool csmacaWaitNextBeacon;
 
-        // flag for using beacon or not */
+        // flag for using beacon or not
         bool beaconEnabled;
 
-        // indicating a beacon frame waiting for transmission, suppress all other transmissions */
+        // indicating a beacon frame waiting for transmission, suppress all other transmissions
         bool beaconWaitingTx;
 
         // outging superframe specification used by coordinators
@@ -566,7 +566,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // timer for scheduling of GTS, shared by both PAN coordinator and devices
         cMessage* gtsTimer;
 
-        //simtime_t lastTime_bcnRxTimer;    // XXX parameter needed anymore?
+        simtime_t lastTime_bcnRxTimer;    // XXX parameter needed anymore?
         bool txNow_bcnTxTimer;
 
         //true while in active period of the outgoing superframe
@@ -667,7 +667,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // num of BitErrors detected during frame reception and reported back from PHY to MAC
         unsigned long numBitErrors;
-
 
         // outgoing PAN descriptor transmitted used by coordinators (TBD)
         PAN_ELE txPanDescriptor;

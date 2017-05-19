@@ -21,8 +21,8 @@
 #include "PhyPIB.h"
 #include "omnetpp.h"
 
-PhyPIB::PhyPIB(unsigned short currChann, unsigned int channSupp[], unsigned char transPow, unsigned short CCAMode, unsigned short currPage,
-        unsigned short SHRdur, double symbols)
+PhyPIB::PhyPIB(unsigned short currChann, unsigned int channSupp[], unsigned char transPow, unsigned short CCAMode,
+        unsigned short currPage, unsigned short SHRdur, double symbols)
 {
     phyCurrentChannel = currChann;
     // Copy arrays into each other

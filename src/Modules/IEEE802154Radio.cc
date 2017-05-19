@@ -38,7 +38,6 @@ simsignal_t IEEE802154Radio::changeLevelNoise = registerSignal("changeLevelNoise
 #define BASE_NOISE_LEVEL (noiseGenerator?noiseLevel+noiseGenerator->noiseLevel():noiseLevel)
 
 // Center frequencies for our 27 IEEE 802.15.4 radio channels
-// TODO check compliance with the 802.15.4-2009 and 2011 revisions
 // FIXME check that the exact center frequency is used instead of ChannelControl carrierFrequency value
 const double IEEE802154Radio::channelFreq[27] = { 868.3,  // 1 channel in the 868 MHz band
         906, 908, 910, 912, 914, 916, 918, 920, 922, 924,  // 10 channels in the 915 MHz band
@@ -110,7 +109,9 @@ void IEEE802154Radio::initialize(int stage)
         // read parameters
         transmitterPower = par("transmitterPower");
         if (transmitterPower > (double) (getChannelControlPar("pMax")))
+        {
             error("transmitterPower cannot be bigger than pMax in ChannelControl!");
+        }
 
         newChannel = par("channelNumber");
         rs.setChannelNumber(newChannel);

@@ -16,8 +16,6 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-// TODO: Update documentation in compliance with IEEE 802.15.4-2006 revision
-
 #include "MacPIB.h"
 
 MacPIB::MacPIB()

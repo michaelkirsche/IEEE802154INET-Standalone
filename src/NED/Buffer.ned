@@ -35,5 +35,4 @@ simple msgBuffer
 
         output outMCPS;
         output outMLME;
-
 }

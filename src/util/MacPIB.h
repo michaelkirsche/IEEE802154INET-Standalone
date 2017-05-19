@@ -17,8 +17,6 @@
 //
 #pragma once
 
-// TODO: Update documentation in compliance with IEEE 802.15.4-2006 revision
-
 // Class representing MAC PIB as listed in Standard description Table 86
 
 #include <stdlib.h>
@@ -160,7 +158,6 @@ class MacPIB
          * @brief The maximum time that a transaction is stored by a coordinator and indicated in its beacon
          */
         simtime_t macTransactionPersistenceTime;
-
 };
 
 #endif /* MACPIB_H_ */

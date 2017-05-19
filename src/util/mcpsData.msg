@@ -57,7 +57,7 @@ packet mcpsDataConf {
     // added for MSCPS confirm 
 	unsigned char msduHandle;          // 0x00–0xff  -->  actually just an unsigned char 8-Bit value but mapping to OMNeT msg ID requires long 
 	unsigned char status @enum(MCPSStatus);    // see IEEE802154Enum.h
-	simtime_t Timestamp;			       // 0x000000–0xffffff -> optional is set via ->setTimestamp()
+	simtime_t Timestamp;               // 0x000000–0xffffff -> optional is set via ->setTimestamp()
 }
 
 packet MaUnitdata {

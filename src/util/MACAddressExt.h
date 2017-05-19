@@ -71,8 +71,7 @@ class MACAddressExt
         }
 
         /**
-         * Constructor which accepts a hex string (12 hex digits, may also
-         * contain spaces, hyphens and colons)
+         * Constructor which accepts a hex string (12 hex digits, may also contain spaces, hyphens and colons)
          */
         explicit MACAddressExt(const char *hexstr)
         {
@@ -122,7 +121,9 @@ class MACAddressExt
             shortAddr = val;
         }
 
-        // last 16 bit are short address
+        /**
+         * generating the short address --> last 16 bit are short address
+         */
         void genShortAddr()
         {
             shortAddr = address & (MAC_ADDRESS_SHORT_MASK);
@@ -134,14 +135,12 @@ class MACAddressExt
         }
 
         /**
-         * Sets the address and returns true if the syntax of the string
-         * is correct. (See setAddress() for the syntax.)
+         * Sets the address and returns true if the syntax of the string is correct. (See setAddress() for the syntax.)
          */
         bool tryParse(const char *hexstr);
 
         /**
-         * Converts address value from hex string (16 hex digits, may also
-         * contain spaces, hyphens and colons)
+         * Converts address value from hex string (16 hex digits, may also contain spaces, hyphens and colons)
          */
         void setAddress(const char *hexstr);
 
@@ -237,12 +236,6 @@ class MACAddressExt
          * Returns -1, 0 or 1 as result of comparison of 2 addresses.
          */
         int compareTo(const MACAddressExt& other) const;
-
-        /**
-         * Generates a unique address which begins with 0a:aa and ends in a unique suffix.
-         * WARNING: Uses static (global) counter, which is only resetted when simulation is completely restarted!
-         */
-        static MACAddressExt generateAutoAddress();
 
         /**
          * Generates a unique MAC address which begins with 0a:aa and ends in a unique suffix

@@ -315,7 +315,6 @@ class IEEE802154Radio : public ChannelAccess
         unsigned long numReceivedButGivenUp;
         unsigned long numReceivedCorrectly;
         double lossRate;
-
 };
 
 #endif /* IEEE802154Radio_H */
