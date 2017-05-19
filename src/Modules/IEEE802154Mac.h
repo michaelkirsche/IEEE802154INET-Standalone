@@ -355,6 +355,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // PAN Variables
         bool associated;
+        bool associationProcessStarted;
         bool isCoordinator;
         bool isFFD;
         bool syncLoss;

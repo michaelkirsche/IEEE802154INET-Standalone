@@ -63,6 +63,7 @@ void IEEE802154Mac::initialize(int stage)
         rxBuffSlot = 0;
         isCoordinator = false;
         associated = false;
+        associationProcessStarted = false;
         Poll = false;
         startNow = par("startWithoutStartReq");
         isFFD = par("isFFD");
@@ -1812,7 +1813,6 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
     }
     else
     {
-        unsigned char ifs;
         unsigned short frmCtrl = frame->getFcf();
         // update beacon parameters
         rxSfSpec = bcnFrame->getSfSpec();
@@ -1827,18 +1827,11 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         // (see <csmacaTrxBeacon()>) , therefore this value will not be updated, but <csmacaCanProceed()> and other functions will use it and need to be updated here
         macEV << "The first bit of this beacon was received by PHY layer at " << bcnRxTime << endl;
 
-        // calculate <rxBcnDuration>
-        if (bcnFrame->getByteLength() <= aMaxSIFSFrameSize)
-        {
-            ifs = aMinSIFSPeriod;
-        }
-        else
-        {
-            ifs = aMinLIFSPeriod;
-        }
-
         simtime_t tmpf = duration * phy_symbolrate;
-        tmpf += ifs;
+
+        // calculate <rxBcnDuration>
+        (bcnFrame->getByteLength() <= aMaxSIFSFrameSize) ? tmpf += aMinSIFSPeriod : tmpf += aMinLIFSPeriod;
+
         rxBcnDuration = (unsigned short) (tmpf.dbl() / aUnitBackoffPeriod);
         if (fmod(tmpf, aUnitBackoffPeriod) > 0.0)
         {
@@ -1952,7 +1945,6 @@ void IEEE802154Mac::handleData(mpdu* frame)
     return;
 }
 
-
 void IEEE802154Mac::handleCommand(mpdu* frame)
 {
     // all commands in this environment are encapsulated in MPDU
@@ -2023,7 +2015,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
                 if (aresp->getStatus() == Success)
                 {
-                    macEV << "Association Successful \n";
+                    macEV << "Assocation process was successful \n";
                     mpib.setMacAssociatedPANCoord(true);
                     mpib.setMacPANId(aresp->getSrcPANid());
                     mpib.setMacCoordExtendedAddress(aresp->getSrc());
@@ -2055,6 +2047,9 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             assoInd->setKeySource(tmpDisCmd->getAsh().KeyIdentifier.KeySource);
             assoInd->setKeyIndex(tmpDisCmd->getAsh().KeyIdentifier.KeyIndex);
             send(assoInd, "outMLME");
+
+            associated = false;
+
             rxCmd = NULL;   // XXX delete command message buffer after processing
             break;
         }  // case Ieee802154_DISASSOCIATION_NOTIFICATION
@@ -2543,7 +2538,13 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         if ((frmType != Beacon) && (frmType != Data) && (frmType != Ack) && (frmType != Command))
         {
             error("[IEEE802154MAC]: Filtering error - unknown frame type!");
-            //return true;
+        }
+
+        if ((frmType == Ack) && (pdu->getSqnr() != mpib.getMacDSN()))
+        {
+            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> filtered here \n";
+            // if dsr address does not match
+            return true;
         }
 
         if (frmType == Beacon)
@@ -2586,13 +2587,6 @@ bool IEEE802154Mac::filter(mpdu* pdu)
                     return true;
                 }
             }
-        }
-
-        if (frmType == Ack && pdu->getSqnr() != mpib.getMacDSN())
-        {
-            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> filtered here \n";
-            // if dsr address does not match
-            return true;
         }
 
         // check for Data/Command frame only with source address:: destined for PAN coordinator
@@ -2808,6 +2802,8 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     //holdMe->setFcf(fcf->genFCF(Command, false, false, false, false, addrLong, 0, addrShort));
     holdMe->setFcf(assoResp->getFcf());
 
+    // XXX further refactoring necessary
+    // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
     if ((txData != NULL) || (txGTS != NULL))
     {
         macEV << "Right now processing other data -> associate response will be transmitted later \n";
@@ -2819,49 +2815,62 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
         Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
         taskP.taskStatus(task) = true;
 
-        switch (dataTransMode)
+        if (!associated)    // if not associated (member of a PAN) -> always use direct transfer
         {
-            case DIRECT_TRANS:
-            case INDIRECT_TRANS: {
-                taskP.mcps_data_request_TxOption = DIRECT_TRANS;   // XXX fix for missing taskPending->TxOption
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                ASSERT(txData == NULL);
-                txData = holdMe;
-                csmacaEntry('d');
-                break;
-            }  // CASES DIRECT_TRANS & INDIRECT_TRANS
+            taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txData == NULL);
+            txData = holdMe;
+            csmacaEntry('d');
+            associationProcessStarted = true;
+        }
+        else // if already associated -> check if direct or GTS transfer shall be used
+        {
+            switch (dataTransMode)
+            {
+                case DIRECT_TRANS:
+                case INDIRECT_TRANS: {
+                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;   // XXX fix for missing taskPending->TxOption
+                    taskP.taskStep(task)++; // advance to next task step
+                    strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                    ASSERT(txData == NULL);
+                    txData = holdMe;
+                    csmacaEntry('d');
+                    break;
+                }  // CASES DIRECT_TRANS & INDIRECT_TRANS
 
-            case GTS_TRANS: {
-                taskP.mcps_data_request_TxOption = GTS_TRANS;   // XXX fix for missing taskPending->TxOption
-                taskP.taskStep(task)++; // advance to next task step
-                // waiting for GTS arriving, callback from handleGtsTimer()
-                strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                ASSERT(txGTS == NULL); // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
-                txGTS = holdMe; // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
-                numGTSRetry = 0;
+                case GTS_TRANS: {
+                    taskP.mcps_data_request_TxOption = GTS_TRANS;   // XXX fix for missing taskPending->TxOption
+                    taskP.taskStep(task)++; // advance to next task step
+                    // waiting for GTS arriving, callback from handleGtsTimer()
+                    strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
+                    ASSERT(txGTS == NULL); // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
+                    txGTS = holdMe; // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
+                    numGTSRetry = 0;
 
-                // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
-                // if I'm the device, should try to transmit if now is in my GTS
-                // refer to Spec. 7.5.7.3
-                if (index_gtsTimer == 99)
-                {
-                    ASSERT(gtsTimer->isScheduled());
-                    // first check if the requested transaction can be completed before the end of current GTS
-                    if (gtsCanProceed())
+                    // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
+                    // if I'm the device, should try to transmit if now is in my GTS
+                    // refer to Spec. 7.5.7.3
+                    if (index_gtsTimer == 99)
                     {
-                        // directly hand over to FSM, which will go to next step, state parameters are ignored
-                        FSM_MCPS_DATA_request();
+                        ASSERT(gtsTimer->isScheduled());
+                        // first check if the requested transaction can be completed before the end of current GTS
+                        if (gtsCanProceed())
+                        {
+                            // directly hand over to FSM, which will go to next step, state parameters are ignored
+                            FSM_MCPS_DATA_request();
+                        }
                     }
-                }
-                break;
-            }  // case GTS_TRANS
+                    break;
+                }  // case GTS_TRANS
 
-            default: {
-                error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
-                return;
-            }  // default
-        }  // switch
+                default: {
+                    error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                    return;
+                }  // default
+            }  // switch
+        }
     }
 
     return;
@@ -2903,6 +2912,9 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
         holdMe->setSrcPANid(disCmd->getSrcPANid());
         holdMe->setFcf(disCmd->getFcf());
 
+        // XXX further refactoring necessary
+        // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
+        //if ((txData != NULL) || (txGTS != NULL) || (txAck != NULL))
         if ((txData != NULL) || (txGTS != NULL))
         {
             macEV << "Right now processing other data -> disasscoiate request will be transmitted later \n";
@@ -3920,14 +3932,8 @@ bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
     // If backoff can finish before the end of CAP or sent in non-beacon,
     // calculate the time needed to finish the transaction and evaluate it
     t_CCATime = 8.0 / phy_symbolrate;
-    if (calFrameByteLength(tmpCsmaca) <= aMaxSIFSFrameSize)
-    {
-        t_IFS = aMinSIFSPeriod;
-    }
-    else
-    {
-        t_IFS = aMinLIFSPeriod;
-    }
+
+    (calFrameByteLength(tmpCsmaca) <= aMaxSIFSFrameSize) ? t_IFS = aMinSIFSPeriod : t_IFS = aMinLIFSPeriod;
 
     t_IFS = t_IFS / phy_symbolrate;
 
@@ -4387,7 +4393,7 @@ void IEEE802154Mac::startRxSDTimer()
         cancelEvent(rxSDTimer);
     }
     scheduleAt(simTime() + wtime, rxSDTimer);
-    //macEV << "The current SD will end at " << simTime() + wtime << endl;
+    macEV << "The current SD will end at " << simTime() + wtime << endl;
     inRxSD_rxSDTimer = true;
 }
 
@@ -5030,20 +5036,13 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
             return;
         }
 
-        //--- calculate CAP ---
-        unsigned char ifs;
-        if (txBeacon->getByteLength() <= aMaxSIFSFrameSize)
-        {
-            ifs = aMinSIFSPeriod;
-        }
-        else
-        {
-            ifs = aMinLIFSPeriod;
-        }
 
         // calculate <txBcnDuration>
         double tmpf = (calDuration(txBeacon) * phy_symbolrate).dbl();
-        tmpf += ifs;
+
+        //--- calculate CAP ---
+        (txBeacon->getByteLength() <= aMaxSIFSFrameSize) ? tmpf += aMinSIFSPeriod : tmpf += aMinLIFSPeriod;
+
         txBcnDuration = (unsigned char) (tmpf / aUnitBackoffPeriod);
         if (fmod(tmpf, aUnitBackoffPeriod) > 0.0)
         {
@@ -5488,6 +5487,16 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     taskP.taskStatus(task) = false;  // task ends successfully
                     macEV << "[MAC-TASK-SUCCESS]: reset TP_MCPS_DATA_REQUEST and cancel AckTimeoutTimer \n";
                     waitDataAck = false;  // debug
+
+                    // to let device know that association process finished
+                    // temporary fix because association process does not have a state (machine)
+                    if (associationProcessStarted)
+                    {
+                        macEV << "Assocation process was successful \n";
+                        associated = true;
+                        associationProcessStarted = false;
+                    }
+
                     cancelEvent(ackTimeoutTimer);
                     resetTRX();
                     taskSuccess('d');
@@ -5712,7 +5721,7 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
                 taskSuccess('a');
             }
         }
-        else if (txPkt == txData)
+        else if ((txPkt != NULL) && (txPkt == txData))
         {
             ASSERT((taskP.taskStatus(TP_MCPS_DATA_REQUEST)) && (strcmp(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), frFunc) == 0));
 
@@ -5721,7 +5730,7 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
                 FSM_MCPS_DATA_request(pStatus);  // mStatus ignored
             }
         }
-        else if (txPkt == txGTS)
+        else if ((txPkt != NULL) && (txPkt == txGTS))
         {
             ASSERT((taskP.taskStatus(TP_MCPS_DATA_REQUEST)) && (strcmp(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), frFunc) == 0));
             ASSERT(taskP.mcps_data_request_TxOption == GTS_TRANS);
@@ -5736,7 +5745,7 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
     /***************************************/
     else if (strcmp(frFunc, "handleAck") == 0)  // always check the task status if the dispatch comes from recvAck()
     {
-        if (txPkt == txData)
+        if ((txPkt != NULL) && (txPkt == txData))
         {
             if ((taskP.taskStatus(TP_MCPS_DATA_REQUEST)) && (strcmp(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), frFunc) == 0))
             {
@@ -5752,7 +5761,7 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
                 taskSuccess('d');
             }
         }
-        else if (txPkt == txGTS)
+        else if ((txPkt != NULL) && (txPkt == txGTS))
         {
             if ((taskP.taskStatus(TP_MCPS_DATA_REQUEST)) && (strcmp(taskP.taskFrFunc(TP_MCPS_DATA_REQUEST), frFunc) == 0))
             {
