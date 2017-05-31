@@ -85,6 +85,8 @@ void IEEE802154Mac::initialize(int stage)
         phy_bitrate = getRate('b');
         phy_symbolrate = getRate('s');
 
+        trx_state_req = phy_IDLE;
+
         nb = NotificationBoardAccess().get();
         nb->subscribe(this, NF_RADIO_CHANNEL_CHANGED);
 
@@ -198,6 +200,7 @@ void IEEE802154Mac::initialize(int stage)
         index_gtsTimer = 0;
 
         // for transmission
+        backoffStatus = 0;
         inTransmission = false;
         waitBcnCmdAck = false;
         waitBcnCmdUpperAck = false;
