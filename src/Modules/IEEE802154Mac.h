@@ -31,7 +31,6 @@
 #include "MPDU_m.h"
 #include "mcpsData_m.h"
 
-#include "macFrameControlField.h"
 #include "MACAddressExt.h"
 #include "IEEE802154Consts.h"
 #include "IEEE802154Enum.h"
@@ -209,7 +208,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void genStartConf(MACenum status);
         bool filter(mpdu* pdu);
         virtual void receiveChangeNotification(int category, const cPolymorphic *details);
-        mpdu *generateMPDU(cMessage *msg);
+        unsigned short genFCF(frameType ft, bool secu, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fv, AddrMode sam);
+//        mpdu *generateMPDU(cMessage *msg);    // TODO remove after testing
         void genACK(unsigned char dsn, bool fp);
         void sendMCPSDataConf(MACenum status, unsigned char msdu);
         void sendMCPSDataIndication(mpdu* rxData);
@@ -322,7 +322,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         Ieee802154TxOption dataTransMode; // see IEEE802154Enum.h
         int sequ; // Msg Sequence Number
         frameType ft; // see IEEE802154Enum.h
-        macFrameControlField *fcf;
         unsigned short fc;
         bool trxState;
         unsigned int headerSize;

@@ -93,7 +93,7 @@ void IEEE802154Mac::initialize(int stage)
         mlmeReset = false;
         counter = 0;
         waitGTSConf = false;
-        fcf = new macFrameControlField();
+
         myPANiD = 0xffffU;
 
         const char *addressString = par("macAddr");
@@ -535,7 +535,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 0:  // direct CAP noAck
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                data->setFcf(fcf->genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+                data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
                 data->setIsGTS(false);
                 taskP.taskStep(task)++; // advance to next task step
                 strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
@@ -548,7 +548,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 1:  // direct CAP ACK
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                data->setFcf(fcf->genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+                data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
                 data->setIsGTS(false);
                 waitDataAck = true;
                 taskP.taskStep(task)++; // advance to next task step
@@ -561,7 +561,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
 
             case 2:  // direct GTS noACK
             {
-                data->setFcf(fcf->genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+                data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
                 data->setIsGTS(true);
                 waitDataAck = false;
@@ -576,7 +576,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 3:  // direct GTS ACK
             {
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
-                data->setFcf(fcf->genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+                data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
                 data->setIsGTS(true);
                 waitDataAck = true;
                 taskP.taskStep(task)++; // advance to next task step
@@ -590,7 +590,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 4:  // indirect noACK
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect
-                data->setFcf(fcf->genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+                data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = false;
@@ -605,7 +605,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 5:  // indirect ACK
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect ...
-                data->setFcf(fcf->genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+                data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = true;
@@ -662,13 +662,13 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                                 dest.setShortAddr(mpib.getMacCoordShortAddress());
                                 AssoCommand->setDest(dest);
                                 // association request requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
-                                AssoCommand->setFcf(fcf->genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrShort, 01, addrLong));
+                                AssoCommand->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrShort, 01, addrLong));
                                 break;
                             }
                             case addrLong: {
                                 mpib.setMacCoordExtendedAddress(frame->getCoordAddress());
                                 AssoCommand->setDest(mpib.getMacCoordExtendedAddress());
-                                AssoCommand->setFcf(fcf->genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 01, addrLong));
+                                AssoCommand->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 01, addrLong));
                                 break;
                             }
                             default: {
@@ -742,7 +742,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     AssoCmdresp* assoCmdResp = new AssoCmdresp("ASSOCIATE-response-command");
 
                     // association response requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
-                    assoCmdResp->setFcf(fcf->genFCF(Command, mpib.getMacSecurityEnabled(), false, true, mpib.getMacPANId(), addrLong, 0, addrLong));
+                    assoCmdResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, mpib.getMacPANId(), addrLong, 0, addrLong));
                     int tempsqn = mpib.getMacDSN();
                     assoCmdResp->setSqnr(tempsqn);
                     tempsqn++;
@@ -878,7 +878,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     if (associated)
                     {
                         // GTS request requires an ACK
-                        gtsRequCmd->setFcf(fcf->genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
+                        gtsRequCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
                     }
                     else
                     {
@@ -1099,7 +1099,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 int sqnr;
                 PollRequest* pollMsg = check_and_cast<PollRequest*>(msg);
                 CmdFrame* dataReq = new CmdFrame("MCPS-DATA.request");
-                dataReq->setFcf(fcf->genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+                dataReq->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
                 dataReq->setSrc(myMacAddr);
                 dataReq->setSrcPANid(mpib.getMacPANId());
                 dataReq->setDest(pollMsg->getCoordAddress());
@@ -1128,7 +1128,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 holdMe->setDest(MACAddressExt::BROADCAST_ADDRESS);
                 holdMe->setSrc(myMacAddr);
                 holdMe->setSrcPANid(mpib.getMacPANId());
-                holdMe->setFcf(fcf->genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+                holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
                 txData = holdMe;
                 csmacaEntry('d');
                 break;
@@ -2416,6 +2416,30 @@ mpdu* IEEE802154Mac::findRxMsg(MACAddressExt dest)
     return NULL;
 }
 
+// generate the Frame Control Field (16 bit long) - see IEEE 802.15.4-2006 Sec. 7.2.1.1
+unsigned short IEEE802154Mac::genFCF(frameType ft, bool secu, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fv, AddrMode sam)
+{
+    unsigned short fcf = 0;
+    // set Frame Type
+    fcf = fcf | ((ft << ftShift) & ftMask);
+    // set Security Enabled
+    fcf = fcf | ((secu << secuShift) & secuMask);
+    // set Frame Pending
+    fcf = fcf | ((fp << fpShift) & fpMask);
+    // set Acknowledge Request
+    fcf = fcf | ((arequ << arequShift) & arequMask);
+    // set PAN ID Compression
+    fcf = fcf | ((pid << pidShift) & pidMask);
+    // set Destination Addressing Mode
+    fcf = fcf | ((dam << damShift) & damMask);
+    // set Frame Version => 0x00 to indicate a IEEE Std 802.15.4-2003 compatible frame, 0x01 to indicate an IEEE 802.15.4 frame
+    fcf = fcf | ((fv << fvShift) & fvMask);
+    // set Source Addressing Mode
+    fcf = fcf | ((sam << samShift) & samMask);
+
+    return fcf;
+}
+
 // for indirect data transfer we need a transmit buffer
 mpdu* IEEE802154Mac::getTxMsg()
 {
@@ -2458,7 +2482,7 @@ void IEEE802154Mac::genACK(unsigned char dsn, bool fp)
     AckFrame* ack = new AckFrame("Acknowledgment");
     ack->setSqnr(dsn);
     // Frame Control Field: Page 147 of 2006 revision says all fields except frame pending shall be zero
-    ack->setFcf(fcf->genFCF(Ack, mpib.getMacSecurityEnabled(), fp, false, false, noAddr, 00, noAddr));
+    ack->setFcf(genFCF(Ack, mpib.getMacSecurityEnabled(), fp, false, false, noAddr, 00, noAddr));
     ack->setFcs(0);
     //rxData = frame;
     ASSERT(!txAck);  // It's impossible to receive the second packet before the ACK has been sent out!
@@ -2485,7 +2509,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     MACAddressExt devAddr = tmpAssoReq->getCapabilityInformation().addr;
     devAddr.genShortAddr();
     macEV << "Generating ASSOCIATE response for: " << devAddr << " with new short address: " << devAddr.getShortAddr() << endl;
-    assoResp->setFcf(fcf->genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrLong, 0, addrShort));
+    assoResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrLong, 0, addrShort));
     assoResp->setDest(devAddr);
     assoResp->setShortAddress(devAddr.getShortAddr());
     assoResp->setSrc(myMacAddr);
@@ -2579,7 +2603,7 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
     DisAssoCmd* disCmd = new DisAssoCmd("MLME-disassociate-command");
     if (disAss->getDeviceAddrMode() == addrShort)
     {
-        disCmd->setFcf(fcf->genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
+        disCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
 
         int sqnr = mpib.getMacDSN();
         disCmd->setSqnr(mpib.getMacDSN());
@@ -2814,7 +2838,7 @@ void IEEE802154Mac::genOrphanInd()
     holdMe->setDest(mpib.getMacCoordExtendedAddress());
     holdMe->setSrc(myMacAddr);
     holdMe->setSrcPANid(mpib.getMacPANId());
-    holdMe->setFcf(fcf->genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+    holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
     holdMe->setIsGTS(false);
     taskP.taskStep(task)++; // advance to next task step
     strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
@@ -4323,7 +4347,7 @@ void IEEE802154Mac::handleBcnTxTimer()
             tmpBcn->setName("Ieee802154BEACONTimer");
 
             // construct frame control field
-            tmpBcn->setFcf(fcf->genFCF(Beacon, mpib.getMacSecurityEnabled(), false, false, false, addrLong, 1, addrLong));
+            tmpBcn->setFcf(genFCF(Beacon, mpib.getMacSecurityEnabled(), false, false, false, addrLong, 1, addrLong));
 
             tmpBcn->setSqnr((mpib.getMacBSN() + 1));
             tmpBcn->setSrc(myMacAddr);
