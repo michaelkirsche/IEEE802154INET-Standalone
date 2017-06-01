@@ -80,7 +80,7 @@ void llc::initialize()
 
 }
 
-MACAddressExt* llc::tokenDest(cMessage* msg)
+MACAddressExt llc::tokenDest(cMessage* msg)
 {
     // get the IPv6 destination address from the IPv6 Control Info block
     IPv6ControlInfo * controlInfo;
@@ -120,10 +120,8 @@ MACAddressExt* llc::tokenDest(cMessage* msg)
         destString.append(sHelp);
     }
 
-    // create a new 64-bit EUI MAC address from the destination string
-    MACAddressExt* dest = new MACAddressExt(destString.c_str());
-    llcEV << "Tokenized Destination Address from IFI / IPvXTrafGen is: " << dest->str() << endl;
-    return dest;
+    // return a new 64-bit EUI MAC address from the destination string
+    return (MACAddressExt(destString.c_str()));
 }
 
 void llc::genAssoReq()
@@ -232,8 +230,8 @@ void llc::handleMessage(cMessage *msg)
             data->setMsduLength(pack->getByteLength());
             data->setTxOptions(TXoption);
             // try to generate the MAC destination address from the packet's IPvX address destination address
-            MACAddressExt* destination = tokenDest(msg);
-            data->setDstAddr(*destination);
+            data->setDstAddr(tokenDest(msg));
+            llcEV << "Tokenized Destination Address from IFI / IPvXTrafGen is: " << (data->getDstAddr().str()) << endl;
 
             send(data, "outData");
             return;

@@ -43,7 +43,7 @@ class llc : public cSimpleModule
 
         void initialize();
         void handleMessage(cMessage *msg);
-        MACAddressExt* tokenDest(cMessage * msg);
+        MACAddressExt tokenDest(cMessage* msg);    // returns 64-Bit MAC address generated from the given msg
         void genAssoReq();
         void genPollReq();
         void genScanReq();
