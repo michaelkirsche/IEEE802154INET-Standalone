@@ -209,7 +209,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool filter(mpdu* pdu);
         virtual void receiveChangeNotification(int category, const cPolymorphic *details);
         unsigned short genFCF(frameType ft, bool secu, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fv, AddrMode sam);
-//        mpdu *generateMPDU(cMessage *msg);    // TODO remove after testing
         void genACK(unsigned char dsn, bool fp);
         void sendMCPSDataConf(MACenum status, unsigned char msdu);
         void sendMCPSDataIndication(mpdu* rxData);
@@ -565,7 +564,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // timer for scheduling of GTS, shared by both PAN coordinator and devices
         cMessage* gtsTimer;
 
-        simtime_t lastTime_bcnRxTimer;    // XXX parameter needed anymore?
         bool txNow_bcnTxTimer;
 
         //true while in active period of the outgoing superframe

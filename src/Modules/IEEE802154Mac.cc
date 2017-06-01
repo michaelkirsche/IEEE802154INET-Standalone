@@ -194,7 +194,6 @@ void IEEE802154Mac::initialize(int stage)
         scanEnergyDetectList = new unsigned int[26];
 
         // for timer
-        lastTime_bcnRxTimer = 0;  // XXX parameter needed anymore?
         inTxSD_txSDTimer = false;
         inRxSD_rxSDTimer = false;
         index_gtsTimer = 0;
@@ -3968,7 +3967,6 @@ void IEEE802154Mac::startBcnRxTimer()
     // we want to receive right before the beacon is transmitted
     wtime -= 0.01;
 
-    lastTime_bcnRxTimer = now + wtime;  // XXX parameter needed anymore??
     if (bcnRxTimer->isScheduled())
     {
         cancelEvent(bcnRxTimer);
