@@ -191,7 +191,6 @@ void IEEE802154Mac::initialize(int stage)
         beaconWaitingTx = false;
         bcnLossCounter = 0;
         scanPANDescriptorList = new PAN_ELE[26];  // maximum size for our scanning result lists
-        scanEnergyDetectList = new unsigned int[26];
 
         // for timer
         inTxSD_txSDTimer = false;
