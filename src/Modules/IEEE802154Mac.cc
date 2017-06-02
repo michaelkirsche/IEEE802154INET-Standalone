@@ -190,7 +190,7 @@ void IEEE802154Mac::initialize(int stage)
         rxSO = 15;
         beaconWaitingTx = false;
         bcnLossCounter = 0;
-        scanPANDescriptorList = new PAN_ELE[26];  // maximum size for our scanning result lists
+//        scanPANDescriptorList = new PAN_ELE[26];  // maximum size for our scanning result lists   // TODO remove after testing
 
         // for timer
         inTxSD_txSDTimer = false;
