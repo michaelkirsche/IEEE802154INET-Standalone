@@ -25,7 +25,7 @@ Define_Module(llc);
 
 void llc::initialize()
 {
-    // initialize the debug ouput bool from NED parameter value
+    // initialize the debug output bool from NED parameter value
     llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
 
     /* This is for Application layers which cannot send out MCPS primitives
@@ -46,6 +46,9 @@ void llc::initialize()
     WATCH(firstDevice);
     WATCH(associateSuccess);
     WATCH(associateStarted);
+    WATCH(coordPANId);
+    WATCH(coordAddress);
+    WATCH(coordAddrMode);
 
     if (convertingMode)
     {
@@ -94,7 +97,7 @@ MACAddressExt llc::tokenDest(cMessage* msg)
     }
 
     // Use the internal representation of the IPv6 address to create the 64-bit EUI MAC address
-    // create 8 groups with each 16 bit's (aka 8 tupels)
+    // create 8 groups with each 16 bit's (a.k.a. 8 tupels)
     uint16_t groups[8] = { uint16_t(*&destAddr.words()[0] >> 16), uint16_t(*&destAddr.words()[0] & 0xffff), uint16_t(*&destAddr.words()[1] >> 16), uint16_t(*&destAddr.words()[1]
             & 0xffff), uint16_t(*&destAddr.words()[2] >> 16), uint16_t(*&destAddr.words()[2] & 0xffff), uint16_t(*&destAddr.words()[3] >> 16), uint16_t(*&destAddr.words()[3]
             & 0xffff) };
@@ -127,9 +130,8 @@ MACAddressExt llc::tokenDest(cMessage* msg)
 void llc::genAssoReq()
 {
     AssociationRequest* assoReq = new AssociationRequest("MLME-ASSOCIATE.request");
-    MACAddressExt* coordId = new MACAddressExt(coordPANId);
     assoReq->setCoordAddrMode(coordAddrMode);
-    assoReq->setCoordPANId(*coordId);
+    assoReq->setCoordPANId(coordPANId);
     assoReq->setCoordAddress(coordAddress);
     DevCapability capInfo;
     capInfo.alloShortAddr = true;

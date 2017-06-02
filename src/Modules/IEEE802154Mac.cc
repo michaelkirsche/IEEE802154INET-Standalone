@@ -190,7 +190,6 @@ void IEEE802154Mac::initialize(int stage)
         rxSO = 15;
         beaconWaitingTx = false;
         bcnLossCounter = 0;
-//        scanPANDescriptorList = new PAN_ELE[26];  // maximum size for our scanning result lists   // TODO remove after testing
 
         // for timer
         inTxSD_txSDTimer = false;
@@ -675,14 +674,14 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                                 return;
                             }
                         }
-                        mpib.setMacPANId(frame->getCoordPANId().getShortAddr());
+                        mpib.setMacPANId(frame->getCoordPANId());
 
                         setCurrentChannelPage(frame->getChannelPage());
                         setRadioChannel(frame->getLogicalChannel());
 
                         ack4Asso = true;
 
-                        // need to touch payload since LLC doesn't know my MAC Address Payload
+                        // need to touch payload since LLC doesn't know my MAC address payload
                         DevCapability devCap = frame->getCapabilityInformation();
                         devCap.addr = myMacAddr;
                         AssoCommand->setCapabilityInformation(devCap);
@@ -1681,6 +1680,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 // XXX set Transceiver to ON (and thus handle_PLME_SET_TRX_STATE and eventually transfer) ?!?
                 //genSetTrxState(phy_TX_ON);
                 rxCmd = NULL;   // XXX delete command message buffer after processing
+                delete (tmpAssoReq);
                 return;
 
             }

@@ -142,7 +142,7 @@ packet AssociationRequest extends Association
     unsigned int LogicalChannel;            // logical channel on which to start using new superframe configuration
     unsigned char ChannelPage;              // 0 - 31, channel page on which to start using new superframe configuration
     unsigned char CoordAddrMode @enum(AddrMode);
-    MACAddressExt CoordPANId;
+    unsigned short CoordPANId;              // 0x0000–0xfffe, PAN identifier of the coordinator to which we want to associate
     MACAddressExt CoordAddress;        
 }
 
