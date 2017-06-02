@@ -511,10 +511,28 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool beaconWaitingTx;
 
         // outging superframe specification used by coordinators
-        SuperframeSpec txSfSpec;
+        SuperframeSpec txSfSpec = { //
+                                    /*.BO=*/ 0, // initial Beacon Order
+                                    /*.BI=*/ 0, // initial Beacon Interval
+                                    /*.SO=*/ 0, // initial Superframe Order
+                                    /*.SD=*/ 0, // Initial Superframe Duration
+                                    /*.finalCAP=*/ 0, // Initial final Superframe slot used by CAP
+                                    /*.battLifeExt*/ false, // Initial bool for battery life extension
+                                    /*.panCoor*/ false, // Initial PAN coordinator yes/no decision
+                                    /*.assoPmt*/ false // Initial Association permit yes/no decision
+                                  };
 
         // incoming superframe specification used by devices
-        SuperframeSpec rxSfSpec;
+        SuperframeSpec rxSfSpec = { //
+                                    /*.BO=*/ 0, // initial Beacon Order
+                                    /*.BI=*/ 0, // initial Beacon Interval
+                                    /*.SO=*/ 0, // initial Superframe Order
+                                    /*.SD=*/ 0, // Initial Superframe Duration
+                                    /*.finalCAP=*/ 0, // Initial final Superframe slot used by CAP
+                                    /*.battLifeExt*/ false, // Initial bool for battery life extension
+                                    /*.panCoor*/ false, // Initial PAN coordinator yes/no decision
+                                    /*.assoPmt*/ false // Initial Association permit yes/no decision
+                                  };
 
         /** @name Timer Messages */
 
@@ -581,22 +599,22 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         /** @name Beacon related variables */
 
         // beacon order of incoming superframe
-        unsigned short rxBO;
+        unsigned short rxBO = 0;
 
         // superframe order of incoming superframe
-        unsigned short rxSO;
+        unsigned short rxSO = 0;
 
         // duration (in symbol) of a outgoing superframe slot (aBaseSlotDuration * 2^mpib.macSuperframeOrder)
-        unsigned int txSfSlotDuration;
+        unsigned int txSfSlotDuration = 0;
 
         // duration (in symbol) of a incoming superframe slot (aBaseSlotDuration * 2^rxSO)
-        unsigned int rxSfSlotDuration;
+        unsigned int rxSfSlotDuration = 0;
 
         // duration (in backoff periods) of latest outgoing beacon
-        unsigned char txBcnDuration;
+        unsigned char txBcnDuration = 0;
 
         // duration (in backoff periods) of latest incoming beacon
-        unsigned char rxBcnDuration;
+        unsigned char rxBcnDuration = 0;
 
         // length (in s) of a unit of backoff period, aUnitBackoffPeriod/phy_symbolrate
         simtime_t bPeriod;

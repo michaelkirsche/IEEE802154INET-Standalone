@@ -3744,8 +3744,7 @@ bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
 
 simtime_t IEEE802154Mac::getFinalCAP(char trxType)
 {
-    simtime_t txSlotDuration, rxSlotDuration, rxBI, txCAP, rxCAP;
-    simtime_t now, oneDay, tmpf;
+    simtime_t now, oneDay;
 
     now = simTime();
     oneDay = now + 24.0 * 3600;
@@ -3754,68 +3753,66 @@ simtime_t IEEE802154Mac::getFinalCAP(char trxType)
     {
         return oneDay;  // transmission can always go ahead
     }
-
-    txSlotDuration = txSfSlotDuration / phy_symbolrate;
-    rxSlotDuration = rxSfSlotDuration / phy_symbolrate;
-    rxBI = rxSfSpec.BI / phy_symbolrate;
-
-    if (trxType == 't')  // check TX CAP
+    else    // beacon enabled
     {
-        if (mpib.getMacBeaconOrder() != 15)  // beacon enabled
-        {
-            if (txSfSpec.battLifeExt)
-            {
-                error("[IEEE802154MAC]: this function is TBD");
-                /*tmpf = (beaconPeriods + getBattLifeExtSlotNum()) * aUnitBackoffPeriod;
-                 t_CAP = bcnTxTime + tmpf;*/
-            }
-            else
-            {
-                tmpf = (txSfSpec.finalCap + 1) * txSlotDuration;
-                txCAP = mpib.getMacBeaconTxTime() + tmpf;
-                macEV << "Last beacon was send at " << mpib.getMacBeaconTxTime() << " actual CAP is " << tmpf << endl;
-            }
-            return (txCAP >= now) ? txCAP : oneDay;
-        }
-        else
-            return oneDay;
-    }
-    else  // check RX CAP
-    {
-        if (rxBO != 15)  // beacon enabled
-        {
-            if (rxSfSpec.battLifeExt)
-            {
-                error("[IEEE802154MAC]: this function is TBD"); // FIXME
-                /*
-                 tmpf = (beaconPeriods2 + getBattLifeExtSlotNum()) * aUnitBackoffPeriod;
-                 t_CAP2 = bcnRxTime + tmpf;
-                 */
-            }
-            else
-            {
-                tmpf = (rxSfSpec.finalCap + 1) * rxSlotDuration;
-                macEV << "[getfinalcap]: now = " << now << endl;
-                macEV << "[getfinalcap]: tmpf = " << tmpf << endl;
-                rxCAP = bcnRxTime + tmpf;
-                macEV << "[getfinalcap]: rxCAP = " << rxCAP << endl;
-            }
+        simtime_t txSlotDuration, rxSlotDuration, rxBI, txCAP, rxCAP, tmpf;
 
-            tmpf = aMaxLostBeacons * rxBI;
-            // adjust if beacon loss occurs or during receiving beacon
-            if ((rxCAP < now) && (rxCAP + tmpf >= now))  // no more than <aMaxLostBeacons> beacons missed
-            {
-                macEV << "During receiving a beacon, now is: " << now << ", last beacon was received at " << bcnRxTime << "\n";
-                while (rxCAP < now)
+        txSlotDuration = txSfSlotDuration / phy_symbolrate;
+        rxSlotDuration = rxSfSlotDuration / phy_symbolrate;
+        rxBI = rxSfSpec.BI / phy_symbolrate;
+
+        if (trxType == 't')  // check TX CAP
                 {
-                    rxCAP += rxBI;
+            if (mpib.getMacBeaconOrder() != 15)  // beacon enabled
+                    {
+                if (txSfSpec.battLifeExt) {
+                    error("[IEEE802154MAC]: this function is TBD");
+                    /*tmpf = (beaconPeriods + getBattLifeExtSlotNum()) * aUnitBackoffPeriod;
+                     t_CAP = bcnTxTime + tmpf;*/
+                } else {
+                    tmpf = (txSfSpec.finalCap + 1) * txSlotDuration;
+                    txCAP = mpib.getMacBeaconTxTime() + tmpf;
+                    macEV
+                    << "Last beacon was send at " << mpib.getMacBeaconTxTime()
+                            << " actual CAP is " << tmpf << endl;
                 }
-            }
-            return (rxCAP >= now) ? rxCAP : oneDay;
-        }
-        else
+                return (txCAP >= now) ? txCAP : oneDay;
+            } else
+                return oneDay;
+        } else  // check RX CAP
         {
-            return oneDay;
+            if (rxBO != 15)  // beacon enabled
+                    {
+                if (rxSfSpec.battLifeExt) {
+                    error("[IEEE802154MAC]: this function is TBD"); // FIXME
+                    /*
+                     tmpf = (beaconPeriods2 + getBattLifeExtSlotNum()) * aUnitBackoffPeriod;
+                     t_CAP2 = bcnRxTime + tmpf;
+                     */
+                } else {
+                    tmpf = (rxSfSpec.finalCap + 1) * rxSlotDuration;
+                    macEV << "[getfinalcap]: now = " << now << endl;
+                    macEV << "[getfinalcap]: tmpf = " << tmpf << endl;
+                    rxCAP = bcnRxTime + tmpf;
+                    macEV << "[getfinalcap]: rxCAP = " << rxCAP << endl;
+                }
+
+                tmpf = aMaxLostBeacons * rxBI;
+                // adjust if beacon loss occurs or during receiving beacon
+                if ((rxCAP < now) && (rxCAP + tmpf >= now)) // no more than <aMaxLostBeacons> beacons missed
+                        {
+                    macEV
+                    << "During receiving a beacon, now is: " << now
+                            << ", last beacon was received at " << bcnRxTime
+                            << "\n";
+                    while (rxCAP < now) {
+                        rxCAP += rxBI;
+                    }
+                }
+                return (rxCAP >= now) ? rxCAP : oneDay;
+            } else {
+                return oneDay;
+            }
         }
     }
 }
