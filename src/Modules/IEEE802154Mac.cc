@@ -1157,6 +1157,7 @@ void IEEE802154Mac::handleLowerPLMEMsg(cMessage* msg)
     if (mappedMsgTypes[msg->getName()] == CCA)
     {
         handle_PLME_CCA_confirm((phyState) msg->getKind());
+        delete (msg);   // XXX fix for undisposed objects
         return;
     }
     else if ((mappedMsgTypes[msg->getName()] == ED) && (dynamic_cast<edConf*>(msg)))
@@ -1186,6 +1187,7 @@ void IEEE802154Mac::handleLowerPLMEMsg(cMessage* msg)
     else if ((!msg->isPacket()) && (mappedMsgTypes[msg->getName()] == SETTRXSTATE))
     {
         handle_PLME_SET_TRX_STATE_confirm((phyState) msg->getKind());
+        delete (msg);   // XXX fix for undisposed objects
         return;
     }
     else
@@ -1263,6 +1265,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
     else if (mappedMsgTypes[msg->getName()] == CONF)
     {
         handle_PD_DATA_confirm((phyState) msg->getKind());
+        delete (msg); // XXX fix for undisposed objects (PD-DATA.confirm)
         return;
     } // if (PD_DATA_confirm)
     else if (dynamic_cast<OrphanIndication*>(msg))
@@ -1734,6 +1737,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
                 send(assoConf, "outMLME");
                 rxCmd = NULL;   // XXX delete command message buffer after processing
+                delete (aresp); // XXX fix for undisposed object (AssoCmdresp)
                 return;
             }
             break;
@@ -2106,8 +2110,6 @@ void IEEE802154Mac::handle_PLME_SET_confirm(cMessage* msg)
             if (scanning)
             {
                 doScan();
-                delete (msg);    // XXX fix for undisposed object: (GetConfirm)
-                return;
             }
             else
             {
@@ -2157,6 +2159,9 @@ void IEEE802154Mac::handle_PLME_SET_confirm(cMessage* msg)
             break;
         }
     } // switch(setConf->getPIBAttr)
+
+    delete (msg);   // XXX fix for undisposed objects (PLME-SET.confirm)
+    return;
 }
 
 

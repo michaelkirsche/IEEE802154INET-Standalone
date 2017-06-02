@@ -140,7 +140,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 SetRequest* PhyPIBSet;
                 PhyPIBSet = check_and_cast<SetRequest *>(msg);
                 setPhyPIB(PhyPIBSet);
-                delete PhyPIBSet;   // XXX fix for undisposed object
+                delete (PhyPIBSet);   // XXX fix for undisposed object
                 break;
             }
 
@@ -149,7 +149,6 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 {
                     phyEV << "PLME-CCA.request arrived -> performing CCA \n";
                     performCCA(pib.getCCA());
-                    return;
                 }
                 else
                 {
@@ -303,7 +302,7 @@ void IEEE802154Phy::performED()
 
 void IEEE802154Phy::setPhyPIB(SetRequest * PhyPIBSet)
 {
-    SetConfirm * PhyPIBSetConf = new SetConfirm("PLME-SET.confirm");
+    SetConfirm* PhyPIBSetConf = new SetConfirm("PLME-SET.confirm");
     PhyPIBSetConf->setPIBattr(PhyPIBSet->getPIBattr());
     PhyPIBSetConf->setName("PLME-SET.confirm");
     PhyPIBSetConf->setStatus(PhyPIB_SUCCESS);

@@ -969,6 +969,7 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
         }
 
         sendUp(airframe);
+        delete (airframe);
     }
     // all other messages are noise
     else
@@ -990,7 +991,7 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
         numReceivedButGivenUp++;
 
         // message should be deleted
-        delete airframe;
+        delete (airframe);
         radioEV << "Message deleted \n";
     }
 
