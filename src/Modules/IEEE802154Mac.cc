@@ -1253,6 +1253,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
             else
             {
                 macEV << "Not a Coordinator - dropping Msg \n";
+                delete (msg); // XXX fix for undisposed objects
                 return;
             } // ifnot (coordinator)
         } // if (cmdType == Ieee802154_BEACON_REQUEST)
@@ -1260,6 +1261,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
     else if (dynamic_cast<AckFrame*>(msg))
     {
         handleAck(msg);
+        delete (msg); // XXX fix for undisposed objects
         return;
     } // if (dynamic_cast<AckFrame*>)
     else if (mappedMsgTypes[msg->getName()] == CONF)
@@ -1444,6 +1446,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
             return;
         }
     }
+    delete (frame); // fix for undisposed object: (mpdu) net.IEEE802154Nodes[*].NIC.MAC.IEEE802154Mac.DATA.indication
 }
 
 void IEEE802154Mac::handleSelfMsg(cMessage* msg)
@@ -1618,7 +1621,6 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         genBeaconInd(frame);        // inform higher layer
         resetTRX();
     }
-    delete bcnFrame;
     numRxBcnPkt++;
     return;
 }
@@ -1642,7 +1644,6 @@ void IEEE802154Mac::handleAck(cMessage* frame)
     {
         dispatch(phy_SUCCESS, __FUNCTION__);
     }
-    delete (frame);
     return;
 }
 
@@ -1652,7 +1653,7 @@ void IEEE802154Mac::handleData(mpdu* frame)
     // we need some time to process the packet -- so delay SIFS/LIFS symbols from now or after finishing sending the ACK
     // (refer to Figure 68 of the 802.15.4-2006 Spec. for details of SIFS/LIFS)
     ASSERT(rxData == NULL);
-    rxData = frame;
+    rxData = (frame->dup());
 
     if (!((frmCtrl & arequMask) >> arequShift))
     {
@@ -1669,7 +1670,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
     {
         case Ieee802154_ASSOCIATION_REQUEST: {
             ASSERT(rxCmd == NULL);
-            rxCmd = cmdFrame;
+            rxCmd = (cmdFrame->dup());
             if (isCoordinator)
             {
                 AssoCmdreq* tmpAssoReq = check_and_cast<AssoCmdreq*>(cmdFrame);
@@ -1682,6 +1683,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 genAssoResp(Success, tmpAssoReq);
                 // XXX set Transceiver to ON (and thus handle_PLME_SET_TRX_STATE and eventually transfer) ?!?
                 //genSetTrxState(phy_TX_ON);
+                delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (tmpAssoReq);
                 return;
@@ -1690,9 +1692,9 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             else
             {
                 macEV << "Device is dropping Association Request frame since we are NOT a coordinator \n";
+                delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (cmdFrame);
-                //delete (frame);
                 return;
             }
             break;
@@ -1700,14 +1702,14 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
         case Ieee802154_ASSOCIATION_RESPONSE: {
             ASSERT(rxCmd == NULL);
-            rxCmd = cmdFrame;
+            rxCmd = (cmdFrame->dup());
             if (isCoordinator)
             {
                 // Discard
                 macEV << "Coordinator got a Associate Response -- dropping it \n";
+                delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing;
                 delete (cmdFrame);
-                //delete (frame);
                 return;
             }
             else
@@ -1736,6 +1738,8 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 }
 
                 send(assoConf, "outMLME");
+
+                delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (aresp); // XXX fix for undisposed object (AssoCmdresp)
                 return;
@@ -1745,7 +1749,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
         case Ieee802154_DISASSOCIATION_NOTIFICATION: {
             ASSERT(rxCmd == NULL);
-            rxCmd = cmdFrame;
+            rxCmd = (cmdFrame->dup());
 
             DisAssoCmd* tmpDisCmd = check_and_cast<DisAssoCmd*>(cmdFrame);
             DisAssociation* assoInd = new DisAssociation("MLME-DISASSOCIATE.indication");
@@ -1759,7 +1763,10 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
             associated = false;
 
+            delete (rxCmd); // fix for undisposed object (mpdu)
             rxCmd = NULL;   // XXX delete command message buffer after processing
+            delete (cmdFrame);
+            delete (tmpDisCmd);
             break;
         }  // case Ieee802154_DISASSOCIATION_NOTIFICATION
 
@@ -1777,15 +1784,16 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
         case Ieee802154_PANID_CONFLICT_NOTIFICATION:
         case Ieee802154_BEACON_REQUEST:
         case Ieee802154_COORDINATOR_REALIGNMENT: {
-            rxCmd = cmdFrame;   // XXX delete command message buffer after processing
+            rxCmd = cmdFrame;
             send(rxCmd, "outMLME");
+            // TODO delete command message buffer after processing?!?
             break;
         }  // case
 
         case Ieee802154_GTS_REQUEST: {
             if (isCoordinator)
             {
-                GTSCmd* gtsRequ = check_and_cast<GTSCmd*>(frame);
+                GTSCmd* gtsRequ = check_and_cast<GTSCmd*>(cmdFrame);
                 // add GTS to GTS descriptor
                 gts_request_cmd(gtsRequ->getGTSCharacteristics().devShortAddr, gtsRequ->getGTSCharacteristics().length, true);
                 // gen indication
@@ -1802,6 +1810,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 }
                 send(gtsInd, "outMLME");
                 rxCmd = NULL;   // XXX delete command message buffer after processing
+                delete (gtsRequ);
                 return;
             }
             else
@@ -1809,7 +1818,6 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 macEV << "Device is dropping received GTS Request Command \n";
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (cmdFrame);
-                //delete (frame);
                 return;
             }
             break;
@@ -1834,7 +1842,6 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             macEV << "Got unknown Command type in a Command Frame - dropping frame \n";
             rxCmd = NULL;   // XXX delete command message buffer after processing
             delete (cmdFrame);
-            //delete (frame);
             return;
         }  // default
     }  // switch
@@ -2766,7 +2773,7 @@ void IEEE802154Mac::genBeaconInd(mpdu* frame)
     bNotify->setPANDescriptor(rxPanDescriptor);
     bNotify->setPendAddrSpec(bFrame->getPaFields());
 
-    if (bFrame->getEncapsulatedPacket() != NULL)
+    if (bFrame->hasEncapsulatedPacket() == true)
     {
         bNotify->setSduLength(bFrame->getEncapsulatedPacket()->getByteLength());
         bNotify->encapsulate(bFrame->decapsulate());
@@ -4459,6 +4466,7 @@ void IEEE802154Mac::handleIfsTimer()
     else if (rxData)
     {
         sendMCPSDataIndication(rxData);
+        delete (rxData);
         rxData = NULL;
     }
     else if (txGTS)
@@ -5575,6 +5583,19 @@ IEEE802154Mac::IEEE802154Mac()
     txGTSReq = NULL;
     rxData = NULL;
     rxCmd = NULL;
+
+    for (unsigned char i = 0; i <= 26; i++)
+    {
+        scanPANDescriptorList[i].CoordAddrMode = 0;
+        scanPANDescriptorList[i].CoordPANId = 0;
+        scanPANDescriptorList[i].CoordAddress = MACAddressExt::UNSPECIFIED_ADDRESS;
+        scanPANDescriptorList[i].LogicalChannel = 0;
+        scanPANDescriptorList[i].GTSPermit = false;
+        scanPANDescriptorList[i].LinkQuality = 0;
+        scanPANDescriptorList[i].SecurityUse = false;
+        scanPANDescriptorList[i].ACLEntry = 0;
+        scanPANDescriptorList[i].SecurityFailure = false;
+    }
 
     // timers
     backoffTimer = NULL;

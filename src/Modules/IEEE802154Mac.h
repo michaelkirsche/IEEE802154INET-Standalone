@@ -336,7 +336,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         unsigned int scanDuration; // The time spent scanning each channel is
         // [aBaseSuperframeDuration * (2n + 1)] symbols, where n is the value of the ScanDuration parameter
         unsigned char scanEnergyDetectList[26] = { 0 };
-        PAN_ELE scanPANDescriptorList[26] = { 0 };
+        PAN_ELE scanPANDescriptorList[26];
         unsigned short channelPage;
         bool scanning;
 

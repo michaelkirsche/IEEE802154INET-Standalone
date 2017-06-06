@@ -230,7 +230,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
         else if (dynamic_cast<pdDataInd *>(msg) != NULL)
         {
             pdDataInd *pdu = check_and_cast<pdDataInd*>(msg);
-            if (pdu->getEncapsulatedPacket() != NULL)
+            if (pdu->hasEncapsulatedPacket() == true)
             {
                 cPacket* payload = pdu->decapsulate();  // use cPacket since it can either be an MPDU or an ACK
                 //payload->setKind(pdu->getPpduLinkQuality());  // FIXME we cannot hide LQI in kind because PhyIndication enums are saved there for MAC filtering

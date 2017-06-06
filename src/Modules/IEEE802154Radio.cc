@@ -306,7 +306,7 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
         {
             genPhyConf(phy_TRX_OFF);
             radioEV << "Radio is turned off, dropping/ignoring frame! \n";
-            delete msg;
+            delete (msg);
             return;
         }
     }
@@ -328,7 +328,7 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
         cMsgPar* prop = (cMsgPar *) msg->getParList().get(0);
 
         handleCommand(msg->getKind(), prop);
-        delete msg;
+        delete (msg);
         return;
     }
 
@@ -424,21 +424,28 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
             // are actually receiving modes, decisions about corrupt packets are made later
             else if ((rs.getState() == RadioState::RECV) || (rs.getState() == RadioState::IDLE))
             {
-                    handleLowerMsgStart(airframe);
-                    bufferMsg(airframe);
+                handleLowerMsgStart(airframe);
+                bufferMsg(airframe);
+                return;
+            }
+            else if (rs.getState() == RadioState::TRANSMIT)
+            {
+                radioEV << "Frame received during own transmit operation -> dropping airframe! \n";
+                delete (msg);
+                return;
             }
         }
         else
         {
-            radioEV << "Radio not connected / disabled -- ignoring airframe! \n";
-            delete msg;
+            radioEV << "Radio not connected / disabled -- dropping airframe! \n";
+            delete (msg);
             return;
         }
     }
     else
     {
         radioEV << "Listening to different channel when receiving message -- dropping it! \n";
-        delete msg;
+        delete (msg);
         return;
     }
 }
@@ -490,11 +497,9 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
     dataInd->setPpduLinkQuality(airframe->getSnr());    // setting LQI for the received packet, for later evaluation in MAC and App layer
     dataInd->setPsduLength(frame->getByteLength());
 
-    if (frame->getEncapsulatedPacket() != NULL)
+    if (frame->hasEncapsulatedPacket() == true)
     {
-        short saveMsgKind = frame->getEncapsulatedPacket()->getKind();
-        dataInd->encapsulate(frame->decapsulate());  // encapsulate the data from it
-        dataInd->getEncapsulatedPacket()->setKind(saveMsgKind);
+        dataInd->encapsulate(frame->decapsulate());
         // FIXME decapsulation is not necessary here, pdDataIndication should directly be sent to MAC, which unwrapps it
         // and uses (e.g.) the LinkQualityIndicator
     }
@@ -504,6 +509,7 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
     }
 
     send(dataInd, upperLayerOut);
+    delete (frame); // fix for undisposed object: (ppdu) net.IEEE802154Nodes[*].NIC.radioInterface.PD-DATA
 }
 
 void IEEE802154Radio::sendDown(AirFrame *airframe)
@@ -748,7 +754,7 @@ void IEEE802154Radio::handleSelfMsg(cMessage *msg)
         AirFrame *airframe = unbufferMsg(msg);
 
         handleLowerMsgEnd(airframe);
-        //delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[0].NIC.radioInterface.PD-DATA -> causes problems -> removed for now
+        delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[*].NIC.radioInterface.PD-DATA
     }
     else if (msg->getKind() == MK_TRANSMISSION_OVER)
     {
@@ -969,7 +975,6 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
         }
 
         sendUp(airframe);
-        delete (airframe);
     }
     // all other messages are noise
     else
@@ -989,10 +994,6 @@ void IEEE802154Radio::handleLowerMsgEnd(AirFrame * airframe)
 
         // noise messages are also count as "received but given up"
         numReceivedButGivenUp++;
-
-        // message should be deleted
-        delete (airframe);
-        radioEV << "Message deleted \n";
     }
 
     if ((numReceivedCorrectly + numReceivedButGivenUp) % 10 == 0)

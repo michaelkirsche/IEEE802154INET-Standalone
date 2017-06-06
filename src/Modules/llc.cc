@@ -407,6 +407,7 @@ void llc::handleMessage(cMessage *msg)
                 cPacket* payload = ind->decapsulate();
                 llcEV << "Forwarding MCPS-Data.indication for Message #" << (int) ind->getDSN() << " to the higher layer \n";
                 send(payload, "outApp");
+                delete (msg);   // fix for undisposed object: (mcpsDataInd) net.IEEE802154Nodes[*].Network.stdLLC.MCPS-DATA.indication
                 return;
             } // (dynamic_cast<mcpsDataInd*>(msg))
             else if (dynamic_cast<mcpsDataConf*>(msg))
