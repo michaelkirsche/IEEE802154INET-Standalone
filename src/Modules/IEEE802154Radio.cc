@@ -553,8 +553,7 @@ void IEEE802154Radio::handleUpperMsg(AirFrame *airframe)
     if (rs.getState() == RadioState::TRANSMIT)
     {
         genPhyConf(phy_BUSY_TX);
-
-        error("Trying to send a message while already transmitting -- MAC should take care this does not happen");
+        return;
     }
 
     // if a packet was being received, it is corrupted now and should be treated as noise
@@ -572,7 +571,8 @@ void IEEE802154Radio::handleUpperMsg(AirFrame *airframe)
         // add the receive power to the noise level
         noiseLevel += snrInfo.rcvdPower;
 
-        genPhyConf(phy_RX_ON);
+        //genPhyConf(phy_RX_ON);    // XXX radio is currently receiving
+        genPhyConf(phy_BUSY_RX);    // generate busy receiving state instead
     }
 
     // now we are done with all the exception handling and can take care about the "real" stuff
@@ -1342,7 +1342,7 @@ void IEEE802154Radio::disconnectReceiver()
     cc->disableReception(this->myRadioRef);
     if (rs.getState() == RadioState::TRANSMIT)
     {
-        error("changing channel while transmitting is not allowed");
+        error("disconnecting the receiver while transmitting is not allowed");
     }
 
     // Clear the recvBuff
