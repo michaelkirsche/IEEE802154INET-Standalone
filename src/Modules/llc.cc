@@ -182,11 +182,17 @@ void llc::handleMessage(cMessage *msg)
 
     if (msg->isSelfMessage())
     {
-        if (msg->getKind() == 0)
+        if ((msg->getKind() == 0) && (associateSuccess == false))
         {
-            llcEV << "Got Startup Msg - Sending out Scan Request \n";
+            llcEV << "Got Startup Msg && not yet associated -> sending out Scan Request \n";
             genScanReq();
             delete (msg);
+        }
+        else if ((msg->getKind() == 0) && (associateSuccess == true))
+        {
+            llcEV << "Got Startup Msg && already associated -> ignoring Startup Msg \n";
+            delete (msg);
+            return;
         }
         else if (msg->getKind() == 1)
         {
