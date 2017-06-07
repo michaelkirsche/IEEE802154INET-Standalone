@@ -2193,6 +2193,14 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
         dispatch(status, __FUNCTION__);
     }
     // sending packet at PHY layer failed
+    else if (status == phy_BUSY_RX)
+    {
+        dispatch(status, __FUNCTION__);
+    }
+    else if (status == phy_BUSY_TX)
+    {
+        error("[IEEE802154MAC]: Trying to send a message while already transmitting -- MAC should take care this does not happen \n");
+    }
     else if (txPkt == txBeacon)
     {
         beaconWaitingTx = false;
