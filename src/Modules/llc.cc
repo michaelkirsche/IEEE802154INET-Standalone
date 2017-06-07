@@ -226,15 +226,11 @@ void llc::handleMessage(cMessage *msg)
             data->encapsulate(pack);
             //data->setMsduHandle(pack->getId());   // using the message ID can get problematic during longer simulations
             // because the 8 bit DSN value on the MAC layer is going to overflow
+
+            ASSERT(msgHandle <= 255);   // sequence number in MPDU is 8-bit / unsigned char
             data->setMsduHandle(msgHandle);
-            if (msgHandle < 255)
-            {
-                msgHandle++;
-            }
-            else
-            {
-                msgHandle = 0;
-            }
+            (msgHandle < 255) ? msgHandle++ : msgHandle = 0;    // check if 8-bit sequence number needs to roll over
+
             data->setMsduLength(pack->getByteLength());
             data->setTxOptions(TXoption);
             // try to generate the MAC destination address from the packet's IPvX address destination address
@@ -452,7 +448,7 @@ llc::llc()
     logicalChannel = 0;
     convertingMode = false;
     TXoption = 0;
-    msgHandle = 0;
+    msgHandle = intrand(255);
     associateSuccess = false;
     associateStarted = false;
     coordAddrMode = 0;

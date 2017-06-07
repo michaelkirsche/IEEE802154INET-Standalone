@@ -319,7 +319,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         MacPIB mpib;
         // PHY PAN Information Base
         Ieee802154TxOption dataTransMode; // see IEEE802154Enum.h
-        int sequ; // Msg Sequence Number
         frameType ft; // see IEEE802154Enum.h
         unsigned short fc;
         bool trxState;

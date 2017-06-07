@@ -55,7 +55,6 @@ void IEEE802154Mac::initialize(int stage)
         mappedMlmeRequestTypes["MLME-ORPHAN.response"] = MLMEORPHANRESP;
 
         syncLoss = false;
-        mpib = MacPIB();
         scanning = false;
         scanStep = 0;
         mlmeRxEnable = false;
@@ -65,22 +64,26 @@ void IEEE802154Mac::initialize(int stage)
         associated = false;
         associationProcessStarted = false;
         Poll = false;
-        startNow = par("startWithoutStartReq");
-        isFFD = par("isFFD");
-        bool secuOn = par("SecurityEnabled");
-        mpib.setMacSecurityEnabled(secuOn);
+        startNow = par("startWithoutStartReq").boolValue();
+        isFFD = par("isFFD").boolValue();
+        mpib = MacPIB();
+        mpib.setMacSecurityEnabled(par("SecurityEnabled").boolValue());
         mpib.setMacAssociatedPANCoord(false);
         mpib.setMacBeaconOrder(15);  // it will change if we receive a Beacon or if we are the PAN coordinator
         mpib.setMacRxOnWhenIdle(true);  // if not, we wont receive any Messages during CFP / CAP
-        bool tempMode = par("promiscuousMode");
-        mpib.setMacPromiscuousMode(tempMode);
+        mpib.setMacPromiscuousMode(par("promiscuousMode").boolValue());
+
+        // initialize MacDSN (data sequence number) and MacBSN (beacon sequence number) to random 8-bit values
+        mpib.setMacDSN(intrand(255));
+        mpib.setMacBSN(intrand(255));
+        macEV << "Initialization for MacDSN = " << mpib.getMacDSN() << " and MacBSN = " << mpib.getMacBSN() << endl;
 
         //mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + ppib.getSHR() + (6 - ppib.getSymbols()));
         ASSERT(getModuleByPath("^.^.PHY") != NULL);// getModuleByPath returns the PHY module here
-        mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + (int) (getModuleByPath("^.^.PHY")->par("SHRDuration")) + (6 - (int) (getModuleByPath("^.^.PHY")->par("symbolsPerOctet"))));
+        mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + (getModuleByPath("^.^.PHY")->par("SHRDuration").longValue()) + (6 - (getModuleByPath("^.^.PHY")->par("symbolsPerOctet").longValue())));
 
         // inizialize PHY-related variables from PHY.ned -> FIXME -> PLME-GET msg should be used
-        phy_channel = getModuleByPath("^.^.PHY")->par("currentChannel");
+        phy_channel = getModuleByPath("^.^.PHY")->par("currentChannel").longValue();
         ASSERT(phy_channel <= 26);  // check if parameter set in NED file is within boundaries
         phy_bitrate = getRate('b');
         phy_symbolrate = getRate('s');
@@ -117,7 +120,6 @@ void IEEE802154Mac::initialize(int stage)
             }
         }
 
-        sequ = 0;
         trxState = false;
         headerSize = 0;
 
@@ -300,6 +302,7 @@ void IEEE802154Mac::initialize(int stage)
         macEV << "Initializing Stage 2 \n";
 
         bcnRxTime = 0;
+
         if (true == startNow)
         {
             macEV << "startNow==true -> Starting up immediately \n";
@@ -533,6 +536,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                 data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+                data->setByteLength(calFrameByteLength(data));
                 data->setIsGTS(false);
                 taskP.taskStep(task)++; // advance to next task step
                 strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
@@ -546,6 +550,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                 data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+                data->setByteLength(calFrameByteLength(data));
                 data->setIsGTS(false);
                 waitDataAck = true;
                 taskP.taskStep(task)++; // advance to next task step
@@ -559,6 +564,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 2:  // direct GTS noACK
             {
                 data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+                data->setByteLength(calFrameByteLength(data));
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
                 data->setIsGTS(true);
                 waitDataAck = false;
@@ -574,6 +580,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
                 data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+                data->setByteLength(calFrameByteLength(data));
                 data->setIsGTS(true);
                 waitDataAck = true;
                 taskP.taskStep(task)++; // advance to next task step
@@ -588,6 +595,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect
                 data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+                data->setByteLength(calFrameByteLength(data));
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = false;
@@ -603,6 +611,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect ...
                 data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+                data->setByteLength(calFrameByteLength(data));
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = true;
@@ -687,11 +696,11 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         AssoCommand->setCapabilityInformation(devCap);
                         AssoCommand->setCmdType(Ieee802154_ASSOCIATION_REQUEST);
 
-                        // MHR
-                        AssoCommand->setSqnr(mpib.getMacDSN());
-                        sequ = mpib.getMacDSN();
-                        sequ++;
-                        mpib.setMacDSN(sequ);
+                        // set MHR values
+                        unsigned char sqnr = mpib.getMacDSN();
+                        AssoCommand->setSqnr(sqnr);
+                        (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+                        mpib.setMacDSN(sqnr);
                         AssoCommand->setDestPANid(mpib.getMacPANId());
                         AssoCommand->setSrc(myMacAddr);
 
@@ -704,7 +713,6 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                             assoAsh.secu.KeyIdMode = frame->getKeyIdMode();
                             assoAsh.secu.Seculevel = frame->getSecurityLevel();
                             AssoCommand->setAsh(assoAsh);
-
                         }
 
                         mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
@@ -713,6 +721,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         holdMe->setSrc(myMacAddr);
                         holdMe->setSrcPANid(mpib.getMacPANId());
                         holdMe->setFcf(AssoCommand->getFcf());  // set FCF to FCF value of encapsulated command (ACK flag set)
+                        holdMe->setSqnr(AssoCommand->getSqnr());
+                        holdMe->setByteLength(calFrameByteLength(AssoCommand));
 
                         Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                         taskP.taskStatus(task) = true;
@@ -740,10 +750,10 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
 
                     // association response requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
                     assoCmdResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, mpib.getMacPANId(), addrLong, 0, addrLong));
-                    int tempsqn = mpib.getMacDSN();
-                    assoCmdResp->setSqnr(tempsqn);
-                    tempsqn++;
-                    mpib.setMacDSN(tempsqn);
+                    unsigned char sqnr = mpib.getMacDSN();
+                    assoCmdResp->setSqnr(sqnr);
+                    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+                    mpib.setMacDSN(sqnr);
                     assoCmdResp->setDest(assoResp->getAddr());
                     assoCmdResp->setSrcPANid(mpib.getMacPANId());
                     assoCmdResp->setSrc(myMacAddr);
@@ -772,6 +782,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     holdMe->setSrc(assoCmdResp->getSrc());
                     holdMe->setSrcPANid(assoCmdResp->getSrcPANid());
                     holdMe->setFcf(assoCmdResp->getFcf());
+                    holdMe->setSqnr(assoCmdResp->getSqnr());
+                    holdMe->setByteLength(calFrameByteLength(assoCmdResp));
 
                     switch (dataTransMode)
                     {
@@ -886,9 +898,9 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         return;
                     }
 
-                    int sqnr = mpib.getMacDSN();
+                    unsigned char sqnr = mpib.getMacDSN();
                     gtsRequCmd->setSqnr(sqnr);
-                    sqnr++;
+                    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
                     mpib.setMacDSN(sqnr);
                     gtsRequCmd->setDestPANid(mpib.getMacPANId());
                     gtsRequCmd->setDest(mpib.getMacCoordExtendedAddress());
@@ -921,6 +933,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     holdMe->setSrc(gtsRequCmd->getSrc());
                     holdMe->setSrcPANid(gtsRequCmd->getSrcPANid());
                     holdMe->setFcf(gtsRequCmd->getFcf());
+                    holdMe->setSqnr(gtsRequCmd->getSqnr());
+                    holdMe->setByteLength(calFrameByteLength(gtsRequCmd));
 
                     switch (dataTransMode)
                     {
@@ -1093,16 +1107,15 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             }  // case MLMESYNC
 
             case MLMEPOLL: {
-                int sqnr;
                 PollRequest* pollMsg = check_and_cast<PollRequest*>(msg);
                 CmdFrame* dataReq = new CmdFrame("MCPS-DATA.request");
                 dataReq->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
                 dataReq->setSrc(myMacAddr);
                 dataReq->setSrcPANid(mpib.getMacPANId());
                 dataReq->setDest(pollMsg->getCoordAddress());
-                sqnr = mpib.getMacDSN();
+                unsigned char sqnr = mpib.getMacDSN();
                 dataReq->setSqnr(sqnr);
-                sqnr++;
+                (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
                 mpib.setMacDSN(sqnr);
                 dataReq->setCmdType(Ieee802154_DATA_REQUEST);
 
@@ -1112,6 +1125,9 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 holdMe->setSrc(dataReq->getSrc());
                 holdMe->setSrcPANid(dataReq->getSrcPANid());
                 holdMe->setFcf(dataReq->getFcf());
+                holdMe->setSqnr(dataReq->getSqnr());
+                holdMe->setByteLength(calFrameByteLength(dataReq));
+
                 txData = holdMe;
                 Poll = true;
                 csmacaEntry('d');
@@ -1126,6 +1142,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 holdMe->setSrc(myMacAddr);
                 holdMe->setSrcPANid(mpib.getMacPANId());
                 holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+
                 txData = holdMe;
                 csmacaEntry('d');
                 break;
@@ -1213,11 +1230,16 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
                 beaconFrame* tmpBcn = new beaconFrame("Ieee802154BEACONReply");
                 tmpBcn->setName("Ieee802154BEACONReply");
 
-                tmpBcn->setSqnr((mpib.getMacBSN() + 1));
+                unsigned char bseqn = mpib.getMacBSN();
+                tmpBcn->setSqnr(bseqn);
+                (bseqn < 255) ? bseqn++ : bseqn = 0;    //  check if beacon sequence number needs to roll over
+                mpib.setMacBSN(bseqn);
+
                 tmpBcn->setSrc(myMacAddr);
                 tmpBcn->setDestPANid(0xffff);  // ignored upon reception
                 tmpBcn->setDest(bcnReq->getSrc());  // ignored upon reception
                 tmpBcn->setSrcPANid(mpib.getMacPANId());
+                tmpBcn->setByteLength(calFrameByteLength(tmpBcn));
 
                 // construct Superframe specification
                 txSfSpec.BO = mpib.getMacBeaconOrder();
@@ -1776,7 +1798,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
             // TODO: further processing of DATA_REQUEST command necessary
             //send(cmdFrame, "outMLME");
-
+            delete (rxCmd);
             rxCmd = NULL;   // XXX delete command message buffer after processing
             break;
         }  // case Ieee802154_DATA_REQUEST
@@ -1995,6 +2017,7 @@ void IEEE802154Mac::handle_PLME_CCA_confirm(phyState status)
         {
             if (!beaconEnabled)  // non-beacon, unslotted
             {
+                delete (tmpCsmaca);
                 tmpCsmaca = NULL;
                 csmacaCallBack(phy_IDLE);  // unslotted successfully, callback
                 return;
@@ -2007,7 +2030,8 @@ void IEEE802154Mac::handle_PLME_CCA_confirm(phyState status)
                     // timing condition may not still hold -- check again
                     if (csmacaCanProceed(0.0, true))  // Case E1
                     {
-                        tmpCsmaca = 0;
+                        delete (tmpCsmaca);
+                        tmpCsmaca = NULL;
                         csmacaCallBack(phy_IDLE);  // slotted CSMA-CA successfully
                         return;
                     }
@@ -2035,7 +2059,8 @@ void IEEE802154Mac::handle_PLME_CCA_confirm(phyState status)
 
             if (NB > mpib.getMacMaxCSMABackoffs())  // Case F1
             {
-                tmpCsmaca = 0;
+                delete (tmpCsmaca);
+                tmpCsmaca = NULL;
                 csmacaCallBack(phy_BUSY);
                 return;
             }
@@ -2046,6 +2071,7 @@ void IEEE802154Mac::handle_PLME_CCA_confirm(phyState status)
                 {
                     BE = aMaxBE;  // aMaxBE defined in Ieee802154Const.h
                 }
+                ASSERT(tmpCsmaca != NULL);
                 csmacaStart(false, tmpCsmaca, waitDataAck);  // not the first time
             }
         }
@@ -2209,7 +2235,7 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
     }
     else
     {
-        error("[IEEE802154MAC]: transmission failed");
+        error("[IEEE802154MAC]: transmission failed \n");
     }
 }
 
@@ -2393,7 +2419,15 @@ void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
     dataInd->setDstAddrMode((rxData->getFcf() & damMask) >> damShift);
     dataInd->setDstPANId(rxData->getDestPANid());
     dataInd->setDstAddr(rxData->getDest());
-    dataInd->encapsulate(rxData->decapsulate());
+    if (rxData->hasEncapsulatedPacket() == true)
+    {
+        dataInd->encapsulate(rxData->decapsulate());
+    }
+    else
+    {
+        dataInd->encapsulate(rxData);
+    }
+
     //dataInd->setMpduLinkQuality(rxData->getKind());  // FIXME LQI should be extracted from PD-Indication ppduLinkQuality
     dataInd->setDSN(rxData->getSqnr());
 
@@ -2502,7 +2536,7 @@ void IEEE802154Mac::genACK(unsigned char dsn, bool fp)
     // Frame Control Field: Page 147 of 2006 revision says all fields except frame pending shall be zero
     ack->setFcf(genFCF(Ack, mpib.getMacSecurityEnabled(), fp, false, false, noAddr, 00, noAddr));
     ack->setFcs(0);
-    //rxData = frame;
+    ack->setByteLength(calFrameByteLength(ack));
     ASSERT(!txAck);  // It's impossible to receive the second packet before the ACK has been sent out!
     txAck = ack;
     return;
@@ -2534,6 +2568,10 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     assoResp->setCmdType(Ieee802154_ASSOCIATION_RESPONSE);
     assoResp->setStatus(status);
     assoResp->setSrcPANid(mpib.getMacPANId());
+    unsigned char sqnr = mpib.getMacDSN();
+    assoResp->setSqnr(sqnr);
+    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+    mpib.setMacDSN(sqnr);
 
     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
     holdMe->encapsulate(assoResp);
@@ -2541,6 +2579,8 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     holdMe->setSrc(myMacAddr);
     holdMe->setSrcPANid(mpib.getMacPANId());
     holdMe->setFcf(assoResp->getFcf());
+    holdMe->setSqnr(assoResp->getSqnr());
+    holdMe->setByteLength(calFrameByteLength(assoResp));
 
     // XXX further refactoring necessary
     // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
@@ -2623,9 +2663,9 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
     {
         disCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
 
-        int sqnr = mpib.getMacDSN();
-        disCmd->setSqnr(mpib.getMacDSN());
-        sqnr++;
+        unsigned char sqnr = mpib.getMacDSN();
+        disCmd->setSqnr(sqnr);
+        (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
         mpib.setMacDSN(sqnr);
         disCmd->setDestPANid(disAss->getDevicePANId());
         disCmd->setDest(disAss->getDeviceAddress());
@@ -2651,6 +2691,8 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
         holdMe->setSrc(disCmd->getSrc());
         holdMe->setSrcPANid(disCmd->getSrcPANid());
         holdMe->setFcf(disCmd->getFcf());
+        holdMe->setSqnr(disCmd->getSqnr());
+        holdMe->setByteLength(calFrameByteLength(disCmd));
 
         // XXX further refactoring necessary
         // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
@@ -2777,7 +2819,7 @@ void IEEE802154Mac::genBeaconInd(mpdu* frame)
     beaconFrame* bFrame = check_and_cast<beaconFrame*>(frame);
     beaconNotify* bNotify = new beaconNotify("MLME-BEACON-NOTIFY.indication");
 
-    bNotify->setBSN(mpib.getMacBSN());
+    bNotify->setBSN(bFrame->getSqnr());
     bNotify->setPANDescriptor(rxPanDescriptor);
     bNotify->setPendAddrSpec(bFrame->getPaFields());
 
@@ -2851,6 +2893,7 @@ void IEEE802154Mac::genOrphanInd()
     Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
     OrphanIndication* orphInd = new OrphanIndication("MLME-ORPHAN.indication");
     orphInd->setOrphanAddress(myMacAddr);
+
     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
     holdMe->encapsulate(orphInd);
     holdMe->setDest(mpib.getMacCoordExtendedAddress());
@@ -2858,6 +2901,12 @@ void IEEE802154Mac::genOrphanInd()
     holdMe->setSrcPANid(mpib.getMacPANId());
     holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
     holdMe->setIsGTS(false);
+    unsigned char sqnr = mpib.getMacDSN();
+    holdMe->setSqnr(sqnr);
+    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+    mpib.setMacDSN(sqnr);
+
+
     taskP.taskStep(task)++; // advance to next task step
     strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
     ASSERT(txData == NULL);
@@ -3296,7 +3345,8 @@ void IEEE802154Mac::csmacaStart(bool firsttime, mpdu* frame, bool ackReq)
     if (txAck)
     {
         backoffStatus = 0;
-        tmpCsmaca = 0;
+        delete (tmpCsmaca);
+        tmpCsmaca = NULL;
         return;
     }
 
@@ -3304,11 +3354,11 @@ void IEEE802154Mac::csmacaStart(bool firsttime, mpdu* frame, bool ackReq)
 
     if (firsttime)
     {
-        macEV << "[CSMA]: Starting CSMA-CA for " << frame->getName() << ":#" << (unsigned int) frame->getSqnr() << endl;
+        macEV << "[CSMA]: Starting CSMA-CA for " << frame->getName() << ":#" << (unsigned short) frame->getSqnr() << endl;
         beaconEnabled = ((mpib.getMacBeaconOrder() != 15) || (rxBO != 15));
         csmacaReset(beaconEnabled);
-        ASSERT(tmpCsmaca == 0);
-        tmpCsmaca = frame;
+        ASSERT(tmpCsmaca == NULL);
+        tmpCsmaca = frame->dup();
         csmacaAckReq = ackReq;
     }
 
@@ -3366,7 +3416,8 @@ void IEEE802154Mac::csmacaCancel()
         taskP.taskStatus(TP_CCA_CSMACA) = false;
     }
 
-    tmpCsmaca = 0;
+    delete (tmpCsmaca);
+    tmpCsmaca = NULL;
 }
 
 void IEEE802154Mac::csmacaCallBack(phyState status)
@@ -3406,7 +3457,7 @@ simtime_t IEEE802154Mac::csmacaAdjustTime(simtime_t wtime)
     simtime_t neg;
     simtime_t tmpf;
 
-    ASSERT(tmpCsmaca);
+    ASSERT(tmpCsmaca != NULL);
     if (!toParent(tmpCsmaca))  // as a coordinator
     {
         if (mpib.getMacBeaconOrder() != 15)
@@ -3510,13 +3561,14 @@ simtime_t IEEE802154Mac::csmacaLocateBoundary(bool toParent, simtime_t wtime)
 
 bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
 {
-    bool ok;
     simtime_t t_bPeriods;
     unsigned short t_CAP;
     simtime_t tmpf, rxBI, t_fCAP, t_CCATime, t_IFS, t_transacTime;
     simtime_t now = simTime();
     csmacaWaitNextBeacon = false;
     t_transacTime = 0;
+
+    ASSERT(tmpCsmaca != NULL);
     wtime = csmacaLocateBoundary(toParent(tmpCsmaca), wtime);
 
     // check if CSMA-CA can proceed within the current superframe
@@ -3636,7 +3688,7 @@ bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
     }
 
     macEV << "[CSMA]: bPeriodsLeft = " << bPeriodsLeft << endl;
-    ok = true;
+    bool ok = true;
     if (bPeriodsLeft > 0)
     {
         ok = false;
@@ -3861,6 +3913,9 @@ void IEEE802154Mac::csmaca_handle_RX_ON_confirm(phyState status)
     // locate backoff boundary if needed
     macEV << "[CSMA]: PHY_RX_ON --> Ok, radio is set to RX_ON \n";
     now = simTime();
+
+    ASSERT(tmpCsmaca != NULL);
+
     if (beaconEnabled)
     {
         macEV << "[CSMA]: Locate backoff boundary before sending CCA request \n";
@@ -3899,6 +3954,7 @@ void IEEE802154Mac::csmacaTrxBeacon(char trx)
 
     if (csmacaWaitNextBeacon)
     {
+        ASSERT(tmpCsmaca != NULL);
         if (tmpCsmaca && (!backoffTimer->isScheduled()))
         {
             macEV << "[CSMA]: Triggered again by the starting of the new CAP \n";
@@ -3932,6 +3988,7 @@ void IEEE802154Mac::csmacaTrxBeacon(char trx)
 // TODO need to be changed to accept symbols instead of simtime_t
 void IEEE802154Mac::startBackoffTimer(simtime_t wtime)
 {
+    ASSERT(tmpCsmaca != NULL);
     macEV << "[CSMA]: #" << (unsigned int) tmpCsmaca->getSqnr() << ": starting backoff for " << wtime << " sec \n";
     if (backoffTimer->isScheduled())
     {
@@ -4151,92 +4208,92 @@ unsigned char IEEE802154Mac::calFrameByteLength(cPacket* frame)
         unsigned char MHRLength = calMacHeaderByteLength(((frmFcf & damMask) >> damShift) + ((frmFcf & samMask) >> samShift), (bool) ((frmFcf && secuMask) >> secuShift));
         macEV << "Header size is " << (int) MHRLength << " Bytes \n";
 
-    if (frmType == Beacon)  // 802.15.4-2006 Specs Fig 44
-    {
-        byteLength = MHRLength + 6;
-    }
-    else if (frmType == Data)  // 802.15.4-2006 Specs Fig 52, MAC payload not included here, will be added automatically while encapsulation later on
-    {
-            byteLength = MHRLength + mpduFrm->getByteLength();  // constant header length for we always use short address
-    }
-    else if (frmType == Ack)
-    {
-        byteLength = SIZE_OF_802154_ACK;
-    }
-    else if (frmType == Command)
-    {
-        CmdFrame* cmdFrm;
-        if (dynamic_cast<CmdFrame*>(frame))
+        if (frmType == Beacon)  // 802.15.4-2006 Specs Fig 44
         {
-            cmdFrm = check_and_cast<CmdFrame *>(frame);
+            byteLength = MHRLength + 6;
         }
-            else if (frame->hasEncapsulatedPacket() == true) // unpack, Command must be inside
+        else if (frmType == Data)  // 802.15.4-2006 Specs Fig 52, MAC payload not included here, will be added automatically while encapsulation later on
         {
+            byteLength = MHRLength + mpduFrm->getByteLength();  // constant header length for we always use short address
+        }
+        else if (frmType == Ack)
+        {
+            byteLength = SIZE_OF_802154_ACK;
+        }
+        else if (frmType == Command)
+        {
+            CmdFrame* cmdFrm;
+            if (dynamic_cast<CmdFrame*>(frame))
+            {
+                cmdFrm = check_and_cast<CmdFrame *>(frame);
+            }
+            else if (frame->hasEncapsulatedPacket() == true) // unpack, Command must be inside
+            {
                 //cmdFrm = check_and_cast<CmdFrame *>(frame->decapsulate());    // FIXME remove after testing
                 //frame->encapsulate(cmdFrm);
                 cmdFrm = check_and_cast<CmdFrame *>(frame->getEncapsulatedPacket());
-        }
-
-        switch (cmdFrm->getCmdType())
-        {
-            case Ieee802154_ASSOCIATION_REQUEST: {
-                // 802.15.4-2006 Specs Fig 55: MHR (17/23) + Payload (2) + FCS (2)
-                byteLength = MHRLength + 4;
-                break;
             }
 
-            case Ieee802154_ASSOCIATION_RESPONSE: {
-                byteLength = SIZE_OF_802154_ASSOCIATION_RESPONSE;
-                break;
-            }
+            switch (cmdFrm->getCmdType())
+            {
+                case Ieee802154_ASSOCIATION_REQUEST: {
+                    // 802.15.4-2006 Specs Fig 55: MHR (17/23) + Payload (2) + FCS (2)
+                    byteLength = MHRLength + 4;
+                    break;
+                }
 
-            case Ieee802154_DISASSOCIATION_NOTIFICATION: {
-                byteLength = SIZE_OF_802154_DISASSOCIATION_NOTIFICATION;
-                break;
-            }
+                case Ieee802154_ASSOCIATION_RESPONSE: {
+                    byteLength = SIZE_OF_802154_ASSOCIATION_RESPONSE;
+                    break;
+                }
 
-            case Ieee802154_DATA_REQUEST: {
-                // 802.15.4-2006 Specs Fig 59: MHR (7/11/13/17) + Payload (1) + FCS (2)
-                byteLength = MHRLength + 3;
-                break;
-            }
+                case Ieee802154_DISASSOCIATION_NOTIFICATION: {
+                    byteLength = SIZE_OF_802154_DISASSOCIATION_NOTIFICATION;
+                    break;
+                }
 
-            case Ieee802154_PANID_CONFLICT_NOTIFICATION: {
-                byteLength = SIZE_OF_802154_PANID_CONFLICT_NOTIFICATION;
-                break;
-            }
+                case Ieee802154_DATA_REQUEST: {
+                    // 802.15.4-2006 Specs Fig 59: MHR (7/11/13/17) + Payload (1) + FCS (2)
+                    byteLength = MHRLength + 3;
+                    break;
+                }
 
-            case Ieee802154_ORPHAN_NOTIFICATION: {
-                byteLength = SIZE_OF_802154_ORPHAN_NOTIFICATION;
-                break;
-            }
+                case Ieee802154_PANID_CONFLICT_NOTIFICATION: {
+                    byteLength = SIZE_OF_802154_PANID_CONFLICT_NOTIFICATION;
+                    break;
+                }
 
-            case Ieee802154_BEACON_REQUEST: {
-                byteLength = SIZE_OF_802154_BEACON_REQUEST;
-                break;
-            }
+                case Ieee802154_ORPHAN_NOTIFICATION: {
+                    byteLength = SIZE_OF_802154_ORPHAN_NOTIFICATION;
+                    break;
+                }
 
-            case Ieee802154_COORDINATOR_REALIGNMENT: {
-                // 802.15.4-2006 Specs Fig 63: MHR (17/23) + Payload (8) + FCS (2)
-                byteLength = MHRLength + 10;
-                break;
-            }
+                case Ieee802154_BEACON_REQUEST: {
+                    byteLength = SIZE_OF_802154_BEACON_REQUEST;
+                    break;
+                }
 
-            case Ieee802154_GTS_REQUEST: {
-                byteLength = SIZE_OF_802154_GTS_REQUEST;
-                break;
-            }
+                case Ieee802154_COORDINATOR_REALIGNMENT: {
+                    // 802.15.4-2006 Specs Fig 63: MHR (17/23) + Payload (8) + FCS (2)
+                    byteLength = MHRLength + 10;
+                    break;
+                }
 
-            default: {
+                case Ieee802154_GTS_REQUEST: {
+                    byteLength = SIZE_OF_802154_GTS_REQUEST;
+                    break;
+                }
+
+                default: {
                     error("[IEEE802154MAC]: cannot calculate the size of a MAC command frame '%s' with unknown type!", cmdFrm->getName());
-                break;
-            }
-        }  // switch
-    }
-    else
-    {
+                    break;
+                }
+            }  // switch
+        }
+        else
+        {
             error("[IEEE802154MAC]: cannot calculate the size of a MPDU frame '%s' with unknown type!", mpduFrm->getName());
-    }
+        }
     }
     else if (dynamic_cast<beaconNotify*>(frame))
     {
@@ -4411,7 +4468,10 @@ void IEEE802154Mac::handleBcnTxTimer()
             // construct frame control field
             tmpBcn->setFcf(genFCF(Beacon, mpib.getMacSecurityEnabled(), false, false, false, addrLong, 1, addrLong));
 
-            tmpBcn->setSqnr((mpib.getMacBSN() + 1));
+            unsigned char bseqn = mpib.getMacBSN();
+            tmpBcn->setSqnr(bseqn);
+            (bseqn < 255) ? bseqn++ : bseqn = 0;    //  check if beacon sequence number needs to roll over
+            mpib.setMacBSN(bseqn);
             tmpBcn->setSrc(myMacAddr);
             tmpBcn->setDestPANid(0xffff);  // ignored upon reception
             tmpBcn->setDest(MACAddressExt::BROADCAST_ADDRESS);  // ignored upon reception
