@@ -4134,13 +4134,22 @@ void IEEE802154Mac::startScanTimer(simtime_t wtime)
     scheduleAt(simTime() + wtime, scanTimer);
 }
 
-int IEEE802154Mac::calFrameByteLength(mpdu* frame)
+unsigned char IEEE802154Mac::calFrameByteLength(cPacket* frame)
 {
     macEV << "Calculating size of " << frame->getName() << endl;
-    frameType frmType = (frameType) ((frame->getFcf() & ftMask) >> ftShift);
-    unsigned short frmFcf = frame->getFcf();
-    int byteLength;  // MHR + MAC payload + MFR
-    int MHRLength = calMacHeaderByteLength(((frmFcf & damMask) >> damShift) + ((frmFcf & samMask) >> samShift), (bool) ((frmFcf && secuMask) >> secuShift));
+    unsigned char byteLength;  // MHR + MAC payload + MFR
+
+    if (dynamic_cast<AckFrame*>(frame))
+    {
+        byteLength = SIZE_OF_802154_ACK;
+    }
+    else if (dynamic_cast<mpdu*>(frame))
+    {
+        mpdu* mpduFrm = check_and_cast<mpdu *>(frame);
+        unsigned short frmFcf = mpduFrm->getFcf();
+        frameType frmType = (frameType) ((frmFcf & ftMask) >> ftShift);
+        unsigned char MHRLength = calMacHeaderByteLength(((frmFcf & damMask) >> damShift) + ((frmFcf & samMask) >> samShift), (bool) ((frmFcf && secuMask) >> secuShift));
+        macEV << "Header size is " << (int) MHRLength << " Bytes \n";
 
     if (frmType == Beacon)  // 802.15.4-2006 Specs Fig 44
     {
@@ -4148,7 +4157,7 @@ int IEEE802154Mac::calFrameByteLength(mpdu* frame)
     }
     else if (frmType == Data)  // 802.15.4-2006 Specs Fig 52, MAC payload not included here, will be added automatically while encapsulation later on
     {
-        byteLength = MHRLength + frame->getByteLength();  // constant header length for we always use short address
+            byteLength = MHRLength + mpduFrm->getByteLength();  // constant header length for we always use short address
     }
     else if (frmType == Ack)
     {
@@ -4161,11 +4170,11 @@ int IEEE802154Mac::calFrameByteLength(mpdu* frame)
         {
             cmdFrm = check_and_cast<CmdFrame *>(frame);
         }
-        else
+            else if (frame->hasEncapsulatedPacket() == true) // unpack, Command must be inside
         {
-            // unpack, Command must be inside
-            cmdFrm = check_and_cast<CmdFrame *>(frame->decapsulate());
-            frame->encapsulate(cmdFrm);
+                //cmdFrm = check_and_cast<CmdFrame *>(frame->decapsulate());    // FIXME remove after testing
+                //frame->encapsulate(cmdFrm);
+                cmdFrm = check_and_cast<CmdFrame *>(frame->getEncapsulatedPacket());
         }
 
         switch (cmdFrm->getCmdType())
@@ -4219,22 +4228,61 @@ int IEEE802154Mac::calFrameByteLength(mpdu* frame)
             }
 
             default: {
-                error("[IEEE802154MAC]: cannot calculate the size of a MAC command frame with unknown type!");
+                    error("[IEEE802154MAC]: cannot calculate the size of a MAC command frame '%s' with unknown type!", cmdFrm->getName());
                 break;
             }
         }  // switch
     }
     else
     {
-        error("[IEEE802154MAC]: cannot calculate the size of a MAC frame with unknown type!");
+            error("[IEEE802154MAC]: cannot calculate the size of a MPDU frame '%s' with unknown type!", mpduFrm->getName());
+    }
+    }
+    else if (dynamic_cast<beaconNotify*>(frame))
+    {
+        // TODO check calculation
+        beaconNotify* bcN = check_and_cast<beaconNotify *>(frame);
+        // length = BSN + PANDescriptor + PendAddrSpec + AddrList + sduLength + actual SDU length
+        byteLength = 1  + 17            + 1            + 0        + 1         + bcN->getSduLength();
+        // FIXME AddrList not set?!?
+    }
+    else if (dynamic_cast<DisAssociation*>(frame))
+    {
+        // TODO actually different types and sizes for request, confirm, indication
+        // need to be extended and checked again
+        byteLength = 16;    // 16 Bytes for request
+    }
+    else if (dynamic_cast<AssociationConfirm*>(frame))
+    {
+        byteLength = 16;
+    }
+    else if (dynamic_cast<AssociationResponse*>(frame))
+    {
+        byteLength = 24;
+    }
+    else if (dynamic_cast<AssociationRequest*>(frame))
+    {
+        byteLength = 26;
+    }
+    else if (dynamic_cast<Association*>(frame)) // indication
+    {
+        byteLength = 28;
+    }
+    else if (dynamic_cast<GTSMessage*>(frame))
+    {
+        // TODO calculation of length needs to consider the KeyIDMode
+        byteLength = 8;
+    }
+    else
+    {
+        error("[IEEE802154MAC]: cannot calculate the size of a frame '%s' with unknown type!", frame->getName());
     }
 
-    macEV << "Header size is " << MHRLength << " Bytes \n";
-    macEV << "MAC frame size is " << byteLength << " Bytes \n";
+    macEV << "MAC frame size is " << (int) byteLength << " Bytes \n";
     return byteLength;
 }
 
-int IEEE802154Mac::calMacHeaderByteLength(unsigned char addrModeSum, bool secu)
+unsigned char IEEE802154Mac::calMacHeaderByteLength(unsigned char addrModeSum, bool secu)
 {
     int ashSize = 0;
     if (secu)
