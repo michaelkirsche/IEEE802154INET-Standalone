@@ -35,10 +35,8 @@ const unsigned char  aGTSDescPersistenceTime = 4; // # of superframes that a GTS
 const unsigned char  aMaxBeaconOverhead = 75; // max # of octets added by the MAC sublayer to the payload of its beacon frame
 const unsigned char  aMaxBeaconPayloadLength = aMaxPHYPacketSize - aMaxBeaconOverhead; // max size, in octets, of a beacon payload
 const unsigned char  aMaxLostBeacons = 4; // max # of consecutive beacons the MAC sublayer can miss w/o declaring a loss of synchronization
-
 const unsigned char  aMaxFrameOverhead = 25; // max # of octets added by the MAC sublayer to its payload w/o security.
 const unsigned short aMaxFrameResponseTime = 1220; // max # of symbols (or CAP symbols) to wait for a response frame
-const unsigned char  aMaxFrameRetries = 3; // max # of retries allowed after a transmission failures
 const unsigned char  aMaxMACFrameSize = aMaxPHYPacketSize - aMaxFrameOverhead; // max # of octets that can be transmitted in the MAC frame payload field
 const unsigned char  aMaxSIFSFrameSize = 18; // max size of a frame, in octets, that can be followed by a SIFS period
 const unsigned short aMinCAPLength = 440; // min # of symbols comprising the CAP

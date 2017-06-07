@@ -432,19 +432,19 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         RxEnableRequest* deferRxEnable;
 
         // CSMA-CA backoff status
-        unsigned short int backoffStatus; // 0: no backoff; 1: backoff successful; 2: backoff failed; 99: is backing off
+        unsigned short backoffStatus; // 0: no backoff; 1: backoff successful; 2: backoff failed; 99: is backing off
 
         // number of retries for TXing a beacon or command frame in txBcnCmd
-        unsigned short int numBcnCmdRetry;
+        unsigned short numBcnCmdRetry;
 
         // number of retries for TXing a beacon or command frame in txBcnCmdUpper
-        unsigned short int numBcnCmdUpperRetry;
+        unsigned short numBcnCmdUpperRetry;
 
         // number of retries for TXing a data frame in txData
-        unsigned short int numDataRetry;
+        unsigned short numDataRetry;
 
         // number of retries for TXing a data frame in txGTS
-        unsigned short int numGTSRetry;
+        unsigned short numGTSRetry;
 
         // true while a packet being transmitted at PHY
         bool inTransmission;

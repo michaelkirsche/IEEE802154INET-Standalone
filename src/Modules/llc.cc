@@ -32,16 +32,12 @@ void llc::initialize()
      * if a true LLC is available, it will take care of it
      * just make sure the Application is sending cPackets
      */
-    double seed = dblrand();
     convertingMode = par("convertMode").boolValue();
 
     TXoption = par("TXoption");
     ASSERT(TXoption <= 7);  // check if TXoption value is a recognized value
 
     logicalChannel = par("LogicalChannel");
-
-    firstDevice = true;
-    associateSuccess = false;
 
     WATCH(firstDevice);
     WATCH(associateSuccess);
@@ -56,6 +52,7 @@ void llc::initialize()
         // Check if startWithoutStartRequest was enabled by user
         if (getModuleByPath("^.^.NIC.MAC.IEEE802154Mac")->par("startWithoutStartReq").boolValue() == false)
         {
+            double seed = dblrand();
             llcEV << "Sending Start Request in " << seed << endl;
             selfMsg = new cMessage("LLC-Start");
             selfMsg->setKind(0);
@@ -80,7 +77,6 @@ void llc::initialize()
             scheduleAt(pollFreq, pollTimer);
         }
     }
-
 }
 
 MACAddressExt llc::tokenDest(cMessage* msg)
@@ -334,8 +330,8 @@ void llc::handleMessage(cMessage *msg)
                     unsigned int startTime = par("StartTime");
                     unsigned short beaconOrder = par("BeaconOrder");
                     unsigned short superframeOrder = par("SuperframeOrder");
-                    bool batteryLifeExtension = par("BatteryLifeExtension");
-                    bool coordRealignment = par("CoordRealignment");
+                    bool batteryLifeExtension = par("BatteryLifeExtension").boolValue();
+                    bool coordRealignment = par("CoordRealignment").boolValue();
 
                     startMsg = new StartRequest("MLME-START.request");
                     startMsg->setPANId(panId);
@@ -448,6 +444,8 @@ llc::llc()
     logicalChannel = 0;
     convertingMode = false;
     TXoption = 0;
+    firstDevice = true;
+    associateSuccess = false;
     msgHandle = intrand(255);
     associateSuccess = false;
     associateStarted = false;

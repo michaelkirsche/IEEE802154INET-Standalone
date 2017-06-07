@@ -26,7 +26,7 @@ void IEEE802154Mac::initialize(int stage)
     cSimpleModule::initialize(stage);
     if (stage == 0)
     {
-        // initialize the debug ouput bool from NED parameter value
+        // initialize the debug output bool from NED parameter value
         macDebug = (hasPar("macDebug") ? (par("macDebug").boolValue()) : (false));
 
         macEV << "Initializing Stage 0 \n";
@@ -281,8 +281,10 @@ void IEEE802154Mac::initialize(int stage)
         WATCH(numTxBcnPkt);
         WATCH(numTxDataSucc);
         WATCH(numTxDataFail);
+        WATCH(numDataRetry);
         WATCH(numTxGTSSucc);
         WATCH(numTxGTSFail);
+        WATCH(numGTSRetry);
         WATCH(numTxAckPkt);
         WATCH(numRxBcnPkt);
         WATCH(numRxDataPkt);
@@ -498,25 +500,20 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
         return;
     }
 
-    // Check if the packet has valid size
-    if (dynamic_cast<cPacket *>(msg) != NULL)
-    {
-        cPacket *mcpsData = (cPacket*) msg;
-        if (mcpsData->getByteLength() > aMaxMACFrameSize)
-        {
-            macEV << "A " << msg->getName() << " received from upper layer, but dropped it due to oversize \n";
-            // TODO FIXME do not send the OMNeT message ID as it will overflow the unsigned char msdu handle quickly
-            sendMCPSDataConf(mac_FRAME_TOO_LONG, msg->getId());
-            delete msg;
-            return;
-        }
-    }
-
     if (msg->arrivedOn("MCPS_SAP"))
     {
         // this must be a mcps-data.request
         mcpsDataReq* dataReq = check_and_cast<mcpsDataReq*>(msg);
         macEV << "MCPS-DATA.request arrived on MCPS_SAP for " << dataReq->getDstAddr().str() << endl;
+
+        // Check if the data request packet has a valid size
+        if (dataReq->getByteLength() > aMaxMACFrameSize)
+        {
+            macEV << dataReq->getName() << " received from upper layer, but dropped due to oversize \n";
+            sendMCPSDataConf(mac_FRAME_TOO_LONG, dataReq->getMsduHandle());
+            delete (msg);
+            return;
+        }
 
         // set missing parameter and generate MPDU Data request
         mpdu* data = new mpdu("DATA.indication");
@@ -2359,8 +2356,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
 void IEEE802154Mac::sendMCPSDataConf(MACenum status, unsigned char msdu)
 {
     // send a confirm for upper Layers
-    mcpsDataConf* dataConf;
-    dataConf = new mcpsDataConf("MCPS-Data.confirm");
+    mcpsDataConf* dataConf = new mcpsDataConf("MCPS-Data.confirm");
     switch (status)
     {
         case mac_SUCCESS: {
@@ -5336,11 +5332,11 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 }
                 else  // time out when waiting for ACK
                 {
-                    macEV << "ACK timeout for " << txData->getName() << ":#" << (unsigned int) txData->getSqnr() << endl;
+                    macEV << "ACK timeout for " << txData->getName() << ":#" << (unsigned short) txData->getSqnr() << endl;
                     numDataRetry++;
-                    if (numDataRetry <= aMaxFrameRetries)
+                    if (numDataRetry <= mpib.getMacMaxFrameRetries())
                     {
-                        macEV << "Starting " << numDataRetry << "th retry for " << txData->getName() << ":#" << (unsigned int) txData->getSqnr() << endl;
+                        macEV << "Starting " << numDataRetry << ". retry for " << txData->getName() << ":#" << (unsigned short) txData->getSqnr() << endl;
                         taskP.taskStep(task) = 1;  // go back to step 1
                         strcpy(taskP.taskFrFunc(task), "csmacaCallBack");
                         waitDataAck = false;
@@ -5348,7 +5344,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     }
                     else
                     {
-                        macEV << "The max #num of retries reached \n";
+                        macEV << "The max #num of retries (MaxFrameRetries=" << mpib.getMacMaxFrameRetries() << ") reached \n";
                         taskP.taskStatus(task) = false;  // task fails
                         macEV << "[MAC-TASK-FAIL]: reset TP_MCPS_DATA_REQUEST \n";
                         waitDataAck = false;  // debug
@@ -5428,7 +5424,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 {
                     macEV << "[GTS]: ACK timeout for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << endl;
                     numGTSRetry++;
-                    if (numGTSRetry <= aMaxFrameRetries)
+                    if (numGTSRetry <= mpib.getMacMaxFrameRetries())
                     {
                         // retry in next GTS
                         macEV << "[GTS]: retry in this GTS of next superframe, turn off radio now \n";
@@ -5441,7 +5437,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                     }
                     else
                     {
-                        macEV << "[GTS]: the max num of retries reached, task failed \n";
+                        macEV << "[GTS]: the #max num of retries (MacMaxFrameRetries=" << mpib.getMacMaxFrameRetries() << ") reached, task failed \n";
                         taskP.taskStatus(task) = false;  //task fails
                         macEV << "[MAC-TASK-FAIL]: reset TP_MCPS_DATA_REQUEST \n";
                         waitGTSAck = false;
