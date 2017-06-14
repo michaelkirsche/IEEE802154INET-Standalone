@@ -411,6 +411,14 @@ void IEEE802154Mac::setDefMpib()
 // generic handleMessage function that divides messages between their arrival SAP
 void IEEE802154Mac::handleMessage(cMessage *msg)
 {
+    if (ev.isGUI())
+    {
+        char bufTT[50];
+        sprintf(bufTT, "isCoordinator: %s | isAssociated: %s", isCoordinator? "true" : "false", associated ? "true" : "false");
+        getDisplayString().setTagArg("tt", 0, bufTT);
+    }
+
+
     macEV << "Got Message " << msg->getName() << endl;
     if (msg->isSelfMessage())
     {

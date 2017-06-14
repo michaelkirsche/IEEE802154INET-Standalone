@@ -28,7 +28,7 @@ network net
             @display("p=75,20");
         }
         IEEE802154Nodes[numHosts]: IEEE802154Host {
-            @display("i=device/antennatower;p=100,100");
+            @display("i=device/antennatower;p=100,100;i2=status/bulb,white");
         }
 
     connections allowunconnected:

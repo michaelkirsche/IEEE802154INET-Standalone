@@ -311,6 +311,13 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
         }
     }
 
+    if (ev.isGUI())
+    {
+        char tBuf[45];
+        sprintf(tBuf, "#rcvdOK: %lu pks\n#givenUp: %lu pks", numReceivedCorrectly, numReceivedButGivenUp);
+        getDisplayString().setTagArg("t", 0, tBuf);
+    }
+
     // handle commands
     if (updateString && updateString == msg)
     {

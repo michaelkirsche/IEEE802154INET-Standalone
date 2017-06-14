@@ -261,6 +261,13 @@ void llc::handleMessage(cMessage *msg)
                     coordAddress = bN->getPANDescriptor().CoordAddress;  // shared by both 16 bit short address or 64 bit extended address
                     logicalChannel = bN->getPANDescriptor().LogicalChannel;
                     llcEV << "Beacon Notify received and not yet associated -> generate Association Request for beacon received from existing PAN Coordinator \n";
+                    if (ev.isGUI())
+                    {
+                        this->setDisplayString("i=block/join,#FFFF80,45;i2=status/yellow");
+                        char buf[20];
+                        sprintf(buf, "status/yellow");
+                        getModuleByPath("^.^")->getDisplayString().setTagArg("i2", 0, buf);
+                    }
                     genAssoReq();
                     delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
                     return;
@@ -353,6 +360,14 @@ void llc::handleMessage(cMessage *msg)
             if (dynamic_cast<AssociationConfirm*>(msg)) // MLME-Association.confirm
             {
                 llcEV << "Association Confirm received --> association process was successful \n";
+                if (ev.isGUI())
+                {
+                    bubble("Association successful");
+                    this->setDisplayString("i=block/join,#80FF00,45;i2=status/green");
+                    char buf[20];
+                    sprintf(buf, "status/green");
+                    getModuleByPath("^.^")->getDisplayString().setTagArg("i2", 0, buf);
+                }
                 associateSuccess = true;
                 associateStarted = false;
                 delete (msg);   // delete received msg because in convertingMode the higher layer does not understand MLME messages and is not further notified
@@ -363,6 +378,13 @@ void llc::handleMessage(cMessage *msg)
             {
                 llcEV << "Association Indication received --> association response will be sent automatically by the MAC \n";
 
+                if (ev.isGUI())
+                {
+                    this->setDisplayString("i=block/join,#FFFF80,45;i2=status/yellow");
+                    char buf[20];
+                    sprintf(buf, "status/yellow");
+                    getModuleByPath("^.^")->getDisplayString().setTagArg("i2", 0, buf);
+                }
                 // actually need to wait for ACK to confirm the correct association
                 // as the LLC currently does not cover processes / tasks, check during the reception of mcpsDataConf
                 // if an acknowledge was received
@@ -418,6 +440,14 @@ void llc::handleMessage(cMessage *msg)
                         associateSuccess = true;
                         associateStarted = false;
                         llcEV << "Acknowledge for MLME-ASSOCIATE.response received --> association process was successful \n";
+                        if (ev.isGUI())
+                        {
+                            bubble("Association successful");
+                            this->setDisplayString("i=block/join,#80FF00,45;i2=status/green");
+                            char buf[22];
+                            sprintf(buf, "status/green");
+                            getModuleByPath("^.^")->getDisplayString().setTagArg("i2", 0, buf);
+                        }
                     }
                     else if (conf->getStatus() == NO_ACK)
                     {

@@ -43,7 +43,7 @@ module netlayer
 
         // wrapping first 802.15.4 frames for MAC layer
         stdLLC: llc {
-            @display("i=block/join;p=55,59");
+            @display("i=block/join;p=55,59;i2=status/red");
         }
 
     connections allowunconnected:
