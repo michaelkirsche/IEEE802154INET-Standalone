@@ -1655,22 +1655,49 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
 void IEEE802154Mac::handleAck(cMessage* frame)
 {
     AckFrame* ack = check_and_cast<AckFrame*>(frame);
-    macEV << "Got ACK for #" << (unsigned int) ack->getSqnr() << endl;
-    if (Poll)
+
+    bool ack4me = false;
+
+    if (txGTS != NULL)
     {
-        if (((ack->getFcf()) & fpMask) >> fpShift)
+        if (ack->getSqnr() == txGTS->getSqnr())
         {
-            genPollConf(mac_SUCCESS);
+            ack4me = true;
         }
-        else
+    }
+    else if (txData != NULL)
+    {
+        if (ack->getSqnr() == txData->getSqnr())
         {
-            genPollConf(mac_NO_DATA);
+            ack4me = true;
         }
+
+    }
+
+    if (ack4me == true)
+    {
+        macEV << "Got ACK for #" << (unsigned int) ack->getSqnr() << endl;
+        if (Poll)
+            {
+                if (((ack->getFcf()) & fpMask) >> fpShift)
+                {
+                    genPollConf(mac_SUCCESS);
+                }
+                else
+                {
+                    genPollConf(mac_NO_DATA);
+                }
+            }
+            else
+            {
+                dispatch(phy_SUCCESS, __FUNCTION__);
+            }
     }
     else
     {
-        dispatch(phy_SUCCESS, __FUNCTION__);
+        macEV << "ACK #" << (unsigned int) ack->getSqnr() << " does not match a sequence number of a packet to transmit --> drop the ACK \n ";
     }
+
     return;
 }
 
@@ -2295,7 +2322,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
 
         if ((frmType == Ack) && (pdu->getSqnr() != mpib.getMacDSN()))
         {
-            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> filtered here \n";
+            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> packet filtered \n";
             // if dsr address does not match
             return true;
         }
@@ -2306,7 +2333,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
             if ((mpib.getMacPANId() != 0xffff)  // associated
             && (pdu->getSrcPANid() != mpib.getMacPANId()))  // PAN ID did not match
             {
-                macEV << "Further Filtering for frmType == Beacon & PAN ID did not match --> filtered here \n";
+                macEV << "Further Filtering for frmType == Beacon & PAN ID did not match --> packet filtered \n";
                 return true;
             }
         }
@@ -2318,7 +2345,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
                 if ((pdu->getDestPANid() != 0xffff)  // PAN ID does not match for other packets
                 && (pdu->getDestPANid() != mpib.getMacPANId()) && (mpib.getMacAssociatedPANCoord()))
                 {
-                    macEV << "Further Filtering for frmType != Beacon & has PAN ID --> filtered here \n";
+                    macEV << "Further Filtering for frmType != Beacon & has PAN ID --> packet filtered \n";
                     return true;
                 }
             }
@@ -2328,7 +2355,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
             {
                 if (!(pdu->getDest().isBroadcast()) && (pdu->getDest().getShortAddr() != mpib.getMacShortAddress()))
                 {
-                    macEV << "Further Filtering for frmType != Beacon & has Short Addr --> filtered here \n";
+                    macEV << "Further Filtering for frmType != Beacon & has Short Addr -> not the designated receiver --> packet filtered \n";
                     return true;
                 }
             }
@@ -2336,7 +2363,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
             {
                 if (!(pdu->getDest().equals(myMacAddr)))
                 {
-                    macEV << "Further Filtering for frmType != Beacon & has Long Addr --> filtered here \n";
+                    macEV << "Further Filtering for frmType != Beacon & has Long Addr -> not the designated receiver --> packet filtered \n";
                     return true;
                 }
             }
@@ -3159,7 +3186,6 @@ void IEEE802154Mac::doScan()
 double IEEE802154Mac::getRate(char bitOrSymbol)
 {
     double rate = 0;
-    //int temp = ppib.getCurrChann();   // XXX ppib not used anymore
 
     if (phy_channel == 0)
     {
@@ -4571,9 +4597,9 @@ void IEEE802154Mac::handleTxCmdDataBoundTimer()
 }
 
 /**
- * this function is called after delay of IFS following sending out the ACK requested by reception of a data or command packet
- * or following the reception of a data packet requiring no ACK
- * other command packets requiring no ACK are processed in <handleCommand()>
+ * This function is called after delay of IFS following sending out the ACK requested by the reception of
+ * a data or command packet or following the reception of a data packet requiring no ACK.
+ * Other command packets requiring no ACK are processed in <handleCommand()>.
  */
 void IEEE802154Mac::handleIfsTimer()
 {
@@ -5321,6 +5347,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 if (pStatus == phy_SUCCESS)  // ACK received
                 {
                     macEV << "ACK for " << txData->getName() << ":#" << (unsigned int) txData->getSqnr() << " received successfully \n";
+                    numRxAckPkt++;
                     taskP.taskStatus(task) = false;  // task ends successfully
                     macEV << "[MAC-TASK-SUCCESS]: reset TP_MCPS_DATA_REQUEST and cancel AckTimeoutTimer \n";
                     waitDataAck = false;  // debug
@@ -5420,6 +5447,7 @@ void IEEE802154Mac::FSM_MCPS_DATA_request(phyState pStatus, MACenum mStatus)
                 {
                     waitGTSAck = false;
                     macEV << "[GTS]: ACK for " << txGTS->getName() << ":#" << (unsigned int) txGTS->getSqnr() << " received successfully, turn off radio now \n";
+                    numRxAckPkt++;
                     genSetTrxState(phy_FORCE_TRX_OFF);
                     macEV << "[GTS]: need to delay IFS before next GTS transmission can proceed \n";
                     taskP.taskStep(task)++; // advance to next task step
@@ -5602,6 +5630,10 @@ void IEEE802154Mac::dispatch(phyState pStatus, const char *frFunc, phyState req_
             {
                 FSM_MCPS_DATA_request(pStatus);  // mStatus ignored
             }
+        }
+        else
+        {
+            macEV << "ACK received but no packet transmitted --> ignore received ACK \n";
         }
     }
     /*****************************************/

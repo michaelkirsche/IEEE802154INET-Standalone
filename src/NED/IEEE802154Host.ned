@@ -30,7 +30,7 @@ module IEEE802154Host
         string batteryType = default("InetSimpleBattery");
 
         @node();
-        @display("bgb=240,330;bgl=2");
+        @display("bgb=240,330;");
         @labels(node,ieee802154-node);
 
     gates:
