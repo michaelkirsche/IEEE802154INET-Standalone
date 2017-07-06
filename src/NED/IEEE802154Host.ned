@@ -21,13 +21,13 @@ package ieee802154.src.NED;
 import inet.mobility.contract.IMobility;
 import inet.base.NotificationBoard;
 import inet.battery.IBattery;
-import inet.applications.generic.IPvXTrafGen;	// FIXME IPvXTrafGen wants to register IP protocol -> 802.15.4 LLC dismisses this message
 
 module IEEE802154Host
 {
     parameters:
         string mobilityType = default("StationaryMobility");
         string batteryType = default("InetSimpleBattery");
+        string applicationType = default("Ieee802154TrafficGenerator");
 
         @node();
         @display("bgb=240,330;");
@@ -38,7 +38,7 @@ module IEEE802154Host
         output out;
 
     submodules:
-        application: IPvXTrafGen {
+        application: <applicationType> like IIeee802154TrafficModules if applicationType != "" {
             @display("p=174,38");
         }
 
@@ -61,14 +61,14 @@ module IEEE802154Host
             @display("p=174,151;i=block/network2");
         }
 
-        // Network interface card (PHY and MAC) for IEEE 802.15.4 node
+        // Network Interface Card (NIC) consisting of IEEE 802.15.4 MAC and PHY
         NIC: nic {
             @display("i=block/ifcard;p=174,266");
         }
 
     connections allowunconnected:
-        application.ipv6Out --> Network.inApp;
-        Network.outApp --> application.ipv6In;
+        application.trafficOut --> Network.inApp;
+        Network.outApp --> application.trafficIn;
 
         Network.outMCPS --> NIC.inData;
         Network.outMLME --> NIC.inMngt;
