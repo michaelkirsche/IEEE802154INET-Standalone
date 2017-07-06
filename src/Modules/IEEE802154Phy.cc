@@ -112,14 +112,15 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
         switch (mappedUpperLayerMsgTypes[msg->getName()])
         {
             case SETTRXSTATE: {
-                if (trxState == msg->getKind())
-                {
-                    sendTrxConf((phyState) msg->getKind());
-                }
-                else
-                {
-                    sendTrxConf(phy_SUCCESS);
-                }
+                // TODO XXX remove after testing
+//                if (trxState == msg->getKind())
+//                {
+//                    sendTrxConf((phyState) msg->getKind());
+//                }
+//                else
+//                {
+//                    sendTrxConf(phy_SUCCESS);
+//                }
                 trxState = (phyState) msg->getKind();
                 phyEV << "Setting TRX State to " << phyStateToString(trxState) << endl;
                 send(msg, "outToRadio");
@@ -131,7 +132,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 GetRequest* PhyPIBGet;
                 PhyPIBGet = check_and_cast<GetRequest *>(msg);
                 getPhyPIB(PhyPIBGet->getPIBattr(), PhyPIBGet->getPIBind());
-                delete (msg);       // XXX fix for undisposed object
+                delete (msg);       // fix for undisposed object
                 break;
             }
 
@@ -140,7 +141,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 SetRequest* PhyPIBSet;
                 PhyPIBSet = check_and_cast<SetRequest *>(msg);
                 setPhyPIB(PhyPIBSet);
-                delete (PhyPIBSet);   // XXX fix for undisposed object
+                delete (PhyPIBSet);   // fix for undisposed object
                 break;
             }
 
@@ -158,7 +159,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                     ccaConf->setKind(phy_TRX_OFF);
                     send(ccaConf, "outPLME");
                 }
-                delete (msg);   // XXX fix for undisposed object
+                delete (msg);   // fix for undisposed object
                 break;
             }
 
@@ -168,7 +169,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                     phyEV << "PLME-ED.request arrived -> performing ED \n";
                     performED();
                 }
-                delete (msg);   // XXX fix for undisposed object
+                delete (msg);   // fix for undisposed object
                 break;
             }
 
@@ -428,11 +429,29 @@ void IEEE802154Phy::getPhyPIB(int attr, int index)
     return;
 }
 
-void IEEE802154Phy::sendTrxConf(phyState status)
-{
-    cMessage* setTRXStateConf = new cMessage("PLME-SET-TRX-STATE.confirm");
-    setTRXStateConf->setName("PLME-SET-TRX-STATE.confirm");
-    setTRXStateConf->setKind(status);
-    send(setTRXStateConf, "outPLME");
-    return;
-}
+// TODO XXX remove after testing
+//void IEEE802154Phy::sendTrxConf(phyState status)
+//{
+//    cMessage* setTRXStateConf = new cMessage("PLME-SET-TRX-STATE.confirm");
+//    setTRXStateConf->setName("PLME-SET-TRX-STATE.confirm");
+//    setTRXStateConf->setKind(status);
+//    send(setTRXStateConf, "outPLME");
+
+    //    // modeling the TX-to-RX / RX-to-TX turnaround time (less or equal aTurnaroundTime = 12 symbols)
+    //    simtime_t wait4TurnAroundTime;
+    //    if (pib.getCurrChann() == 0)
+    //    {
+    //        wait4TurnAroundTime = aTurnaroundTime / (SR_868M * 1000);
+    //    }
+    //    else if (pib.getCurrChann() <= 10)
+    //    {
+    //        wait4TurnAroundTime = aTurnaroundTime / (SR_915M * 1000);
+    //    }
+    //    else if (pib.getCurrChann() <= 26)
+    //    {
+    //        wait4TurnAroundTime = aTurnaroundTime / (SR_2_4G * 1000);
+    //    }
+    //
+    //    sendDelayed(setTRXStateConf, wait4TurnAroundTime, "outPLME");
+//    return;
+//}

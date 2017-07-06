@@ -37,6 +37,22 @@
 
 #define radioEV (ev.isDisabled()||!radioDebug) ? EV : EV << "[802154_RADIO]: " // switchable debug output
 
+inline const char* radioStateToString(RadioState::State x)
+{
+    switch (x)
+    {
+        case RadioState::IDLE:      return "IDLE";
+        case RadioState::RECV:      return "RECV";
+        case RadioState::TRANSMIT:  return "TRANSMIT";
+        case RadioState::SLEEP:     return "SLEEP";
+        case RadioState::OFF:       return "OFF";
+        default:                    return "[Unknown RadioState]";
+    }
+}
+
+#define noTurnAround    false
+#define yesTurnAround   true
+
 /**
  * Abstract base class for IEEE802154Radio modules.
  * This is an extension of INET's abstract Radio Class by Andras Varga and Levente Meszaros
@@ -80,8 +96,8 @@ class IEEE802154Radio : public ChannelAccess
         void generateEDconf(double power, int EDval);
         void performCCA();
         void genCCAConf(bool success);
-        void genPhyConf(phyState state);
-        void initChannels();
+        void genPhyConf(phyState status);
+        void genSetTRXStateConf(phyState status, bool turnaroundRequired);
 
         virtual void initialize(int stage);
         virtual void finish();
@@ -116,7 +132,7 @@ class IEEE802154Radio : public ChannelAccess
         virtual AirFrame *encapsulatePacket(cPacket *msg);
 
         /** Sets the IEEE802154Radio state, and also fires change notification */
-        virtual void setRadioState(RadioState::State newState);
+        virtual phyState setRadioState(RadioState::State newState);
 
         /** Returns the current channel the IEEE802154Radio is tuned to */
         virtual int getChannelNumber() const
@@ -167,7 +183,7 @@ class IEEE802154Radio : public ChannelAccess
             transceiverConnect = false;
         }
         virtual void connectReceiver();
-        virtual void disconnectReceiver();
+        virtual phyState disconnectReceiver();
 
         virtual void registerBattery();
 

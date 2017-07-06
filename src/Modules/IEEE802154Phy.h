@@ -45,7 +45,8 @@ class IEEE802154Phy : public cSimpleModule
         virtual ppdu *generatePPDU(cMessage *psdu, bool ackFlag);
         void initialize(int stage);
         virtual void handleMessage(cMessage *msg);
-        void sendTrxConf(phyState status);
+        // TODO XXX remove after testing
+        //void sendTrxConf(phyState status);
         void tokenizePages();
         void getPhyPIB(int attr, int index);
         void setPhyPIB(SetRequest *IEEE802154PhyPIBSet);

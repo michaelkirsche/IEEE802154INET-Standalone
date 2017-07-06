@@ -437,21 +437,22 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
             }
             else if (rs.getState() == RadioState::TRANSMIT)
             {
-                radioEV << "Frame received during own transmit operation -> dropping airframe! \n";
+                // this case only happens in OMNeT++, in real-life, one cannot receive while transmitting without a full-duplex radio
+                radioEV << "Radio is currently transmitting -> interfering airframe ignored/dropped! \n";
                 delete (msg);
                 return;
             }
         }
         else
         {
-            radioEV << "Radio not connected / disabled -- dropping airframe! \n";
+            radioEV << "Radio not connected / disabled -> dropping airframe! \n";
             delete (msg);
             return;
         }
     }
     else
     {
-        radioEV << "Listening to different channel when receiving message -- dropping it! \n";
+        radioEV << "Listening to different channel when receiving message -> dropping it! \n";
         delete (msg);
         return;
     }
@@ -598,47 +599,30 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
     switch (msgkind)
     {
         case phy_RX_ON: {
-            if (rs.getState() == (RadioState::RECV))
-            {
-                radioEV << "------Receiver is already ON (RECV)--------------- \n";
-            }
-            else
-            {
-                radioEV << "------Receiver turned ON (RECV)--------------- \n";
-                setRadioState(RadioState::RECV);
-            }
+            (rs.getState() == (RadioState::RECV)) ? genSetTRXStateConf(phy_SUCCESS, noTurnAround) : genSetTRXStateConf(phy_SUCCESS, yesTurnAround);
+
+            setRadioState(RadioState::RECV);
             return;
         }
 
         case phy_TX_ON: {
-            if (rs.getState() == (RadioState::IDLE))
-            {
-                radioEV << "------Transmitter is already ON (IDLE)------------ \n";
-            }
-            else
-            {
-                radioEV << "------Transmitter turned ON (IDLE)------------ \n";
-                setRadioState(RadioState::IDLE);
-            }
+            (rs.getState() == (RadioState::IDLE)) ? genSetTRXStateConf(phy_SUCCESS, noTurnAround) : genSetTRXStateConf(phy_SUCCESS, yesTurnAround);
+
+            setRadioState(RadioState::IDLE);
             return;
         }
 
         case phy_TRX_OFF: {
-            if (rs.getState() == (RadioState::SLEEP))
-            {
-                radioEV << "------Transmitter is already OFF (SLEEP)------------ \n";
-            }
-            else
-            {
-                radioEV << "------Transmitter turned OFF (SLEEP)------------ \n";
-                setRadioState(RadioState::SLEEP);
-            }
+            genSetTRXStateConf(phy_SUCCESS, noTurnAround);
+
+            setRadioState(RadioState::SLEEP);
             return;
         }
 
         case phy_FORCE_TRX_OFF: {
-            radioEV << "------Transmitter forcefully turned OFF------------ \n";
-            setRadioState(RadioState::SLEEP);
+            genSetTRXStateConf(phy_SUCCESS, noTurnAround);
+
+            setRadioState(RadioState::OFF);
             return;
         }
 
@@ -716,7 +700,7 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
             radioEV << "Initiating CCA \n";
             if (!snrInfo.sList.empty())
             {
-                radioEV << "[CCA]: currently receicing - channel not clear right now! \n";
+                radioEV << "[CCA]: currently receiving - channel not clear right now! \n";
                 genCCAConf(false);
             }
             else
@@ -733,7 +717,7 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
         }
 
         default: {
-            error("Unknown command (msgkind=%d)", msgkind);
+            error("Unknown command (msgkind == %d)", msgkind);
             return;
         }
     }
@@ -785,7 +769,7 @@ void IEEE802154Radio::handleSelfMsg(cMessage *msg)
         }
 
         // delete the self message
-        delete msg;
+        delete (msg);
 
         // switch channel if it needs be
         if (newChannel != -1)
@@ -1178,9 +1162,10 @@ void IEEE802154Radio::setBitrate(int bitrate, bool firstTime)
     }
 
     rs.setBitrate(bitrate);
+    return;
 }
 
-void IEEE802154Radio::setRadioState(RadioState::State newState)
+phyState IEEE802154Radio::setRadioState(RadioState::State newState)
 {
     if (rs.getState() != newState)
     {
@@ -1188,17 +1173,41 @@ void IEEE802154Radio::setRadioState(RadioState::State newState)
 
         if (newState == RadioState::SLEEP || newState == RadioState::OFF)
         {
-            disconnectTransceiver();
-            disconnectReceiver();
+            phyState outcome = disconnectReceiver();
+
+            if (outcome == phy_TRX_OFF)
+            {
+                disconnectTransceiver();
+            }
+            else
+            {
+                // receiver could not be disconnected -> return the phyState
+                return outcome;
+            }
         }
         else if (rs.getState() == RadioState::SLEEP || rs.getState() == RadioState::OFF)
         {
-            connectTransceiver();
             connectReceiver();
+            connectTransceiver();
         }
 
         rs.setState(newState);
         nb->fireChangeNotification(NF_RADIOSTATE_CHANGED, &rs);
+
+        radioEV << "Change RadioState to " << (radioStateToString)(newState) << endl;
+    }
+    else
+    {
+        radioEV << "RadioState is already " << (radioStateToString)(newState) << " -> no change necessary \n";
+    }
+    switch (newState)
+    {
+        case RadioState::IDLE:      return phy_IDLE;
+        case RadioState::RECV:      return phy_RX_ON;
+        case RadioState::TRANSMIT:  return phy_TX_ON;
+        case RadioState::SLEEP:     return phy_TRX_OFF;
+        case RadioState::OFF:       return phy_TRX_OFF;
+        default:                    return phy_UNSUPPORT_ATTRIBUTE;
     }
 }
 
@@ -1343,28 +1352,35 @@ void IEEE802154Radio::receiveSignal(cComponent *source, simsignal_t signalID, cO
     }
 }
 
-void IEEE802154Radio::disconnectReceiver()
+phyState IEEE802154Radio::disconnectReceiver()
 {
-    receiverConnect = false;
-    cc->disableReception(this->myRadioRef);
     if (rs.getState() == RadioState::TRANSMIT)
     {
-        error("disconnecting the receiver while transmitting is not allowed");
+        radioEV << "trying to disconnecting the receiver while transmitting -> not allowed \n";
+        return phy_BUSY_TX;
+    }
+    else if (rs.getState() == RadioState::RECV)
+    {
+        radioEV << "trying to disconnecting the receiver while receiving -> not allowed \n";
+        return phy_BUSY_RX;
     }
 
+    receiverConnect = false;
+    cc->disableReception(this->myRadioRef);
     // Clear the recvBuff
     for (RecvBuff::iterator it = recvBuff.begin(); it != recvBuff.end(); ++it)
     {
         AirFrame *airframe = it->first;
         cMessage *endRxTimer = (cMessage *) airframe->getContextPointer();
-        delete airframe;
-        delete cancelEvent(endRxTimer);
+        delete (airframe);
+        delete (cancelEvent(endRxTimer));
     }
     recvBuff.clear();
 
     // clear SNR info
     snrInfo.ptr = NULL;
     snrInfo.sList.clear();
+    return phy_TRX_OFF;
 }
 
 void IEEE802154Radio::connectReceiver()
@@ -1597,11 +1613,40 @@ void IEEE802154Radio::generateEDconf(double rcvdPower, int status)
 
     edConf->setKind(status);
     send(edConf, "upperLayerOut");
+    return;
 }
 
-void IEEE802154Radio::genPhyConf(phyState state)
+void IEEE802154Radio::genPhyConf(phyState status)
 {
-    cMessage* conf = new cMessage("PD-DATA.confirm");
-    conf->setKind(state);
-    send(conf, "upperLayerOut");
+    cMessage* phyConf = new cMessage("PD-DATA.confirm");
+    phyConf->setKind(status);
+    send(phyConf, "upperLayerOut");
+    return;
+}
+
+void IEEE802154Radio::genSetTRXStateConf(phyState status, bool turnaroundRequired)
+{
+    cMessage* setTRXStateConf = new cMessage("PLME-SET-TRX-STATE.confirm");
+    setTRXStateConf->setKind(status);
+
+    if (turnaroundRequired == true)
+    {
+        // simple approach to model the the TX-to-RX / RX-to-TX turnaround time
+        // (less or equal aTurnaroundTime = 12 symbols)
+        // TODO lots of setRadioState operations are happening in the IEEE802154Radio
+        // all changes of the radioState would need to consider the turnaround time
+        // we would actually require a state machine for the radio too, where processing/waiting times
+        // are modeled via self-messages
+
+        simtime_t wait4TurnAroundTime = aTurnaroundTime / symbolRate;
+        sendDelayed(setTRXStateConf, wait4TurnAroundTime, "upperLayerOut");
+    }
+    else
+    {
+        send(setTRXStateConf, "upperLayerOut");
+    }
+
+//    (turnaroundRequired == true) ? sendDelayed(setTRXStateConf, (simtime_t) (aTurnaroundTime / symbolRate), "upperLayerOut") : send(setTRXStateConf, "upperLayerOut");
+
+    return;
 }
