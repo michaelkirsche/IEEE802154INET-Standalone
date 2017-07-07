@@ -20,14 +20,14 @@
 
 Define_Module(IEEE802154TrafficGenerator);
 
-IEEE802154TrafficGenerator::IEEE802154TrafficGenerator()
+void IEEE802154TrafficGenerator::initialize(int stage)
 {
-    // TODO Auto-generated constructor stub
+    cSimpleModule::initialize(stage);
 
-}
-
-IEEE802154TrafficGenerator::~IEEE802154TrafficGenerator()
-{
-    // TODO Auto-generated destructor stub
+    if (stage == 0)
+    {
+        // initialize the debug ouput bool from NED parameter value
+        trafficDebug = (hasPar("trafficDebug") ? (par("trafficDebug").boolValue()) : (false));
+    }
 }
 

@@ -32,8 +32,24 @@
 class IEEE802154TrafficSink : public cSimpleModule
 {
     public:
-        IEEE802154TrafficSink();
-        virtual ~IEEE802154TrafficSink();
+        unsigned int numReceived = 0;
+        static simsignal_t rcvdPkSignal;
+
+    public:
+        IEEE802154TrafficSink(){}; // std Ctor
+        virtual ~IEEE802154TrafficSink(){}; // std Dtor;
+
+    protected:
+        void initialize(int stage);
+        void handleMessage(cMessage *msg);
+        // TODO change msg type from cPacket to correct MAC frame type
+        void processPacket(cPacket *msg);
+        // TODO change msg type from cPacket to correct MAC frame type
+        void printPacket(cPacket *msg);
+
+    protected:
+        /** @brief Debug output switch for the traffic sink module */
+        bool trafficDebug = false;
 };
 
 #endif /* IEEE802154TRAFFICSINK_H_ */

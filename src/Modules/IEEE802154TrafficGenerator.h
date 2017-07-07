@@ -32,8 +32,15 @@
 class IEEE802154TrafficGenerator : public cSimpleModule
 {
     public:
-        IEEE802154TrafficGenerator();
-        virtual ~IEEE802154TrafficGenerator();
+        IEEE802154TrafficGenerator(){}; // std Ctor
+        virtual ~IEEE802154TrafficGenerator(){}; // std Dtor;
+
+    protected:
+        void initialize(int stage);
+
+    protected:
+        /** @brief Debug output switch for the traffic generator module */
+        bool trafficDebug = false;
 };
 
 #endif /* IEEE802154TRAFFICGENERATOR_H_ */

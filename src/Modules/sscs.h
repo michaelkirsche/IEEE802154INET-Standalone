@@ -28,6 +28,8 @@ class sscs : public cSimpleModule
     public:
         sscs(){};  // std Ctor
         virtual ~sscs(){}; // std Dtor;
+
+    protected:
         void initialize();
         void handleMessage(cMessage* msg);
 
