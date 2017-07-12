@@ -28,6 +28,12 @@ void llc::initialize()
     // initialize the debug output bool from NED parameter value
     llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
 
+    // XXX instead of randomly selecting a 8-bit msgHandle, we use the index of the node for the moment (see llc:llc() constructor)
+    // module path to traverse: net.IEEE802154Nodes[index].Network.stdLLC
+    unsigned int hostIndex = this->getParentModule()->getParentModule()->getIndex();
+    ASSERT(hostIndex <= 255);   // msgHandle is 8-bit at the moment, to avoid collisions, we use less than 256 hosts
+    msgHandle = hostIndex;
+
     /* This is for Application layers which cannot send out MCPS primitives
      * if a true LLC is available, it will take care of it
      * just make sure the Application is sending cPackets
@@ -39,6 +45,7 @@ void llc::initialize()
 
     logicalChannel = par("LogicalChannel");
 
+    WATCH(msgHandle);
     WATCH(firstDevice);
     WATCH(associateSuccess);
     WATCH(associateStarted);
@@ -476,7 +483,8 @@ llc::llc()
     TXoption = 0;
     firstDevice = true;
     associateSuccess = false;
-    msgHandle = intrand(255);
+    //msgHandle = intrand(255); // XXX possible RNG collission when setting up bigger networks (only 8 bit - 255 values to select from)
+                                // we use the node index for the moment (see llc:initialize())
     associateSuccess = false;
     associateStarted = false;
     coordAddrMode = 0;
