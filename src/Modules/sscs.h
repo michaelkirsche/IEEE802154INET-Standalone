@@ -30,8 +30,10 @@ class sscs : public cSimpleModule
         virtual ~sscs(){}; // std Dtor;
 
     protected:
-        void initialize();
-        void handleMessage(cMessage* msg);
+        virtual void initialize(int stage);
+        virtual int numInitStages() const { return 1; }
+
+        virtual void handleMessage(cMessage* msg);
 
     protected:
         /** @brief Debug output switch for the SSCS module */

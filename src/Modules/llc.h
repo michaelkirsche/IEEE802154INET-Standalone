@@ -41,8 +41,10 @@ class llc : public cSimpleModule
         /** @brief Debug output switch for the LLC module */
         bool llcDebug = false;
 
-        void initialize();
-        void handleMessage(cMessage *msg);
+        virtual void initialize(int stage);
+        virtual int numInitStages() const { return 3; }
+
+        virtual void handleMessage(cMessage *msg);
         MACAddressExt tokenDest(cMessage* msg);    // returns 64-Bit MAC address generated from the given msg
         void genAssoReq();
         void genPollReq();

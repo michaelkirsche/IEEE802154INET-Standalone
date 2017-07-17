@@ -97,8 +97,6 @@ void IEEE802154Radio::initialize(int stage)
         // initialize the debug ouput bool from NED parameter value
         radioDebug = (hasPar("radioDebug") ? (par("radioDebug").boolValue()) : (false));
 
-        radioEV << "Initializing IEEE802154Radio, stage=" << stage << endl;
-
         gate("radioIn")->setDeliverOnReceptionStart(true);
 
         upperLayerIn = findGate("upperLayerIn");

@@ -23,58 +23,71 @@ bool llc::firstDevice;
 
 Define_Module(llc);
 
-void llc::initialize()
+void llc::initialize(int stage)
 {
-    // initialize the debug output bool from NED parameter value
-    llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
-
-    /* This is for Application layers which cannot send out MCPS primitives
-     * if a true LLC is available, it will take care of it
-     * just make sure the Application is sending cPackets
-     */
-    convertingMode = par("convertMode").boolValue();
-
-    TXoption = par("TXoption");
-    ASSERT(TXoption <= 7);  // check if TXoption value is a recognized value
-
-    logicalChannel = par("LogicalChannel");
-
-    WATCH(firstDevice);
-    WATCH(associateSuccess);
-    WATCH(associateStarted);
-    WATCH(coordPANId);
-    WATCH(coordAddress);
-    WATCH(coordAddrMode);
-
-    if (convertingMode)
+    cSimpleModule::initialize (stage);
+    if (stage == 0)
     {
-        ASSERT(getModuleByPath("^.^.NIC.MAC.IEEE802154Mac") != NULL);    // getModuleByPath shall return the MAC module
-        // Check if startWithoutStartRequest was enabled by user
-        if (getModuleByPath("^.^.NIC.MAC.IEEE802154Mac")->par("startWithoutStartReq").boolValue() == false)
+        // initialize the debug output bool from NED parameter value
+        llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
+    }
+    else if (stage == 1)
+    {
+        /* This is for Application layers which cannot send out MCPS primitives
+         * if a true LLC is available, it will take care of it
+         * just make sure the Application is sending cPackets
+         */
+        convertingMode = par("convertMode").boolValue();
+
+        TXoption = par("TXoption");
+        ASSERT(TXoption <= 7);  // check if TXoption value is a recognized value
+
+        logicalChannel = par("LogicalChannel");
+
+        WATCH(firstDevice);
+        WATCH(associateSuccess);
+        WATCH(associateStarted);
+        WATCH(coordPANId);
+        WATCH(coordAddress);
+        WATCH(coordAddrMode);
+    }
+    else if (stage == 2)
+    {
+        if (convertingMode)
         {
-            double seed = dblrand();
-            llcEV << "Sending Start Request in " << seed << endl;
-            selfMsg = new cMessage("LLC-Start");
-            selfMsg->setKind(0);
-            scheduleAt(seed, selfMsg);
+            llcEV << "LLC is operating in 'Converting Mode' \n";
+            ASSERT(getModuleByPath("^.^.NIC.MAC.IEEE802154Mac") != NULL);    // getModuleByPath shall return the MAC module
+            // Check if startWithoutStartRequest was enabled by user
+            if (getModuleByPath("^.^.NIC.MAC.IEEE802154Mac")->par("startWithoutStartReq").boolValue() == false)
+            {
+                double seed = dblrand();
+                llcEV << "Sending Start Request in " << seed << endl;
+                selfMsg = new cMessage("LLC-Start");
+                selfMsg->setKind(0);
+                scheduleAt(seed, selfMsg);
+            }
+            else
+            {
+                llcEV << "Starting without an explicit Start Request right now (startwithoutStartReq == true) \n";
+            }
+
+            scanChannels = par("ScanChannels");
+            scanDuration = par("ScanDuration");
+            scanPage = par("ScanPage");
+            scanType = par("ScanType");
+            pollFreq = par("PollFrequency");
+
+            if (TXoption >= 4)
+            {
+                pollTimer = new cMessage("LLC-POLL-Timer");
+                llcEV << "TXoption set to indirect - starting Poll timer \n";
+                pollTimer->setKind(1);
+                scheduleAt(pollFreq, pollTimer);
+            }
         }
         else
         {
-            llcEV << "Starting without an explicit Start Request right now (startwithoutStartReq == true) \n";
-        }
-
-        scanChannels = par("ScanChannels");
-        scanDuration = par("ScanDuration");
-        scanPage = par("ScanPage");
-        scanType = par("ScanType");
-        pollFreq = par("PollFrequency");
-
-        if (TXoption >= 4)
-        {
-            pollTimer = new cMessage("LLC-POLL-Timer");
-            llcEV << "TXoption set to indirect - starting Poll timer \n";
-            pollTimer->setKind(1);
-            scheduleAt(pollFreq, pollTimer);
+            llcEV << "LLC is operating in transparent forwarding / non-converting mode \n";
         }
     }
 }

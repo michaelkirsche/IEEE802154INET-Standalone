@@ -29,8 +29,6 @@ void IEEE802154Mac::initialize(int stage)
         // initialize the debug output bool from NED parameter value
         macDebug = (hasPar("macDebug") ? (par("macDebug").boolValue()) : (false));
 
-        macEV << "Initializing Stage 0 \n";
-
         // all Confirm Message types which could come in from the lower layer
         mappedMsgTypes["PLME-SET-TRX-STATE.confirm"] = SETTRXSTATE;
         mappedMsgTypes["PLME-GET.confirm"] = GET;
@@ -268,8 +266,6 @@ void IEEE802154Mac::initialize(int stage)
     }
     else if (stage == 1)
     {
-        macEV << "Initializing Stage 1 \n";
-
         WATCH(bPeriod);
         WATCH(inTxSD_txSDTimer);
         WATCH(inRxSD_rxSDTimer);
@@ -301,8 +297,6 @@ void IEEE802154Mac::initialize(int stage)
     }
     else if (stage == 2)
     {
-        macEV << "Initializing Stage 2 \n";
-
         bcnRxTime = 0;
 
         if (true == startNow)

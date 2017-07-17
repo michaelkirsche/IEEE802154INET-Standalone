@@ -84,6 +84,8 @@ class IEEE802154Radio : public ChannelAccess
         void initChannels();
 
         virtual void initialize(int stage);
+        virtual int numInitStages() const { return 3; }
+
         virtual void finish();
 
         virtual void handleMessage(cMessage *msg);

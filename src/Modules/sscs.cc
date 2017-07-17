@@ -19,10 +19,14 @@
 
 Define_Module (sscs);
 
-void sscs::initialize()
+void sscs::initialize(int stage)
 {
-    // initialize the debug ouput bool from NED parameter value
-    sscsDebug = (hasPar("sscsDebug") ? (par("sscsDebug").boolValue()) : (false));
+    cSimpleModule::initialize(stage);
+    if (stage == 0)
+    {
+        // initialize the debug ouput bool from NED parameter value
+        sscsDebug = (hasPar("sscsDebug") ? (par("sscsDebug").boolValue()) : (false));
+    }
 }
 
 void sscs::handleMessage(cMessage *msg)

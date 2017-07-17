@@ -19,25 +19,30 @@
 #include "msgBuffer.h"
 Define_Module(msgBuffer);
 
-void msgBuffer::initialize()
+void msgBuffer::initialize(int stage)
 {
-    isEmpty = true;
-    firstPack = true;
-    start = 0;
-    end = 0;
-    elems = 0;
+    cSimpleModule::initialize(stage);
 
-    WATCH(isEmpty);
-    WATCH(firstPack);
-    WATCH(start);
-    WATCH(end);
-    WATCH(elems);
-
-    if (ev.isGUI())
+    if (stage == 0)
     {
-        char buf[60];
-        sprintf(buf, "Size: %d pks | Holding : %u pks | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
-        getDisplayString().setTagArg("t", 0, buf);
+        isEmpty = true;
+        firstPack = true;
+        start = 0;
+        end = 0;
+        elems = 0;
+
+        WATCH(isEmpty);
+        WATCH(firstPack);
+        WATCH(start);
+        WATCH(end);
+        WATCH(elems);
+
+        if (ev.isGUI())
+        {
+            char buf[60];
+            sprintf(buf, "Size: %d pks | Holding : %u pks | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
+            getDisplayString().setTagArg("t", 0, buf);
+        }
     }
 }
 

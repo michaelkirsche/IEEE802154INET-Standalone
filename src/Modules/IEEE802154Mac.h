@@ -164,11 +164,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool macDebug = false;
 
         void initialize(int stage);
+        virtual int numInitStages() const { return 3; }
 
-        virtual int numInitStages() const
-        {
-            return 3;
-        }
         void finish();
 
         /**

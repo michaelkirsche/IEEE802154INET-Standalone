@@ -31,8 +31,11 @@ class msgBuffer : public cSimpleModule
         ~msgBuffer();
 
     protected:
-        void initialize();
-        void handleMessage(cMessage* msg);
+        virtual void initialize(int stage);
+        virtual int numInitStages() const { return 1; }
+
+        virtual void handleMessage(cMessage* msg);
+
         int spacesFree();
         void add(cMessage* elem);
         bool purgeElem(int msduHandle);
