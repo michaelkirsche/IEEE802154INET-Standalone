@@ -26,30 +26,34 @@
 
 #include "MPDU_m.h"
 #include "mcpsData_m.h"
+#include "MACAddressExt.h"
 
 #define trafficEV (ev.isDisabled()||!trafficDebug) ? EV : EV << "[802154_TRAFFIC]: " // switchable debug output
 
-class IEEE802154TrafficSink : public cSimpleModule
+class IEEE802154TrafficSink: public cSimpleModule
 {
-    public:
-        unsigned int numReceived = 0;
-        static simsignal_t rcvdPkSignal;
-
-    public:
-        IEEE802154TrafficSink(){}; // std Ctor
-        virtual ~IEEE802154TrafficSink(){}; // std Dtor;
-
-    protected:
-        void initialize(int stage);
-        void handleMessage(cMessage *msg);
-        // TODO change msg type from cPacket to correct MAC frame type
-        void processPacket(cPacket *msg);
-        // TODO change msg type from cPacket to correct MAC frame type
-        void printPacket(cPacket *msg);
-
     protected:
         /** @brief Debug output switch for the traffic sink module */
         bool trafficDebug = false;
+
+        unsigned int numReceived = 0;
+        static simsignal_t rcvdPkSignal;
+
+//    public:
+//        IEEE802154TrafficSink(){}; // std Ctor
+//        virtual ~IEEE802154TrafficSink(){}; // std Dtor;
+
+    protected:
+        virtual int numInitStages() const { return 1; }
+        virtual void initialize(int stage);
+
+        virtual void handleMessage(cMessage *msg);
+
+        // TODO change msg type from cPacket to correct MAC frame type
+        virtual void processPacket(cPacket *msg);
+
+        // TODO change msg type from cPacket to correct MAC frame type
+        virtual void printPacket(cPacket *msg);
 };
 
 #endif /* IEEE802154TRAFFICSINK_H_ */

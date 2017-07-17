@@ -26,21 +26,55 @@
 
 #include "MPDU_m.h"
 #include "mcpsData_m.h"
+#include "MACAddressExt.h"
 
 #define trafficEV (ev.isDisabled()||!trafficDebug) ? EV : EV << "[802154_TRAFFIC]: " // switchable debug output
 
 class IEEE802154TrafficGenerator : public cSimpleModule
 {
-    public:
-        IEEE802154TrafficGenerator(){}; // std Ctor
-        virtual ~IEEE802154TrafficGenerator(){}; // std Dtor;
-
-    protected:
-        void initialize(int stage);
-
     protected:
         /** @brief Debug output switch for the traffic generator module */
         bool trafficDebug = false;
+
+        enum Kinds {START=100, NEXT};
+
+        cMessage *sendTimer;
+
+        int numPackets; // -1 to deactivate packet generator
+
+        unsigned int numReceived;
+        unsigned int numSent;
+        static simsignal_t sentPkSignal;
+        static simsignal_t rcvdPkSignal;
+
+        simtime_t startTime;
+        simtime_t stopTime;
+
+        std::vector<MACAddressExt> destMACAddresses;
+
+        cPar *sendIntervalPar;
+
+        cPar *packetLengthPar;
+
+    public:
+        IEEE802154TrafficGenerator(); // Ctor
+        virtual ~IEEE802154TrafficGenerator(); // Dtor;
+
+    protected:
+        int numInitStages() const { return 3; }
+        virtual void initialize(int stage);
+
+        virtual void handleMessage(cMessage *msg);
+
+        virtual void scheduleNextPacket(simtime_t previous);
+
+        virtual MACAddressExt chooseDestMACAddr();
+        virtual void sendPacket();
+
+        virtual void printPacket(cPacket *msg);
+        virtual void processPacket(cPacket *msg);
+
+        virtual bool tryResolve(const char *s, MACAddressExt& result);
 };
 
 #endif /* IEEE802154TRAFFICGENERATOR_H_ */

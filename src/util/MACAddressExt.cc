@@ -58,12 +58,18 @@ bool MACAddressExt::tryParse(const char *hexstr)
     for (const char *s = hexstr; *s; s++)
     {
         if (isxdigit(*s))
+        {
             numHexDigits++;
+        }
         else if (*s != ' ' && *s != ':' && *s != '-')
+        {
             return false; // wrong syntax
+        }
     }
     if (numHexDigits != 2 * MAC_ADDRESS_SIZE)
+    {
         return false;
+    }
 
     // Converts hex string into the address
     // if hex string is shorter, address is filled with zeros;

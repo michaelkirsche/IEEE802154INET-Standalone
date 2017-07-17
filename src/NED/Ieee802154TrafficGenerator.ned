@@ -35,7 +35,7 @@ simple Ieee802154TrafficGenerator like IIeee802154TrafficModules
         
         double startTime @unit("s") = default(1s); // time of sending the first packet
         double stopTime @unit("s") = default(-1s);  // time of finishing sending, negative values mean forever
-        volatile double sendInterval @unit("s") = default(1000ms); // may be a random value, e.g., exponential(1)
+        volatile double sendInterval @unit("s") = default(1s); // may be a random value, e.g., exponential(1)
         
         int numPackets = default(-1); // max number of packets to generate, -1 means forever
         volatile int packetLength @unit("B") = default(20B); // packet length in bytes

@@ -28,21 +28,12 @@ void IEEE802154TrafficSink::initialize(int stage)
 
     if (stage == 0)
     {
-        // initialize the debug ouput bool from NED parameter value
+        // initialize the debug output bool from NED parameter value
         trafficDebug = (hasPar("trafficDebug") ? (par("trafficDebug").boolValue()) : (false));
 
         numReceived = 0;
         WATCH(numReceived);
     }
-    // TODO another initialization stage necessary? If not, remove other code
-//    else if (stage == 3)
-//    {
-//        int protocol = par("protocol");
-//        IPSocket ipSocket(gate("ipOut"));
-//        ipSocket.registerProtocol(protocol);
-//        ipSocket.setOutputGate(gate("ipv6Out"));
-//        ipSocket.registerProtocol(protocol);
-//    }
 }
 
 void IEEE802154TrafficSink::handleMessage(cMessage *msg)
