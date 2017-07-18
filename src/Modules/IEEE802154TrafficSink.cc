@@ -38,7 +38,6 @@ void IEEE802154TrafficSink::initialize(int stage)
 
 void IEEE802154TrafficSink::handleMessage(cMessage *msg)
 {
-    // TODO check and cast into MAC frame format
     processPacket(check_and_cast<cPacket *>(msg));
 
     if (ev.isGUI())
@@ -49,45 +48,23 @@ void IEEE802154TrafficSink::handleMessage(cMessage *msg)
     }
 }
 
-// TODO change msg type from cPacket to correct MAC frame type
 void IEEE802154TrafficSink::processPacket(cPacket *msg)
 {
     emit(rcvdPkSignal, msg);
-    printPacket(msg);
+
+    if (dynamic_cast<mcpsDataInd*>(msg))
+    {
+        mcpsDataInd* ind = check_and_cast<mcpsDataInd*>(msg);
+        cPacket* payload = ind->decapsulate();
+        trafficEV << "Got MCPS-Data.indication for Message #" << (int) (ind->getDSN()) << " from " << (ind->getSrcAddr().str()) << endl;
+        trafficEV << "Received payload: " << payload << endl;
+    } // (dynamic_cast<mcpsDataInd*>(msg))
+    else
+    {
+        trafficEV << "Received packet: " << msg << endl;
+        trafficEV << "Payload length: " << msg->getByteLength() << " bytes" << endl;
+    }
+
     delete (msg);
     numReceived++;
 }
-
-// TODO change msg type from cPacket to correct MAC frame type
-void IEEE802154TrafficSink::printPacket(cPacket *msg)
-{
-    // TODO add correct "printing of packet information for IEEE 802.15.4 MAC packets
-
-//    IPvXAddress src, dest;
-//    int protocol = -1;
-//
-//    if (dynamic_cast<IPv4ControlInfo *>(msg->getControlInfo()) != NULL)
-//    {
-//        IPv4ControlInfo *ctrl = (IPv4ControlInfo *)msg->getControlInfo();
-//        src = ctrl->getSrcAddr();
-//        dest = ctrl->getDestAddr();
-//        protocol = ctrl->getProtocol();
-//    }
-//    else if (dynamic_cast<IPv6ControlInfo *>(msg->getControlInfo()) != NULL)
-//    {
-//        IPv6ControlInfo *ctrl = (IPv6ControlInfo *)msg->getControlInfo();
-//        src = ctrl->getSrcAddr();
-//        dest = ctrl->getDestAddr();
-//        protocol = ctrl->getProtocol();
-//    }
-
-    // TODO add more info printers
-    trafficEV << "Received packet: " << msg << endl;
-    trafficEV << "Payload length: " << msg->getByteLength() << " bytes" << endl;
-//
-//    if (protocol != -1)
-//    {
-//        trafficEV << "src: " << src << "  dest: " << dest << "  protocol=" << protocol << "\n";
-//    }
-}
-

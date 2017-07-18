@@ -27,6 +27,8 @@ IEEE802154TrafficGenerator::IEEE802154TrafficGenerator()
 {
     sendTimer = NULL;
 
+    msgHandle = intrand(255);   // 8-bit msg handle (sequence number)
+
     packetLengthPar = NULL;
     sendIntervalPar = NULL;
 }
@@ -55,7 +57,10 @@ void IEEE802154TrafficGenerator::initialize(int stage)
         }
 
         packetLengthPar = &par("packetLength");
+        ASSERT((packetLengthPar->longValue() <= 102) && (packetLengthPar->longValue() > 0)); // max 802.15.4 frame size is 127 octets, min header size is 23, FCS is 2
+
         sendIntervalPar = &par("sendInterval");
+        ASSERT(sendIntervalPar > 0);    // send interval should be larger than 0
 
         numSent = 0;
         numReceived = 0;
@@ -71,7 +76,7 @@ void IEEE802154TrafficGenerator::initialize(int stage)
 
 void IEEE802154TrafficGenerator::handleMessage(cMessage *msg)
 {
-    if ((msg == sendTimer) && (msg->isSelfMessage()))
+    if ((msg == sendTimer) && (msg->isSelfMessage()))   // send timer
     {
         if (msg->getKind() == START)
         {
@@ -100,7 +105,7 @@ void IEEE802154TrafficGenerator::handleMessage(cMessage *msg)
             scheduleNextPacket(simTime());
         }
     }
-    else
+    else    // packets arrived from lower layer
     {
         processPacket(check_and_cast<cPacket *>(msg));
     }
@@ -140,53 +145,73 @@ MACAddressExt IEEE802154TrafficGenerator::chooseDestMACAddr()
 
 void IEEE802154TrafficGenerator::sendPacket()
 {
-    char msgName[32];
-    sprintf(msgName, "appData-%d", numSent);
+    char msgName[20];
+    sprintf(msgName, "MAC-Payload-%d", numSent);
 
     cPacket *payload = new cPacket(msgName);
     payload->setByteLength(packetLengthPar->longValue());
 
+    mcpsDataReq* dataReq = new mcpsDataReq("MCPS-DATA.request");
+    dataReq->encapsulate(payload);
+
+    ASSERT(msgHandle <= 255);   // sequence number in MPDU is 8-bit / unsigned char
+    dataReq->setMsduHandle(msgHandle);
+    (msgHandle < 255) ? msgHandle++ : msgHandle = 0;    // check if 8-bit sequence number needs to roll over
+
+    dataReq->setMsduLength(payload->getByteLength());
+    ASSERT(getModuleByPath("^.Network.stdLLC") != NULL);    // getModuleByPath shall return the MAC module
+    //fullPath = 'net.IEEE802154Nodes[0].Network.stdLLC.TXoption' (string)
+    dataReq->setTxOptions(getModuleByPath("^.Network.stdLLC")->par("TXoption").longValue());
+
     MACAddressExt destMACAddr = chooseDestMACAddr();
+    dataReq->setDstAddr(destMACAddr);
 
+    trafficEV << "Packet generated: " << payload << endl;
+    trafficEV << "Destination Address is: " << (dataReq->getDstAddr().str()) << " | MSDU Handle: " << (int) (dataReq->getMsduHandle()) << endl;
+    trafficEV << "MSDU Length: " << (int) (dataReq->getMsduLength()) << " bytes" << endl;
 
-//    controlInfo->setDestAddr(destAddr.get4());
-
-    trafficEV << "Sending packet: ";
-    printPacket(payload);
     emit(sentPkSignal, payload);
-    send(payload, "trafficOut");
+    send(dataReq, "trafficOut");
     numSent++;
-}
-
-void IEEE802154TrafficGenerator::printPacket(cPacket *msg)
-{
-    MACAddressExt src, dest;
-
-//    if (dynamic_cast<IPv4ControlInfo *>(msg->getControlInfo()) != NULL)
-//    {
-//        IPv4ControlInfo *ctrl = (IPv4ControlInfo *)msg->getControlInfo();
-//        src = ctrl->getSrcAddr();
-//        dest = ctrl->getDestAddr();
-//        protocol = ctrl->getProtocol();
-//    }
-//    else if (dynamic_cast<IPv6ControlInfo *>(msg->getControlInfo()) != NULL)
-//    {
-//        IPv6ControlInfo *ctrl = (IPv6ControlInfo *)msg->getControlInfo();
-//        src = ctrl->getSrcAddr();
-//        dest = ctrl->getDestAddr();
-//        protocol = ctrl->getProtocol();
-//    }
-
-    trafficEV << msg << endl;
-    trafficEV << "src: " << src << "  dest: " << dest << endl;
-    trafficEV << "Payload length: " << msg->getByteLength() << " bytes" << endl;
 }
 
 void IEEE802154TrafficGenerator::processPacket(cPacket *msg)
 {
     emit(rcvdPkSignal, msg);
-    trafficEV << "Received packet: ";
-    printPacket(msg);
+
+    if (dynamic_cast<mcpsDataInd*>(msg))
+    {
+        mcpsDataInd* ind = check_and_cast<mcpsDataInd*>(msg);
+        cPacket* payload = ind->decapsulate();
+        trafficEV << "Got MCPS-Data.indication for Message #" << (int) (ind->getDSN()) << " from " << (ind->getSrcAddr().str()) << endl;
+        trafficEV << "Received payload: " << payload << endl;
+    } // (dynamic_cast<mcpsDataInd*>(msg))
+    else if (dynamic_cast<mcpsDataConf*>(msg))
+    {
+        mcpsDataConf* conf = check_and_cast<mcpsDataConf*>(msg);
+
+        trafficEV << "Got MCPS-Data.confirm for Message #" << (int) (conf->getMsduHandle()) << " with status: " << MCPSStatusToString(MCPSStatus(conf->getStatus())) << endl;
+
+        if (ev.isGUI())
+        {
+            char buf[22];
+            if (conf->getStatus() == SUCCESS)
+            {
+                this->setDisplayString("i=block/join,#80FF00,45;i2=status/green");
+                sprintf(buf, "status/green");
+            }
+            else if (conf->getStatus() == NO_ACK)
+            {
+                this->setDisplayString("i=block/join,##FF0000,45;i2=status/red");
+                sprintf(buf, "status/red");
+            }
+            getModuleByPath("^")->getDisplayString().setTagArg("i2", 0, buf);
+        }
+    }
+    else {
+        trafficEV << "received a packet: " << msg << endl;
+    }
+
     delete msg;
     numReceived++;
 }
@@ -207,87 +232,52 @@ bool IEEE802154TrafficGenerator::tryResolve(const char *s, MACAddressExt& result
         return true;
     }
 
-    // must be " modulename [ { '%' interfacename | '>' destnode } ] [ '(' protocol ')' ] [ '/' ] " syntax
-    // interfacename: existing_interface_of_module | 'routerId'
-    // protocol: 'ipv4' | 'ipv6'
-    // '/': returns mask instead address
-    std::string modname, ifname, protocol, destnodename;
-    const char *p = s;
-    const char *endp = strchr(p, '\0');
-    const char *nextsep = strpbrk(p, "%>(/");
-    if (!nextsep)
-    {
-        nextsep = endp;
-    }
-    modname.assign(p, nextsep - p);
+    // TODO no further parsing or checking at the moment
+    return false;
 
-    char c = *nextsep;
-
-    if (c == '%')
-    {
-        { p = nextsep + 1; nextsep = strpbrk(p, "(/"); if (!nextsep) nextsep = endp; }
-        ifname.assign(p, nextsep - p);
-        c = *nextsep;
-    }
-    else if (c == '>')
-    {
-        { p = nextsep + 1; nextsep = strpbrk(p, "(/"); if (!nextsep) nextsep = endp; }
-        destnodename.assign(p, nextsep - p);
-        c = *nextsep;
-    }
-
-    if (c == '(')
-    {
-        { p = nextsep + 1; nextsep = strpbrk(p, ")"); if (!nextsep) nextsep = endp; }
-        protocol.assign(p, nextsep - p);
-        c = *nextsep;
-        if (c == ')')
-        {
-            { p = nextsep + 1; nextsep = p; }
-            c = *nextsep;
-        }
-    }
-
-    if (c)
-    {
-        throw cRuntimeError("MACAddressResolver: syntax error parsing address spec `%s'", s);
-    }
-
-    // find module
-    cModule *mod = simulation.getModuleByPath(modname.c_str());
-    if (!mod)
-    {
-        throw cRuntimeError("MACAddressResolver: module `%s' not found", modname.c_str());
-    }
-
-
-//    // check protocol
-//    if (!protocol.empty())
+//    // must be " modulename [ { '%' interfacename | '>' destnode } ] [ '(' protocol ')' ] [ '/' ] " syntax
+//    // interfacename: existing_interface_of_module | 'routerId'
+//    // protocol: 'ipv4' | 'ipv6'
+//    // '/': returns mask instead address
+//    std::string modname, ifname, protocol, destnodename;
+//    const char *p = s;
+//    const char *endp = strchr(p, '\0');
+//    const char *nextsep = strpbrk(p, "%>(/");
+//    if (!nextsep)
 //    {
-//        if (protocol == "ipv4")
-//            addrType = ADDR_IPv4;
-//        else if (protocol == "ipv6")
-//            addrType = ADDR_IPv6;
-//        else
-//            throw cRuntimeError("MACAddressResolver: error parsing address spec `%s': address type must be `(ipv4)' or `(ipv6)'", s);
+//        nextsep = endp;
 //    }
-//    if (netmask)
-//        addrType |= ADDR_MASK;
+//    modname.assign(p, nextsep - p);
 //
-//    // find interface for dest node
-//    // get address from the given module/interface
-//    if (!destnodename.empty())
+//    char c = *nextsep;
+//
+//    if (c == '%')
 //    {
-//        cModule *destnode = simulation.getModuleByPath(destnodename.c_str());
-//        if (!destnode)
-//            throw cRuntimeError("MACAddressResolver: destination module `%s' not found", destnodename.c_str());
-//        result = addressOf(mod, destnode, addrType);
+//        { p = nextsep + 1; nextsep = strpbrk(p, "(/"); if (!nextsep) nextsep = endp; }
+//        ifname.assign(p, nextsep - p);
+//        c = *nextsep;
 //    }
-//    else if (ifname.empty())
-//        result = addressOf(mod, addrType);
-//    else if (ifname == "routerId")
-//        result = IPvXAddress(routerIdOf(mod)); // addrType is meaningless here, routerId is protocol independent
-//    else
-//        result = addressOf(mod, ifname.c_str(), addrType);
-//    return !result.isUnspecified();
+//    else if (c == '>')
+//    {
+//        { p = nextsep + 1; nextsep = strpbrk(p, "(/"); if (!nextsep) nextsep = endp; }
+//        destnodename.assign(p, nextsep - p);
+//        c = *nextsep;
+//    }
+//
+//    if (c == '(')
+//    {
+//        { p = nextsep + 1; nextsep = strpbrk(p, ")"); if (!nextsep) nextsep = endp; }
+//        protocol.assign(p, nextsep - p);
+//        c = *nextsep;
+//        if (c == ')')
+//        {
+//            { p = nextsep + 1; nextsep = p; }
+//            c = *nextsep;
+//        }
+//    }
+//
+//    if (c)
+//    {
+//        throw cRuntimeError("MACAddressResolver: syntax error parsing address spec `%s'", s);
+//    }
 }

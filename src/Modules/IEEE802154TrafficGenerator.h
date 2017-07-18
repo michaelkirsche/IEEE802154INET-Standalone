@@ -56,6 +56,9 @@ class IEEE802154TrafficGenerator : public cSimpleModule
 
         cPar *packetLengthPar;
 
+    private:
+        unsigned char msgHandle;    // simple 8-bit counter to set msduHandle (and subsequently MAC DSN) for created packets
+
     public:
         IEEE802154TrafficGenerator(); // Ctor
         virtual ~IEEE802154TrafficGenerator(); // Dtor;
@@ -71,7 +74,6 @@ class IEEE802154TrafficGenerator : public cSimpleModule
         virtual MACAddressExt chooseDestMACAddr();
         virtual void sendPacket();
 
-        virtual void printPacket(cPacket *msg);
         virtual void processPacket(cPacket *msg);
 
         virtual bool tryResolve(const char *s, MACAddressExt& result);

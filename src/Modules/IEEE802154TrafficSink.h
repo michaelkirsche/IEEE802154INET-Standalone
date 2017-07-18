@@ -49,11 +49,7 @@ class IEEE802154TrafficSink: public cSimpleModule
 
         virtual void handleMessage(cMessage *msg);
 
-        // TODO change msg type from cPacket to correct MAC frame type
         virtual void processPacket(cPacket *msg);
-
-        // TODO change msg type from cPacket to correct MAC frame type
-        virtual void printPacket(cPacket *msg);
 };
 
 #endif /* IEEE802154TRAFFICSINK_H_ */
