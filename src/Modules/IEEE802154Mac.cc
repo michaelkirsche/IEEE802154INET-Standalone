@@ -3811,7 +3811,7 @@ bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
 
     macEV << "[CSMA]: The current CAP will end at " << t_fCAP << " sec \n";
     // evaluate if the entire transmission process can be finished before end of current CAP
-    if (tmpf > t_fCAP)
+    if (tmpf >= t_fCAP)
     {
         ok = false;
         macEV << "[CSMA]: Cannot proceed because the entire transmission cannot finish before the end of current CAP \n";
