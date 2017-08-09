@@ -2591,7 +2591,6 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     AssoCmdresp* assoResp = new AssoCmdresp("MLME-ASSOCIATE.response");
     MACAddressExt devAddr = tmpAssoReq->getCapabilityInformation().addr;
     devAddr.genShortAddr();
-    macEV << "Generating ASSOCIATE response for: " << devAddr << " with new short address: " << devAddr.getShortAddr() << endl;
     assoResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrLong, 0, addrShort));
     assoResp->setDest(devAddr);
     assoResp->setShortAddress(devAddr.getShortAddr());
@@ -2603,6 +2602,8 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     assoResp->setSqnr(sqnr);
     (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
     mpib.setMacDSN(sqnr);
+
+    macEV << "Generating MLME-ASSOCIATE.response for: " << devAddr << " with short address: " << devAddr.getShortAddr() << " and #seqNr: " << (int) assoResp->getSqnr() << endl;
 
     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
     holdMe->encapsulate(assoResp);
@@ -2617,7 +2618,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
     if ((txData != NULL) || (txGTS != NULL))
     {
-        macEV << "Right now processing other data -> associate response will be transmitted later \n";
+        macEV << "Processing other data right now -> associate response added to txBuffer, will be transmitted later \n";
         txBuff.addAt(txBuffSlot, holdMe);
         txBuffSlot++;
     }

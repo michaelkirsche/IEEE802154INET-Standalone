@@ -217,7 +217,7 @@ void MacPIB::setMacCoordShortAddress(unsigned short addr)
 
 unsigned short MacPIB::getMacDSN()
 {
-    return macBSN;
+    return macDSN;
 }
 
 void MacPIB::setMacDSN(unsigned short val)
