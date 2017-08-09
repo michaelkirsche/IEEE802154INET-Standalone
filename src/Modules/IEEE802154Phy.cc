@@ -70,18 +70,18 @@ ppdu *IEEE802154Phy::generatePPDU(cMessage *psdu, bool ackFlag)
 
     if (ackFlag)
     {
-        pdu->setPHR(5);
+        pdu->setPHR(5);     // for ACKs (802.15.4-2006 Figure 12)
         pdu->encapsulate(pk);
-        pdu->setByteLength(5); // needed for calculation in Radio Module
+        pdu->setByteLength(5 + phyHeaderLength); // needed for calculation in Radio Module
     }
     else
     {
-        pdu->setPHR(pk->getByteLength() + phyHeaderLength);
+        pdu->setPHR(pk->getByteLength());
         pdu->encapsulate(pk);
         pdu->setByteLength(pk->getByteLength() + phyHeaderLength); // needed for calculation in Radio Module
     }
 
-    phyEV << "The Frame length (PHR in PHY) is set to " << (unsigned short) pdu->getPHR() << " bytes (getByteLength = " << pdu->getByteLength() << " bytes) \n";
+    phyEV << "Frame length (PHR in PHY) = " << (unsigned short) pdu->getPHR() << " bytes | PPDU length (SHR + PHR + PSDU) = " << pdu->getByteLength() << " bytes) \n";
 
     return pdu;
 }

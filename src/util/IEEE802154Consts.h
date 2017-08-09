@@ -24,7 +24,12 @@
 //---PHY sublayer constants (802.15.4-2006 Revision Table 22)---
 const unsigned char  aMaxPHYPacketSize = 127;   // max PSDU size, in octets, that the PHY shall be able to receive
 const unsigned char  aTurnaroundTime = 12;      // RX-to-TX or TX-to-RX max turn-around time (in symbol period)
-const unsigned char  phyHeaderLength = 6;       // Bytes (currently according to 802.15.4-2003 Revision - Figure 16)
+
+// PHY header length is actually frequency and modulation dependent (802.15.4-2006 Table 19 and Table 20)
+// TODO calculation should be adjusted accordingly during runtime instead of fixed constant value
+const unsigned char  phyHeaderLength = 6;       // PPDU Format = SHR + PHR + PSDU (according to 802.15.4-2006 Figure 16)
+                                                // SHR = Preamble 2.4GHz (4 Bytes) + SFD 2.4GHz (1 Byte) = 5 Bytes
+                                                // PHR = Frame length (7 bits) + reserved (1 bit) = 1 Byte
 
 //---MAC sublayer constants (802.15.4-2006 Revision Table 85)---
 const unsigned char  aBaseSlotDuration = 60; // # of symbols comprising a superframe slot of order 0
