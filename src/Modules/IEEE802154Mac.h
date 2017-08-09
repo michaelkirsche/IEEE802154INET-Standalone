@@ -223,7 +223,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         unsigned short calcFCS(mpdu* pdu, cMessage *msg, bool calcFlag, int headerSize);
         void genScanConf(ScanStatus status);
         mpdu* findRxMsg(MACAddressExt dest);
-        mpdu* getTxMsg();
 
         /**
          * @name CSMA related handlers and variables
@@ -378,11 +377,12 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool ack4Gts;
         bool mlmeReset;
         bool ack4Asso;
-        unsigned int txBuffSlot;
-        unsigned int rxBuffSlot;
 
-        // Receive Buffer for Coordinator
-        cArray rxBuff;
+        // small receive buffer (modelled as a FIFO queue) for the coordinator
+        cPacketQueue rxBuffer;
+
+        // small transmit buffer (modelled as a FIFO queue) for responses on messages on the MAC layer
+        cPacketQueue txBuffer;
 
         // Frame Types for temporary save for frames currently being transmitted
         mpdu* txPkt;
@@ -401,9 +401,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // for data frames to be transmitted in GTS
         mpdu* txGTS;
-
-        // small tx Buffer for responses on messages on MAC layer
-        cArray txBuff;
 
         // for ack frames to be transmitted (no wait)
         AckFrame* txAck;

@@ -58,8 +58,10 @@ void IEEE802154Mac::initialize(int stage)
         scanning = false;
         scanStep = 0;
         mlmeRxEnable = false;
-        txBuffSlot = 0;
-        rxBuffSlot = 0;
+
+        txBuffer.setName("txBuffer");
+        rxBuffer.setName("rxBuffer");
+
         isCoordinator = false;
         associated = false;
         associationProcessStarted = false;
@@ -1259,21 +1261,22 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
                 txSfSpec.finalCap = tmp_finalCap;
                 tmpBcn->setSfSpec(txSfSpec);
                 if (txBcnCmd != NULL)
-                {  // will be released in PD_DATA_confirm
-                    macEV << "Coordinator is already trying to answer on BEACON.request - putting this BEACON to queue \n";
-                    txBuff.add(tmpBcn);
-                    delete (msg);   // XXX fix for undisposed objects
-                    return;
+                {   // will be released in PD_DATA_confirm
+                    macEV << "Coordinator is already trying to answer on BEACON.request - inserting this BEACON into txBuffer \n";
+                    txBuffer.insert(tmpBcn);
                 }
-                txBcnCmd = tmpBcn;
-                // Beacon is send direct as a usual data packet
-                Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
-                taskP.taskStatus(task) = true;
-                taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                csmacaEntry('c');
-
+                else
+                {
+                    // Beacon is send direct as a usual data packet
+                    Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+                    taskP.taskStatus(task) = true;
+                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+                    taskP.taskStep(task)++; // advance to next task step
+                    strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                    ASSERT(txBcnCmd == NULL);
+                    txBcnCmd = tmpBcn;
+                    csmacaEntry('c');
+                }
                 delete (msg); // XXX fix for undisposed objects
                 return;
             } // if (coordinator)
@@ -1695,7 +1698,7 @@ void IEEE802154Mac::handleAck(cMessage* frame)
     }
     else
     {
-        macEV << "ACK #" << (unsigned int) ack->getSqnr() << " does not match a sequence number of a packet to transmit --> drop the ACK \n ";
+        macEV << "ACK #" << (unsigned int) ack->getSqnr() << " does not match a sequence number of a packet to transmit --> drop the ACK \n";
     }
 
     return;
@@ -2295,8 +2298,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
             {
                 if (pdu->getDest().getInt() != myMacAddr.getInt())
                 {
-                    rxBuff.addAt(rxBuffSlot, pdu);
-                    rxBuffSlot++;
+                    rxBuffer.insert(pdu);
                     macEV << "Frame added to Buffer \n";
                     return true;
                 }
@@ -2484,18 +2486,16 @@ void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
 // for indirect data transfer we need a receive buffer method for finding a packet for a device
 mpdu* IEEE802154Mac::findRxMsg(MACAddressExt dest)
 {
-    mpdu* buffMsg = new mpdu();
-    for (int i = rxBuff.size() - rxBuffSlot; i < rxBuff.size(); i++)
+    for (cPacketQueue::Iterator iter(rxBuffer); !iter.end(); iter++)
     {
-        buffMsg = check_and_cast<mpdu*>(rxBuff.get(i));
+        mpdu* buffMsg = check_and_cast<mpdu*>(iter());
+
         if (buffMsg->getDest() == dest)
         {
-            rxBuff.remove(buffMsg);
-            rxBuffSlot--;
-            return buffMsg;     // XXX fix for unreachable code - shifted return below rxBuffSlot--
+            rxBuffer.remove(buffMsg);
+            return buffMsg;
         }
     }
-
     return NULL;
 }
 
@@ -2521,15 +2521,6 @@ unsigned short IEEE802154Mac::genFCF(frameType ft, bool secu, bool fp, bool areq
     fcf = fcf | ((sam << samShift) & samMask);
 
     return fcf;
-}
-
-// for indirect data transfer we need a transmit buffer
-mpdu* IEEE802154Mac::getTxMsg()
-{
-    mpdu* first = check_and_cast<mpdu*>(txBuff.get(txBuff.size() - txBuffSlot));
-    txBuff.remove(txBuff.size() - txBuffSlot);
-    txBuffSlot--;
-    return first;
 }
 
 void IEEE802154Mac::genSetTrxState(phyState state)
@@ -2619,8 +2610,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     if ((txData != NULL) || (txGTS != NULL))
     {
         macEV << "Processing other data right now -> associate response added to txBuffer, will be transmitted later \n";
-        txBuff.addAt(txBuffSlot, holdMe);
-        txBuffSlot++;
+        txBuffer.insert(holdMe);
     }
     else
     {
@@ -2731,9 +2721,8 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
         //if ((txData != NULL) || (txGTS != NULL) || (txAck != NULL))
         if ((txData != NULL) || (txGTS != NULL))
         {
-            macEV << "Right now processing other data -> disasscoiate request will be transmitted later \n";
-            txBuff.addAt(txBuffSlot, holdMe);
-            txBuffSlot++;
+            macEV << "Processing other data right now -> disasscoiate request will be transmitted later -> inserted into txBuffer \n";
+            txBuffer.insert(holdMe);
         }
         else
         {
@@ -4977,7 +4966,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
         // request another Msg from IFQ (if it exists), only when MAC is idle for data transmission
         if (!taskP.taskStatus(TP_MCPS_DATA_REQUEST))
         {
-            if (txBuffSlot > 0)
+            if (!txBuffer.empty())
             {
                 Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                 taskP.taskStatus(task) = true;
@@ -4989,7 +4978,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
-                        txData = getTxMsg();
+                        txData = check_and_cast<mpdu*>(txBuffer.pop());   // pop and cast message from txBuffer as MPDU
                         csmacaEntry('d');
                         break;
                     }
@@ -4999,8 +4988,8 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
                         strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                        ASSERT(txGTS == NULL); // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
-                        txGTS = getTxMsg(); // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
+                        ASSERT(txGTS == NULL);
+                        txGTS = check_and_cast<mpdu*>(txBuffer.pop());    // pop and cast message from txBuffer as MPDU
                         numGTSRetry = 0;
 
                         // If I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
@@ -5053,7 +5042,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
         // request another Msg from IFQ (if it exists), only when MAC is idle for data transmission
         if (!taskP.taskStatus(TP_MCPS_DATA_REQUEST))
         {
-            if (txBuffSlot > 0)
+            if (!txBuffer.empty())
             {
                 Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                 taskP.taskStatus(task) = true;
@@ -5065,7 +5054,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
-                        txData = getTxMsg();
+                        txData = check_and_cast<mpdu*>(txBuffer.pop());   // pop and cast message from txBuffer as MPDU
                         csmacaEntry('d');
                         break;
                     }
@@ -5075,8 +5064,8 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
                         strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                        ASSERT(txGTS == NULL); // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
-                        txGTS = getTxMsg(); // XXX fix for txGTS segmentation fault (use txGTS instead of txData)
+                        ASSERT(txGTS == NULL);
+                        txGTS = check_and_cast<mpdu*>(txBuffer.pop());    // pop and cast message from txBuffer as MPDU
                         numGTSRetry = 0;
 
                         // If I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
@@ -5148,7 +5137,7 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
         // request another Msg from IFQ (if it exists), only when MAC is idle for data transmission
         if (!taskP.taskStatus(TP_MCPS_DATA_REQUEST))
         {
-            if (txBuffSlot > 0)
+            if (!txBuffer.empty())
             {
                 Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                 taskP.taskStatus(task) = true;
@@ -5160,7 +5149,7 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
-                        txData = getTxMsg();
+                        txData = check_and_cast<mpdu*>(txBuffer.pop());   // pop and cast message from txBuffer as MPDU
                         csmacaEntry('d');
                         break;
                     }
@@ -5170,8 +5159,8 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
                         strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                        ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
-                        txGTS = getTxMsg(); // fix for txGTS segmentation fault (use txGTS instead of txData)
+                        ASSERT(txGTS == NULL);
+                        txGTS = check_and_cast<mpdu*>(txBuffer.pop());    // pop and cast message from txBuffer as MPDU
                         numGTSRetry = 0;
 
                         // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
@@ -5222,7 +5211,7 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
         // request another Msg from IFQ (if it exists), only when MAC is idle for data transmission
         if (!taskP.taskStatus(TP_MCPS_DATA_REQUEST))
         {
-            if (txBuffSlot > 0)
+            if (!txBuffer.empty())
             {
                 Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                 taskP.taskStatus(task) = true;
@@ -5234,7 +5223,7 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
-                        txData = getTxMsg();
+                        txData = check_and_cast<mpdu*>(txBuffer.pop());   // pop and cast message from txBuffer as MPDU
                         csmacaEntry('d');
                         break;
                     }
@@ -5244,8 +5233,8 @@ void IEEE802154Mac::taskFailed(char type, MACenum status, bool csmacaRes)
                         taskP.taskStep(task)++; // advance to next task step
                         // waiting for GTS arriving, callback from handleGtsTimer()
                         strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                        ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
-                        txGTS = getTxMsg(); // fix for txGTS segmentation fault (use txGTS instead of txData)
+                        ASSERT(txGTS == NULL);
+                        txGTS = check_and_cast<mpdu*>(txBuffer.pop());    // pop and cast message from txBuffer as MPDU
                         numGTSRetry = 0;
 
                         // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
@@ -5783,6 +5772,6 @@ IEEE802154Mac::~IEEE802154Mac()
     cancelAndDelete(gtsTimer);
     cancelAndDelete(scanTimer);
 
-    rxBuff.clear();
-    txBuff.clear();
+    rxBuffer.clear();
+    txBuffer.clear();
 }
