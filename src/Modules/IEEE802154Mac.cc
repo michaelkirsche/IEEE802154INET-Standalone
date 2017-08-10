@@ -76,8 +76,15 @@ void IEEE802154Mac::initialize(int stage)
         mpib.setMacPromiscuousMode(par("promiscuousMode").boolValue());
 
         // initialize MacDSN (data sequence number) and MacBSN (beacon sequence number) to random 8-bit values
-        mpib.setMacDSN(intrand(255));
+        //mpib.setMacDSN(intrand(255));
         mpib.setMacBSN(intrand(255));
+
+        // XXX instead of randomly selecting a 8-bit MacDSN, we use the index of the node for the moment
+        // module path to traverse: net.IEEE802154Nodes[index].NIC.MAC.IEEE802154Mac
+        unsigned int hostIndex = this->getParentModule()->getParentModule()->getParentModule()->getIndex();
+        ASSERT(hostIndex <= 255);   // msgHandle is 8-bit at the moment, to avoid collisions, we use less than 256 hosts
+        mpib.setMacDSN(hostIndex);
+
         macEV << "Initialization for MacDSN = " << mpib.getMacDSN() << " and MacBSN = " << mpib.getMacBSN() << endl;
 
         //mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + ppib.getSHR() + (6 - ppib.getSymbols()));
