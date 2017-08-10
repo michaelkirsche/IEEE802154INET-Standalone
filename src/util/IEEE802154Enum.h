@@ -31,9 +31,9 @@ enum PIBMsgTypes {
 
 enum phyState {
     phy_BUSY = CONF+1,
-    phy_BUSY_RX,
-    phy_BUSY_TX,
-    phy_FORCE_TRX_OFF,
+    phy_BUSY_RX,        // to be removed in 802.15.4-2006 according to 15-04-0025-01-004b-improvements-to-ieee-802-15-4-standard
+    phy_BUSY_TX,        // to be removed in 802.15.4-2006 according to 15-04-0025-01-004b-improvements-to-ieee-802-15-4-standard
+    phy_FORCE_TRX_OFF,  // to be removed in 802.15.4-2006 according to 15-04-0025-01-004b-improvements-to-ieee-802-15-4-standard
     phy_IDLE,
     phy_INVALID_PARAMETER,
     phy_RX_ON,

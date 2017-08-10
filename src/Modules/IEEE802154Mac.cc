@@ -2260,15 +2260,17 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
     {
         dispatch(status, __FUNCTION__);
     }
-    // sending packet at PHY layer failed
-    else if (status == phy_BUSY_RX)
-    {
-        dispatch(status, __FUNCTION__);
-    }
-    else if (status == phy_BUSY_TX)
-    {
-        error("[IEEE802154MAC]: Trying to send a message while already transmitting -- MAC should take care this does not happen \n");
-    }
+    // In 802.15.4-2006 and later revisions, BUSY_RX/TX were removed and the PHY should switch to TX_ON regardless of its state
+    // so no more phy_BUSY_TX/RX enums and no more handling of PD-DATA.confirm with those states
+//    // sending packet at PHY layer failed
+//    else if (status == phy_BUSY_RX)
+//    {
+//        dispatch(status, __FUNCTION__);
+//    }
+//    else if (status == phy_BUSY_TX)
+//    {
+//        error("[IEEE802154MAC]: Trying to send a message while already transmitting -- MAC should take care this does not happen \n");
+//    }
     else if (txPkt == txBeacon)
     {
         beaconWaitingTx = false;

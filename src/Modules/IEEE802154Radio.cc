@@ -584,11 +584,12 @@ AirFrame *IEEE802154Radio::unbufferMsg(cMessage *msg)
  */
 void IEEE802154Radio::handleUpperMsg(AirFrame *airframe)
 {
-    if (rs.getState() == RadioState::TRANSMIT)
-    {
-        genPhyConf(phy_BUSY_TX);
-        return;
-    }
+    // In 802.15.4-2006 and later revisions, BUSY_RX/TX were removed and the PHY should switch to TX_ON regardless of its state
+    //if (rs.getState() == RadioState::TRANSMIT)
+    //{
+        //genPhyConf(phy_BUSY_TX);
+        //return;
+    //}
 
     // if a packet was being received, it is corrupted now and should be treated as noise
     if (snrInfo.ptr != NULL)
@@ -605,11 +606,10 @@ void IEEE802154Radio::handleUpperMsg(AirFrame *airframe)
         // add the receive power to the noise level
         noiseLevel += snrInfo.rcvdPower;
 
-        //genPhyConf(phy_RX_ON);    // XXX radio is currently receiving
-        genPhyConf(phy_BUSY_RX);    // generate busy receiving state instead
+        //genPhyConf(phy_BUSY_RX); // according to 802.15.4-2003, we need to generate a PD-DATA.confirm with BUSY_RX
+        // XXX leads to problems because this disturbs the MAC state machine
+        // In 802.15.4-2006 and later revisions, BUSY_RX/TX were removed and the PHY should switch to TX_ON regardless of its state
     }
-
-    // now we are done with all the exception handling and can take care about the "real" stuff
 
     // change radio status
     radioEV << "Sending packet, changing RadioState to TRANSMIT \n";
