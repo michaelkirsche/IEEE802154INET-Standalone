@@ -360,10 +360,10 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
             AirFrame *airframe = (AirFrame *) msg;
             if (activeED)
             {
-                radioEV << "Received message while performing ED !\n";
+                radioEV << "Received packet while performing ED !\n";
                 distance = getRadioPosition().distance(airframe->getSenderPos());
                 rcvdPow = receptionModel->calculateReceivedPower(airframe->getPSend(), airframe->getCarrierFrequency(), distance);
-                radioEV << "Calculated Received Power on ED = " << rcvdPow << endl;
+                radioEV << "Calculated Received Power during ED = " << rcvdPow << endl;
 
                 generateEDconf(rcvdPow, ED_SUCCESS);
                 activeED = false;
@@ -373,26 +373,40 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
             }
             else if (ccaMode1 || ccaMode2)
             {
+                switch (ccaMode)
+                {
+                    case 1:  // Mode 1 - Energy above threshold
+                    {
+                        radioEV << "Received packet while performing CCA mode 1 (energy threshold) -> packet ignored/deleted \n";
+                        break;
+                    }
+
+                    case 2:  // Mode 2 - Carrier sensing only
+                    {
+                        radioEV << "Received packet while performing CCA mode 2 (carrier sensing) -> packet will be processed \n";
+                        break;
+                    }
+
+                    case 3:  // Mode 3 - Carrier sensing and energy above threshold
+                    {
+                        radioEV << "Received packet while performing CCA mode 3 (energy threshold & carrier sensing) -> packet will be processed \n";
+                        break;
+                    }
+
+                    default: {
+                        error("performCCA(): unsupported message parameter for CCA mode in IEEE802154Radio");
+                        break;
+                    }
+                }
+
                 distance = getRadioPosition().distance(airframe->getSenderPos());
                 rcvdPow = receptionModel->calculateReceivedPower(airframe->getPSend(), airframe->getCarrierFrequency(), distance);
                 if (ccaMode1 && ccaMode2)
                 {
-                    if (((rcvdPow > noiseLevel) && (airframe->getCarrierFrequency() == carrierFrequency && ((airframe->getBitrate() == newBitrate) && (rcvdPow > noiseLevel)))))
+                    if ((rcvdPow > noiseLevel) && (airframe->getCarrierFrequency() == carrierFrequency && (airframe->getBitrate() == newBitrate)))
                     {
                         genCCAConf(false);
                         radioEV << "CCA channel not clear! \n";
-                    }
-                    else
-                    {
-                        genCCAConf(true);
-                    }
-                }
-                else if (ccaMode1)
-                {
-                    if (rcvdPow > noiseLevel)
-                    {
-                        radioEV << "CCA channel not clear! \n";
-                        genCCAConf(false);
                     }
                     else
                     {
@@ -415,21 +429,34 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
                         genCCAConf(true);
                     }
                 }
+                else if (ccaMode1)
+                {
+                    if (rcvdPow > noiseLevel)
+                    {
+                        radioEV << "CCA channel not clear! \n";
+                        genCCAConf(false);
+                    }
+                    else
+                    {
+                        genCCAConf(true);
+                    }
+
+                    delete (msg); // in CCA mode 1 (energy above threshold), we do not detect preambles, incoming packets are thus deleted
+                    return;
+                }
                 else
                 {
                     error("handleMessage(): ccaMode checking produced an illegal state!");
                 }
-
-                delete (msg);       // undisposed object fix
-                return;
             }
+
             // conditions changed to "support" INET's IDLE radio states
             // or else IDLE would lead to a deadlock situation, when radio is switched to IDLE mode
             // and the higher layers do not have any timers running to set it back to receive mode
             // both IDLE (channel is empty -> radio is in receive mode) and
             // and RECV (channel is busy -> radio is in receive mode)
             // are actually receiving modes, decisions about corrupt packets are made later
-            else if ((rs.getState() == RadioState::RECV) || (rs.getState() == RadioState::IDLE))
+            if ((rs.getState() == RadioState::RECV) || (rs.getState() == RadioState::IDLE))
             {
                 handleLowerMsgStart(airframe);
                 bufferMsg(airframe);
@@ -1531,7 +1558,7 @@ void IEEE802154Radio::performCCA()
     return;
 }
 
-// false if Radio Channel seems to be free (CCA)
+// true if Radio Channel seems to be free (CCA)
 void IEEE802154Radio::genCCAConf(bool success)
 {
     cMessage* ccaConf = new cMessage("PLME-CCA.confirm");
