@@ -91,5 +91,5 @@ simple Ieee802154Radio like IRadio
     gates:
         input upperLayerIn @labels(PhyControlInfo/down); // from higher layer protocol (MAC)
         output upperLayerOut @labels(PhyControlInfo/up); // to higher layer protocol (MAC)
-        input radioIn @labels(AirFrame); // to receive frames (AirFrame) on the radio channel
+        input radioIn @directIn @labels(AirFrame); // to receive frames (AirFrame) on the radio channel
 }

@@ -1405,14 +1405,12 @@ void IEEE802154Radio::connectReceiver()
     }
 
     cc->setRadioChannel(myRadioRef, rs.getChannelNumber());
-    cModule *myHost = findHost();
 
+    //cModule* myHost = findHost(); // returns net.IEEE802154Nodes[index_of_node] -> leads to errors since radioIn gate is located inside the NIC
     cGate* IEEE802154RadioGate = this->gate("radioIn")->getPathStartGate();
+    cModule* myHost = IEEE802154RadioGate->getOwnerModule(); // returns net.IEEE802154Nodes[index_of_node].NIC.radioInterface
+    //radioEV << "myHost: "<< myHost->getFullPath() << " | RadioGate: " << IEEE802154RadioGate->getFullPath() << " | GateID: " << IEEE802154RadioGate->getId() << endl;
 
-    radioEV << "RadioGate: " << IEEE802154RadioGate->getFullPath() << " " << IEEE802154RadioGate->getFullName() << endl;
-
-    // pick up ongoing transmissions on the new channel
-    radioEV << "Picking up ongoing transmissions on new channel: \n";
     IChannelControl::TransmissionList tlAux = cc->getOngoingTransmissions(rs.getChannelNumber());
     for (IChannelControl::TransmissionList::const_iterator it = tlAux.begin(); it != tlAux.end(); ++it)
     {
@@ -1424,21 +1422,21 @@ void IEEE802154Radio::connectReceiver()
         // if there is a message on the air which will reach us in the future
         if (airframe->getTimestamp() + propagationDelay >= simTime())
         {
-            radioEV << " - (" << airframe->getClassName() << ")" << airframe->getName() << ": ";
-            radioEV << "will arrive in the future, scheduling it \n";
+            // pick up ongoing transmissions on the new channel
+            radioEV << "Picking up ongoing transmissions on new channel: (" << airframe->getClassName() << ") " << airframe->getName()
+                    << " -> will arrive in the future, scheduling it for delivery in " << (simtime_t) (airframe->getTimestamp() + propagationDelay - simTime()) << " sec \n";
 
-            // we need to send to each IEEE802154RadioIn[] gate of this host
+            // in INET, this might get send to each radioIn[] gate of the host
             //for (int i = 0; i < IEEE802154RadioGate->size(); i++)
             //    sendDirect(airframe->dup(), airframe->getTimestamp() + propagationDelay - simTime(), airframe->getDuration(), myHost, IEEE802154RadioGate->getId() + i);
 
-            // JcM Fix: we need to this IEEE802154Radio only. no need to send the packet to each IEEE802154RadioIn
-            // since other IEEE802154Radios might be not in the same channel
+            // No need to send the packet to each IEEE802154RadioIn since other IEEE802154Radios might be not in the same channel
             sendDirect(airframe->dup(), airframe->getTimestamp() + propagationDelay - simTime(), airframe->getDuration(), myHost, IEEE802154RadioGate->getId());
         }
         // if we hear some part of the message
         else if (airframe->getTimestamp() + airframe->getDuration() + propagationDelay > simTime())
         {
-            radioEV << "missed beginning of frame, processing it as noise \n";
+            radioEV << "Picking up ongoing transmissions on new channel: (" << airframe->getClassName() << ") " << airframe->getName() << " -> missed beginning of frame, processing it as noise \n";
 
             AirFrame *frameDup = airframe->dup();
             frameDup->setArrivalTime(airframe->getTimestamp() + propagationDelay);
