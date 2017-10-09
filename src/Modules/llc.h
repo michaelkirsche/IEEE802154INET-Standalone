@@ -65,7 +65,9 @@ class llc : public cSimpleModule
          */
         unsigned char TXoption;
 
-        unsigned char msgHandle;    // simple 8-bit counter to set msduHandle (and subsequently MAC DSN) for created packets
+        unsigned char minMsgHandle = 0; // min and max values to define a range for the msgHandle (message sequence number)
+        unsigned char maxMsgHandle = 0; // to split up ranges of sequence number uses and avoid collisions
+        unsigned char msgHandle = 0;    // simple 8-bit counter to set msduHandle (and subsequently MAC DSN) for created packets
 
         simtime_t pollFreq;
 

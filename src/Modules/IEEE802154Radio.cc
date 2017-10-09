@@ -1392,6 +1392,10 @@ void IEEE802154Radio::disconnectReceiver()
     // clear SNR info
     snrInfo.ptr = NULL;
     snrInfo.sList.clear();
+
+    // Reset the noiseLevel back to thermalNoise baseline value
+    // -> XXX fix for missing decrease of noiseLevel when disconnectReceiver is called during collisions
+    noiseLevel = thermalNoise;
 }
 
 void IEEE802154Radio::connectReceiver()

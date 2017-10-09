@@ -31,8 +31,45 @@ void llc::initialize()
     // XXX instead of randomly selecting a 8-bit msgHandle, we use the index of the node for the moment (see llc:llc() constructor)
     // module path to traverse: net.IEEE802154Nodes[index].Network.stdLLC
     unsigned int hostIndex = this->getParentModule()->getParentModule()->getIndex();
-    ASSERT(hostIndex <= 255);   // msgHandle is 8-bit at the moment, to avoid collisions, we use less than 256 hosts
-    msgHandle = hostIndex;
+    // msgHandle is 8-bit at the moment, to avoid collisions, we use less than 256 hosts
+    ASSERT(hostIndex <= 255);
+    //msgHandle = hostIndex;    // XXX simply setting it to the index of the host can lead to collisions if other hosts send slower/faster
+
+    // XXX to further prohibit collisions of sequence numbers between different nodes, we divide ranges of sequence numbers between hosts
+    // the standard does not enable any way of detecting if received ACKs were sent by the correct node except for their sequence number
+    // if many nodes coexist in radio range, their used sequence numbers may overlap and ACKs meant for other hosts may be received and accepted
+    // to prevent, we split the sequence numbers into ranges, depending on the number of present hosts in the simulation
+    // e.g., #hosts = 3 -> host[0].seqNrs = 0..85, host[1].seqNrs = 86..170, host[2].seqNrs = 171..255
+    unsigned int numHosts = getModuleByPath("net")->par("numHosts").doubleValue();
+
+    if ((255 % numHosts) == 0)
+    {
+        minMsgHandle = hostIndex * (int) (255 / numHosts);
+
+        if ( (minMsgHandle + ((int) (255 / numHosts) - 1 )) > 255)
+        {
+            maxMsgHandle = 255;
+        }
+        else
+        {
+            maxMsgHandle = minMsgHandle + ( (int) (255 / numHosts) - 1 );
+        }
+    }
+    else
+    {
+        minMsgHandle = hostIndex * ( (int) (255 / numHosts) + 1 );
+
+        if ( (minMsgHandle + (int) (255 / numHosts)) > 255)
+        {
+            maxMsgHandle = 255;
+        }
+        else
+        {
+            maxMsgHandle = minMsgHandle + (int) (255 / numHosts);
+        }
+    }
+
+    msgHandle = minMsgHandle;
 
     /* This is for Application layers which cannot send out MCPS primitives
      * if a true LLC is available, it will take care of it
@@ -46,6 +83,8 @@ void llc::initialize()
     logicalChannel = par("LogicalChannel");
 
     WATCH(msgHandle);
+    WATCH(minMsgHandle);
+    WATCH(maxMsgHandle);
     WATCH(firstDevice);
     WATCH(associateSuccess);
     WATCH(associateStarted);
@@ -230,9 +269,10 @@ void llc::handleMessage(cMessage *msg)
             //data->setMsduHandle(pack->getId());   // using the message ID can get problematic during longer simulations
             // because the 8 bit DSN value on the MAC layer is going to overflow
 
-            ASSERT(msgHandle <= 255);   // sequence number in MPDU is 8-bit / unsigned char
+            //ASSERT(msgHandle <= 255);   // sequence number in MPDU is 8-bit / unsigned char
+            ASSERT(msgHandle <= maxMsgHandle);  // XXX fix to prevent sequence number collisions
             data->setMsduHandle(msgHandle);
-            (msgHandle < 255) ? msgHandle++ : msgHandle = 0;    // check if 8-bit sequence number needs to roll over
+            (msgHandle < maxMsgHandle) ? msgHandle++ : msgHandle = minMsgHandle;    // check if 8-bit sequence number needs to roll over
 
             data->setMsduLength(pack->getByteLength());
             data->setTxOptions(TXoption);
