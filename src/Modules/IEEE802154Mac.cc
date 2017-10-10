@@ -1684,28 +1684,32 @@ void IEEE802154Mac::handleAck(cMessage* frame)
 
     }
 
-    if (ack4me == true)
+    if ((ack4me == true) && (waitDataAck == true || waitGTSAck == true))
     {
         macEV << "Got ACK for #" << (unsigned int) ack->getSqnr() << endl;
         if (Poll)
+        {
+            if (((ack->getFcf()) & fpMask) >> fpShift)
             {
-                if (((ack->getFcf()) & fpMask) >> fpShift)
-                {
-                    genPollConf(mac_SUCCESS);
-                }
-                else
-                {
-                    genPollConf(mac_NO_DATA);
-                }
+                genPollConf(mac_SUCCESS);
             }
             else
             {
-                dispatch(phy_SUCCESS, __FUNCTION__);
+                genPollConf(mac_NO_DATA);
             }
+        }
+        else
+        {
+            dispatch(phy_SUCCESS, __FUNCTION__);
+        }
     }
-    else
+    else if (ack4me == false)
     {
         macEV << "ACK #" << (unsigned int) ack->getSqnr() << " does not match a sequence number of a packet to transmit --> drop the ACK \n";
+    }
+    else if (waitDataAck == false && waitGTSAck == false)
+    {
+        macEV << "ACK #" << (unsigned int) ack->getSqnr() << " received while node is not waiting for an ACK --> drop the ACK \n";
     }
 
     return;
@@ -2333,7 +2337,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
 
         if ((frmType == Ack) && (pdu->getSqnr() != mpib.getMacDSN()))
         {
-            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> packet filtered \n";
+            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> ACK packet filtered \n";
             // if dsr address does not match
             return true;
         }
@@ -2344,7 +2348,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
             if ((mpib.getMacPANId() != 0xffff)  // associated
             && (pdu->getSrcPANid() != mpib.getMacPANId()))  // PAN ID did not match
             {
-                macEV << "Further Filtering for frmType == Beacon & PAN ID did not match --> packet filtered \n";
+                macEV << "Further Filtering for frmType == Beacon & PAN ID did not match --> BEACON packet filtered \n";
                 return true;
             }
         }
