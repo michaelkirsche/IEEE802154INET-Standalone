@@ -21,12 +21,6 @@ Define_Module(msgBuffer);
 
 void msgBuffer::initialize()
 {
-    isEmpty = true;
-    firstPack = true;
-    start = 0;
-    end = 0;
-    elems = 0;
-
     WATCH(isEmpty);
     WATCH(firstPack);
     WATCH(start);
@@ -43,18 +37,32 @@ void msgBuffer::initialize()
 
 int msgBuffer::spacesFree()
 {
-    return buffer.size() - elems;
+    return (buffer.size() - elems);
 }
 
-bool msgBuffer::purgeElem(int msduHandle)
+bool msgBuffer::purgeElem(unsigned char msduHandle)
 {
     for (unsigned int i = 0; i < elems; i++)
     {
         cMessage* toPurge = check_and_cast<cMessage*>(buffer[(start + i)]);
-        if (msduHandle == toPurge->getId())
+        if (dynamic_cast<mcpsDataReq*>(toPurge))
         {
-            buffer.remove(start + i);
+            mcpsDataReq* bufferMsg = check_and_cast<mcpsDataReq*>(toPurge);
+            if (msduHandle == bufferMsg->getMsduHandle())
+            {
+                buffer.remove(start + i);
+            }
         }
+        else
+        {
+            error("[msgBuffer] undefined cMessage type selected for purging from the buffer --> needs to be implemented ?!?");
+        }
+
+        // XXX cMessage ID is not used for message purging, instead the msgHandle is used
+        //if (msduHandle == toPurge->getId())
+        //{
+            //buffer.remove(start + i);
+        //}
         return true;
     }
     return false;
@@ -69,7 +77,7 @@ void msgBuffer::handleMessage(cMessage* msg)
             mcpsPurgeReq* purgeReq = check_and_cast<mcpsPurgeReq*>(msg);
             mcpsPurgeConf* purgeConf = new mcpsPurgeConf("MCPS-PURGE.confirm");
 
-            int handle = purgeReq->getMsduHandle();
+            unsigned char handle = purgeReq->getMsduHandle();
             purgeConf->setMsduHandle(handle);
 
             if (purgeElem(handle))
@@ -130,9 +138,10 @@ void msgBuffer::handleMessage(cMessage* msg)
 
                             send(toMac, "outMCPS");
                         }
-
                         else
+                        {
                             send(toMac, "outMLME");
+                        }
                     }
                 }
                 delete (msg);    // solving undisposed object error for Buffer-get-Elem
@@ -154,7 +163,8 @@ void msgBuffer::handleMessage(cMessage* msg)
 
 void msgBuffer::add(cMessage* elem)
 {
-    buffer.add(elem);
+    //buffer.add(elem); // XXX adds the msg at the first free buffer position, not the current end
+    buffer.addAt(end, elem);    // XXX changed to add the msg at the current last position and then increment it
     isEmpty = false;
     end++;
     elems++;
@@ -164,10 +174,12 @@ void msgBuffer::add(cMessage* elem)
 cMessage* msgBuffer::getElem()
 {
     if (isEmpty)
+    {
         return NULL;
+    }
 
     // reset if buffer is empty
-    if (buffer.size() == 0)
+    if ((buffer.size() == 0) || (elems == 0))
     {
         start = 0;
         end = 0;

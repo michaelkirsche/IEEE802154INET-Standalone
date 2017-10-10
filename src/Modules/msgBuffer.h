@@ -22,12 +22,13 @@
 #include "omnetpp.h"
 #include "IEEE802154Enum.h"
 #include "mcpsData_m.h"
+#include "MPDU_m.h"
 
 class msgBuffer : public cSimpleModule
 {
     public:
         msgBuffer(){}; // std Ctor
-        explicit msgBuffer(int size);
+        explicit msgBuffer(unsigned int size);
         ~msgBuffer();
 
     protected:
@@ -35,7 +36,7 @@ class msgBuffer : public cSimpleModule
         void handleMessage(cMessage* msg);
         int spacesFree();
         void add(cMessage* elem);
-        bool purgeElem(int msduHandle);
+        bool purgeElem(unsigned char msduHandle);
         void delElem();
         cMessage* getElem();
 
