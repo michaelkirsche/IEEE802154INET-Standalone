@@ -238,9 +238,9 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool csmacaCanProceed(simtime_t wtime, bool afterCCA);
         void csmaca_handle_RX_ON_confirm(phyState status);
         void csmacaTrxBeacon(char trx);
-        unsigned char calFrameByteLength(cPacket* mpdu);
-        unsigned char calMacHeaderByteLength(unsigned char mhr, bool secu);
-        simtime_t calDuration(cPacket* mpdu);
+        unsigned char calcFrameByteLength(cPacket* mpdu);
+        unsigned char calcMacHeaderByteLength(unsigned char mhr, bool secu);
+        simtime_t calcDuration(cPacket* mpdu);
         bool toParent(mpdu* mpdu);
         void doScan();
 

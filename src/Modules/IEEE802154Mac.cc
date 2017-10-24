@@ -550,7 +550,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                 data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
-                data->setByteLength(calFrameByteLength(data));
+                data->setByteLength(calcFrameByteLength(data));
                 data->setIsGTS(false);
                 taskP.taskStep(task)++; // advance to next task step
                 strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
@@ -564,7 +564,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                 data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
-                data->setByteLength(calFrameByteLength(data));
+                data->setByteLength(calcFrameByteLength(data));
                 data->setIsGTS(false);
                 waitDataAck = true;
                 taskP.taskStep(task)++; // advance to next task step
@@ -578,7 +578,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             case 2:  // direct GTS noACK
             {
                 data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
-                data->setByteLength(calFrameByteLength(data));
+                data->setByteLength(calcFrameByteLength(data));
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
                 data->setIsGTS(true);
                 waitDataAck = false;
@@ -594,7 +594,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = GTS_TRANS;
                 data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
-                data->setByteLength(calFrameByteLength(data));
+                data->setByteLength(calcFrameByteLength(data));
                 data->setIsGTS(true);
                 waitDataAck = true;
                 taskP.taskStep(task)++; // advance to next task step
@@ -609,7 +609,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect
                 data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
-                data->setByteLength(calFrameByteLength(data));
+                data->setByteLength(calcFrameByteLength(data));
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = false;
@@ -625,7 +625,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
             {
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect ...
                 data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
-                data->setByteLength(calFrameByteLength(data));
+                data->setByteLength(calcFrameByteLength(data));
                 data->setIsGTS(false);
                 data->setIsIndirect(true);
                 waitDataAck = true;
@@ -736,7 +736,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                         holdMe->setSrcPANid(mpib.getMacPANId());
                         holdMe->setFcf(AssoCommand->getFcf());  // set FCF to FCF value of encapsulated command (ACK flag set)
                         holdMe->setSqnr(AssoCommand->getSqnr());
-                        holdMe->setByteLength(calFrameByteLength(AssoCommand));
+                        holdMe->setByteLength(calcFrameByteLength(AssoCommand));
 
                         Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
                         taskP.taskStatus(task) = true;
@@ -797,7 +797,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     holdMe->setSrcPANid(assoCmdResp->getSrcPANid());
                     holdMe->setFcf(assoCmdResp->getFcf());
                     holdMe->setSqnr(assoCmdResp->getSqnr());
-                    holdMe->setByteLength(calFrameByteLength(assoCmdResp));
+                    holdMe->setByteLength(calcFrameByteLength(assoCmdResp));
 
                     switch (dataTransMode)
                     {
@@ -948,7 +948,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     holdMe->setSrcPANid(gtsRequCmd->getSrcPANid());
                     holdMe->setFcf(gtsRequCmd->getFcf());
                     holdMe->setSqnr(gtsRequCmd->getSqnr());
-                    holdMe->setByteLength(calFrameByteLength(gtsRequCmd));
+                    holdMe->setByteLength(calcFrameByteLength(gtsRequCmd));
 
                     switch (dataTransMode)
                     {
@@ -1140,7 +1140,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 holdMe->setSrcPANid(dataReq->getSrcPANid());
                 holdMe->setFcf(dataReq->getFcf());
                 holdMe->setSqnr(dataReq->getSqnr());
-                holdMe->setByteLength(calFrameByteLength(dataReq));
+                holdMe->setByteLength(calcFrameByteLength(dataReq));
 
                 txData = holdMe;
                 Poll = true;
@@ -1253,7 +1253,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
                 tmpBcn->setDestPANid(0xffff);  // ignored upon reception
                 tmpBcn->setDest(bcnReq->getSrc());  // ignored upon reception
                 tmpBcn->setSrcPANid(mpib.getMacPANId());
-                tmpBcn->setByteLength(calFrameByteLength(tmpBcn));
+                tmpBcn->setByteLength(calcFrameByteLength(tmpBcn));
 
                 // construct Superframe specification
                 txSfSpec.BO = mpib.getMacBeaconOrder();
@@ -1578,7 +1578,7 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         rxSfSlotDuration = aBaseSlotDuration * (1 << rxSO);
 
         // calculate the time when the first bit of the beacon was received
-        simtime_t duration = calDuration(frame);
+        simtime_t duration = calcDuration(frame);
         bcnRxTime = now - duration;
         schedBcnRxTime = bcnRxTime; // important: this value is calculated in <csmacaStart()>, if later a CSMA-CA is pending for this beacon and backoff will resume without calling <csmacaStart()>
         // (see <csmacaTrxBeacon()>) , therefore this value will not be updated, but <csmacaCanProceed()> and other functions will use it and need to be updated here
@@ -2571,7 +2571,7 @@ void IEEE802154Mac::genACK(unsigned char dsn, bool fp)
     // Frame Control Field: Page 147 of 2006 revision says all fields except frame pending shall be zero
     ack->setFcf(genFCF(Ack, mpib.getMacSecurityEnabled(), fp, false, false, noAddr, 00, noAddr));
     ack->setFcs(0);
-    ack->setByteLength(calFrameByteLength(ack));
+    ack->setByteLength(calcFrameByteLength(ack));
     ASSERT(!txAck);  // It's impossible to receive the second packet before the ACK has been sent out!
     txAck = ack;
     return;
@@ -2616,7 +2616,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     holdMe->setSrcPANid(mpib.getMacPANId());
     holdMe->setFcf(assoResp->getFcf());
     holdMe->setSqnr(assoResp->getSqnr());
-    holdMe->setByteLength(calFrameByteLength(assoResp));
+    holdMe->setByteLength(calcFrameByteLength(assoResp));
 
     // XXX further refactoring necessary
     // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
@@ -2727,7 +2727,7 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
         holdMe->setSrcPANid(disCmd->getSrcPANid());
         holdMe->setFcf(disCmd->getFcf());
         holdMe->setSqnr(disCmd->getSqnr());
-        holdMe->setByteLength(calFrameByteLength(disCmd));
+        holdMe->setByteLength(calcFrameByteLength(disCmd));
 
         // XXX further refactoring necessary
         // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
@@ -2959,7 +2959,7 @@ void IEEE802154Mac::sendDown(mpdu* frame)
 {
     inTransmission = true;  // cleared by PD_DATA_confirm
     macEV << "Sending frame " << frame->getName() << " (" << frame->getByteLength() << " Bytes | Seq #" << (int) frame->getSqnr() << ") to PHY layer \n";
-    macEV << "The estimated transmission time is " << calDuration(frame) << " sec \n";
+    macEV << "The estimated transmission time is " << calcDuration(frame) << " sec \n";
     send(frame, "outPD");  // send a duplication
 }
 
@@ -3757,7 +3757,7 @@ bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
     // calculate the time needed to finish the transaction and evaluate it
     t_CCATime = 8.0 / phy_symbolrate;
 
-    (calFrameByteLength(tmpCsmaca) <= aMaxSIFSFrameSize) ? t_IFS = aMinSIFSPeriod : t_IFS = aMinLIFSPeriod;
+    (calcFrameByteLength(tmpCsmaca) <= aMaxSIFSFrameSize) ? t_IFS = aMinSIFSPeriod : t_IFS = aMinLIFSPeriod;
 
     t_IFS = t_IFS / phy_symbolrate;
 
@@ -3768,7 +3768,7 @@ bool IEEE802154Mac::csmacaCanProceed(simtime_t wtime, bool afterCCA)
         t_transacTime += t_CCATime;  // second CCA time
     }
     t_transacTime += csmacaLocateBoundary(toParent(tmpCsmaca), t_transacTime) - (t_transacTime);  // locate boundary for transmission
-    t_transacTime += calDuration(tmpCsmaca);  // calculate packet transmission time
+    t_transacTime += calcDuration(tmpCsmaca);  // calculate packet transmission time
 
     if (csmacaAckReq)  // if ACK required
     {
@@ -4224,10 +4224,11 @@ void IEEE802154Mac::startScanTimer(simtime_t wtime)
     scheduleAt(simTime() + wtime, scanTimer);
 }
 
-unsigned char IEEE802154Mac::calFrameByteLength(cPacket* frame)
+unsigned char IEEE802154Mac::calcFrameByteLength(cPacket* frame)
 {
     macEV << "Calculating size of " << frame->getName() << endl;
-    unsigned char byteLength;  // MHR + MAC payload + MFR
+    unsigned char byteLength;   // to calculate -> MHR + MAC payload + MFR (FCS)
+    unsigned char MHRLength;    // to calculate MHR
 
     if (dynamic_cast<AckFrame*>(frame))
     {
@@ -4238,19 +4239,23 @@ unsigned char IEEE802154Mac::calFrameByteLength(cPacket* frame)
         mpdu* mpduFrm = check_and_cast<mpdu *>(frame);
         unsigned short frmFcf = mpduFrm->getFcf();
         frameType frmType = (frameType) ((frmFcf & ftMask) >> ftShift);
-        unsigned char MHRLength = calMacHeaderByteLength(((frmFcf & damMask) >> damShift) + ((frmFcf & samMask) >> samShift), (bool) ((frmFcf && secuMask) >> secuShift));
-        macEV << "Header size is " << (int) MHRLength << " Bytes \n";
+        MHRLength = calcMacHeaderByteLength(((frmFcf & damMask) >> damShift) + ((frmFcf & samMask) >> samShift), (bool) ((frmFcf && secuMask) >> secuShift));
+        //macEV << "MAC Header size: " << (int) MHRLength << " Bytes | MAC Footer size: 2 Bytes \n";
 
-        if (frmType == Beacon)  // 802.15.4-2006 Specs Fig 44
+        if (frmType == Beacon)
         {
-            byteLength = MHRLength + 6;
+            // 802.15.4-2006 Specs Fig 44: MHR + Payload (variable) + FCS (2)
+            // TODO Beacon MAC payload size depends on GTS fields and pending address fields
+            byteLength = MHRLength + 6 + 2;
         }
-        else if (frmType == Data)  // 802.15.4-2006 Specs Fig 52, MAC payload not included here, will be added automatically while encapsulation later on
+        else if (frmType == Data)
         {
-            byteLength = MHRLength + mpduFrm->getByteLength();  // constant header length for we always use short address
+            // 802.15.4-2006 Specs Fig 52: MHR + Payload (variable) + FCS (2)
+            byteLength = MHRLength + mpduFrm->getEncapsulatedPacket()->getByteLength() + 2; // XXX byteLength of encapsulated MCSP-Data.request
         }
         else if (frmType == Ack)
         {
+            // 802.15.4-2006 Specs Fig 53: MHR (Frame Control + Sequence Number) + FCS (2)
             byteLength = SIZE_OF_802154_ACK;
         }
         else if (frmType == Command)
@@ -4271,48 +4276,55 @@ unsigned char IEEE802154Mac::calFrameByteLength(cPacket* frame)
             {
                 case Ieee802154_ASSOCIATION_REQUEST: {
                     // 802.15.4-2006 Specs Fig 55: MHR (17/23) + Payload (2) + FCS (2)
-                    byteLength = MHRLength + 4;
+                    byteLength = MHRLength + 2 + 2;
                     break;
                 }
 
                 case Ieee802154_ASSOCIATION_RESPONSE: {
+                    // 802.15.4-2006 Specs Fig 57: MHR (23) + Payload (4) + FCS (2)
                     byteLength = SIZE_OF_802154_ASSOCIATION_RESPONSE;
                     break;
                 }
 
                 case Ieee802154_DISASSOCIATION_NOTIFICATION: {
-                    byteLength = SIZE_OF_802154_DISASSOCIATION_NOTIFICATION;
+                    // 802.15.4-2006 Specs Fig 58: MHR (17/23) + Payload (2) + FCS (2)
+                    //byteLength = SIZE_OF_802154_DISASSOCIATION_NOTIFICATION;  // not constant, because short or long destination addresses are possible
+                    byteLength = MHRLength + 2 + 2;
                     break;
                 }
 
                 case Ieee802154_DATA_REQUEST: {
                     // 802.15.4-2006 Specs Fig 59: MHR (7/11/13/17) + Payload (1) + FCS (2)
-                    byteLength = MHRLength + 3;
+                    byteLength = MHRLength + 1 + 2;
                     break;
                 }
 
                 case Ieee802154_PANID_CONFLICT_NOTIFICATION: {
+                    // 802.15.4-2006 Specs Fig 60: MHR (23) + Payload (1) + FCS (2)
                     byteLength = SIZE_OF_802154_PANID_CONFLICT_NOTIFICATION;
                     break;
                 }
 
                 case Ieee802154_ORPHAN_NOTIFICATION: {
+                    // 802.15.4-2006 Specs Fig 61: MHR (17) + Payload (1) + FCS (2)
                     byteLength = SIZE_OF_802154_ORPHAN_NOTIFICATION;
                     break;
                 }
 
                 case Ieee802154_BEACON_REQUEST: {
+                    // 802.15.4-2006 Specs Fig 62: MHR (7) + Payload (1) + FCS (2)
                     byteLength = SIZE_OF_802154_BEACON_REQUEST;
                     break;
                 }
 
                 case Ieee802154_COORDINATOR_REALIGNMENT: {
-                    // 802.15.4-2006 Specs Fig 63: MHR (17/23) + Payload (8) + FCS (2)
-                    byteLength = MHRLength + 10;
+                    // 802.15.4-2006 Specs Fig 63: MHR (17/18/23/24) + Payload (8/9) + FCS (2)
+                    byteLength = MHRLength + 8 + 2; // TODO channel page field might be present (Payload = 9 in this case)
                     break;
                 }
 
                 case Ieee802154_GTS_REQUEST: {
+                    // 802.15.4-2006 Specs Fig 64: MHR (7) + Payload (2) + FCS (2)
                     byteLength = SIZE_OF_802154_GTS_REQUEST;
                     break;
                 }
@@ -4368,11 +4380,13 @@ unsigned char IEEE802154Mac::calFrameByteLength(cPacket* frame)
         error("[IEEE802154MAC]: cannot calculate the size of a frame '%s' with unknown type!", frame->getName());
     }
 
-    macEV << "MAC frame size is " << (int) byteLength << " Bytes \n";
+    macEV << "MAC FrameSize = MHR (" << (int) MHRLength <<  " Bytew) + Payload (" << (int) (byteLength-MHRLength-2)
+          << " Bytes) + MFR (2 Bytes) = " << (int) byteLength << " Bytes \n";
+
     return byteLength;
 }
 
-unsigned char IEEE802154Mac::calMacHeaderByteLength(unsigned char addrModeSum, bool secu)
+unsigned char IEEE802154Mac::calcMacHeaderByteLength(unsigned char addrModeSum, bool secu)
 {
     int ashSize = 0;
     if (secu)
@@ -4403,7 +4417,7 @@ unsigned char IEEE802154Mac::calMacHeaderByteLength(unsigned char addrModeSum, b
     return 0;
 }
 
-simtime_t IEEE802154Mac::calDuration(cPacket* frame)
+simtime_t IEEE802154Mac::calcDuration(cPacket* frame)
 {
     return (phyHeaderLength * 8 + frame->getByteLength() * 8) / phy_bitrate;
 }
@@ -4531,7 +4545,7 @@ void IEEE802154Mac::handleBcnTxTimer()
             //pendingAddrFields
             //tmpBcn->setPaFields(txPaFields);
 
-            tmpBcn->setByteLength(calFrameByteLength(tmpBcn));
+            tmpBcn->setByteLength(calcFrameByteLength(tmpBcn));
 
             txBeacon = tmpBcn;  // released in taskSuccess or in PD_DATA_confirm (if TX failure)
             txPkt = tmpBcn;
@@ -4539,7 +4553,7 @@ void IEEE802154Mac::handleBcnTxTimer()
             inTransmission = true;  // cleared by PD_DATA_confirm
             send(txBeacon->dup(), "outPD");  // send a duplication
             macEV << "Sending frame " << txBeacon->getName() << " (" << txBeacon->getByteLength() << " Bytes) to PHY layer \n";
-            macEV << "The estimated transmission time is " << calDuration(txBeacon) << " sec \n";
+            macEV << "The estimated transmission time is " << calcDuration(txBeacon) << " sec \n";
 
             startTxSDTimer();
 
@@ -4567,7 +4581,7 @@ void IEEE802154Mac::handleTxAckBoundTimer()
         if (txAck)  // <txAck> may have been canceled by <macBeaconRxTimer>
         {
             macEV << "Sending " << txAck->getName() << " (" << txAck->getByteLength() << " Bytes | Seq #" << (unsigned int) txAck->getSqnr() << ") to PHY layer \n";
-            macEV << "The estimated transmission time is " << calDuration(txAck) << " sec \n";
+            macEV << "The estimated transmission time is " << calcDuration(txAck) << " sec \n";
             send(txAck->dup(), "outPD");
         }
     }
@@ -4902,7 +4916,7 @@ void IEEE802154Mac::taskSuccess(char type, bool csmacaRes)
         }
 
         // calculate <txBcnDuration>
-        double tmpf = (calDuration(txBeacon) * phy_symbolrate).dbl();
+        double tmpf = (calcDuration(txBeacon) * phy_symbolrate).dbl();
 
         //--- calculate CAP ---
         (txBeacon->getByteLength() <= aMaxSIFSFrameSize) ? tmpf += aMinSIFSPeriod : tmpf += aMinLIFSPeriod;
