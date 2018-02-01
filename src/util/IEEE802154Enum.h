@@ -188,11 +188,20 @@ inline const char* MCPSStatusToString(MCPSStatus v)
     }
 }
 
-enum frameType {
-    Beacon  = 000,
-    Data    = 001,
-    Ack     = 002,
-    Command = 003
+enum frameTypeEnum {
+    Beacon       = 000,
+    Data         = 001,
+    Ack          = 002,
+    Command      = 003,
+    Reserved     = 004, // reserved for future use
+    Multipurpose = 005, // reserved for future IEEE 802.15.4-2015 compatibility
+    Fragment     = 006, // reserved for future IEEE 802.15.4-2015 compatibility
+    Extended     = 007  // reserved for future IEEE 802.15.4-2015 compatibility
+};
+
+enum frameVersionEnum {
+    frameVersion2003 = 00,
+    frameVersion2006 = 01
 };
 
 // MAC enumerations description (Table 78 - IEEE 802.15.4-2006 Revision)
@@ -316,8 +325,9 @@ enum EDval {
     ED_TX_ON    = 2
 };
 
-enum AddrMode {             // addressing mode of the coordinator to which a poll.request is intended
-    noAddr      = 0x00,
+enum AddrModeEnum {         // addressing mode of the coordinator to which a poll.request is intended
+    noAddr      = 0x00,     // (source or destination) PAN ID and address field are not present
+    resvdAddr   = 0x01,     // reserved for future use
     addrShort   = 0x02,     // 16-bit short address
     addrLong    = 0x03      // 64-bit extended address
 };

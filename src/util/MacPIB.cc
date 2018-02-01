@@ -43,7 +43,7 @@ MacPIB::MacPIB()
     macResponseWaitTime = 32;
     macRxOnWhenIdle = false;
     macSecurityEnabled = false;
-    macShortAddress = 0xFFFF;
+    macShortAddress = 0xffff;
     macSuperframeOrder = 15;
     macSyncSymbolOffset = 0x100; // value for 2.4 GHz
     macTimestampSupported = true;

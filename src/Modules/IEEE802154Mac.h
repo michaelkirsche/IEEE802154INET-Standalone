@@ -208,7 +208,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         void genStartConf(MACenum status);
         bool filter(mpdu* pdu);
         virtual void receiveChangeNotification(int category, const cPolymorphic *details);
-        unsigned short genFCF(frameType ft, bool secu, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fv, AddrMode sam);
+        unsigned short genFCF(frameTypeEnum ft, bool secu, bool fp, bool arequ, bool pid, AddrModeEnum dam, unsigned short fv, AddrModeEnum sam);
         void genACK(unsigned char dsn, bool fp);
         void sendMCPSDataConf(MACenum status, unsigned char msdu);
         void sendMCPSDataIndication(mpdu* rxData);
@@ -318,7 +318,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         MacPIB mpib;
         // PHY PAN Information Base
         Ieee802154TxOption dataTransMode; // see IEEE802154Enum.h
-        frameType ft; // see IEEE802154Enum.h
+        frameTypeEnum ft; // see IEEE802154Enum.h
         unsigned short fc;
         bool trxState;
         unsigned int headerSize;

@@ -1345,46 +1345,46 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
     // perform MAC frame filtering (e.g., for collided or erroneous packets)
     if (filter(frame))
     {
-        macEV << "The received frame is filtered, frame dropped \n";
+        macEV << "The received MAC frame is filtered --> frame dropped \n";
         delete (frame);
         return;
     }
 
     // determine the frame type (e.g., Data, Beacon, ACK, Command)
-    unsigned short frmCtrl = frame->getFcf();
-    frameType frmType;
-    frmType = (frameType) ((frmCtrl & ftMask) >> ftShift);
-    macEV << (frmType == Beacon ? "Beacon" : (frmType == Data ? "Data" : (frmType == Ack ? "Ack" : "Command"))) << " frame received from PHY, start filtering now\n";
+    unsigned short frameCtrl = frame->getFcf();
+    frameTypeEnum frameType;
+    frameType = (frameTypeEnum) ((frameCtrl & ftMask) >> ftShift);
+    macEV << (frameType == Beacon ? "BEACON" : (frameType == Data ? "DATA" : (frameType == Ack ? "ACK" : "COMMAND"))) << " frame received from PHY \n";
 
     // check timing for GTS (debug)
-    if (frmType == Data && frame->getIsGTS())
+    if (frameType == Data && frame->getIsGTS())
     {
         if (isCoordinator)
         {
             // check if I'm supposed to receive the data from this device in this GTS
             if (indexCurrGts == 99 || gtsList[indexCurrGts].isRecvGTS || gtsList[indexCurrGts].devShortAddr != frame->getSrc().getShortAddr())
             {
-                error("[GTS]: timing error, PAN coordinator is not supposed to receive this DATA packet at this time!");
+                error("[GTS]: timing error, PAN coordinator is not supposed to receive this DATA frame at this time!");
             }
         }
         else
         {
             if (index_gtsTimer != 99 || !isRecvGTS || frame->getSrc().getShortAddr() != mpib.getMacCoordShortAddress())
             {
-                error("[GTS]: timing error, the device is not supposed to receive this DATA packet at this time!");
+                error("[GTS]: timing error, the device is not supposed to receive this DATA frame at this time!");
             }
         }
     }
 
     // send an acknowledgment if needed (no matter if this is a duplicated packet or not)
-    if ((frmType == Data) || (frmType == Command))
+    if ((frameType == Data) || (frameType == Command))
     {
-        (frmType == Data) ? macEV << "Checking if received data frame requires ACK \n" : macEV << "Checking if received command frame requires ACK \n";
-        if ((frmCtrl & arequMask) >> arequShift)  // check if acknowledgment required
+        (frameType == Data) ? macEV << "Checking if received DATA frame requires ACK \n" : macEV << "Checking if received COMMAND frame requires ACK \n";
+        if ((frameCtrl & arequMask) >> arequShift)  // check if acknowledgment required
         {
             bool noAck = false;
             // MAC layer can process only one command (RX or TX) at a time
-            if (frmType == Command)
+            if (frameType == Command)
             {
                 if ((rxCmd) || (txBcnCmd))
                 {
@@ -1427,9 +1427,9 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
             }
         } // else -> no ACK required
     }
-    else if (frmType == Beacon)
+    else if (frameType == Beacon)
     {
-        macEV << "Beacon received, no ACK necessary \n";
+        macEV << "BEACON received, no ACK necessary \n";
     }
     else
     {
@@ -1437,49 +1437,51 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
     }
 
     // drop new received command packet if MAC is currently processing a command packet
-    if (frmType == Command)
+    if (frameType == Command)
     {
         if ((rxCmd) || (txBcnCmd))
         {
-            macEV << "Received CMD frame is dropped, because MAC is currently processing a MAC CMD \n";
+            macEV << "Received COMMAND frame is dropped, because MAC is currently processing a MAC COMMAND frame \n";
+            // TODO we should update the statistics counter
             delete (frame);
             return;
         }
     }
 
     // drop new received data packet if MAC is current processing last received data packet
-    if (frmType == Data)
+    if (frameType == Data)
     {
         if (rxData)
         {
             macEV << "Received DATA frame is dropped, because MAC is currently processing the last received DATA frame \n";
+            // TODO we should update the statistics counter
             delete (frame);
             return;
         }
     }
 
-    switch (frmType)
+    switch (frameType)
     {
         case Beacon: {
-            macEV << "Continue with processing received Beacon frame \n";
+            macEV << "Continue to process the received BEACON frame \n";
             handleBeacon(frame);
             break;
         }
 
         case Data: {
-            macEV << "Continue with processing received DATA packet \n";
+            macEV << "Continue to process the received DATA packet \n";
             handleData(frame);
             break;
         }
 
         case Command: {
-            macEV << "Continue with processing received CMD packet \n";
+            macEV << "Continue to process the eceived COMMAND packet \n";
             handleCommand(frame);
             break;
         }
 
         default: {
-            error("[IEEE802154MAC]: undefined MAC frame type: %d \n", frmType);
+            error("[IEEE802154MAC]: undefined MAC frame type: %d \n", frameType);
             return;
         }
     }
@@ -1548,7 +1550,6 @@ void IEEE802154Mac::handleSelfMsg(cMessage* msg)
 
 void IEEE802154Mac::handleBeacon(mpdu *frame)
 {
-    macEV << "Starting processing received Beacon frame \n";
     beaconFrame *bcnFrame = check_and_cast<beaconFrame *>(frame);
 
     simtime_t now = simTime();
@@ -1566,7 +1567,7 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         bcn.SecurityUse = ((bcnFrame->getFcf() & secuMask) >> secuShift);
         scanPANDescriptorList[scanResultListSize] = bcn;
         scanResultListSize++;
-        macEV << "Beacon frame was processed while scanning the channel - scanResultList was updated \n";
+        macEV << "BEACON frame was processed while scanning the channel - scanResultList was updated \n";
     }
     else
     {
@@ -1582,7 +1583,7 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         bcnRxTime = now - duration;
         schedBcnRxTime = bcnRxTime; // important: this value is calculated in <csmacaStart()>, if later a CSMA-CA is pending for this beacon and backoff will resume without calling <csmacaStart()>
         // (see <csmacaTrxBeacon()>) , therefore this value will not be updated, but <csmacaCanProceed()> and other functions will use it and need to be updated here
-        macEV << "The first bit of this beacon was received by PHY layer at " << bcnRxTime << endl;
+        macEV << "The first bit of this BEACON was received by PHY layer at " << bcnRxTime << endl;
 
         simtime_t tmpf = duration * phy_symbolrate;
 
@@ -2289,117 +2290,156 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
 
 bool IEEE802154Mac::filter(mpdu* pdu)
 {
-    // First check flag set by PHY layer, COLLISION or BITERROR
+    // Filtering Level 1: Check Frame Check Sequence (FCS)
+    // discard all frames whose received FCS field does not match the calculated FCS value
+    // currently modeled via PHY layer flags for collissions and bit error
+
+    // check flag set by PHY layer (COLLISION or BITERROR)
     if (pdu->getKind() == COLLISION)
     {
-        macEV << "Frame is corrupted due to collision, dropped \n";
+        macEV << "1st-Level Filter: Frame is corrupted due to collision --> frame is filtered! \n";
         numCollisions++;
         return true;
     }
     else if (pdu->getKind() == BITERROR)
     {
-        macEV << "Frame is corrupted, was received with bit errors, dropped \n";
+        macEV << "1st-Level Filter: Frame is corrupted, was received with bit errors --> frame is filtered! \n";
         numBitErrors++;
         return true;
     }
-    // check if this Msg is send indirect and we are coordinator
-    if (pdu->getIsIndirect())
+
+    // Filtering Level 2: Promiscuous Mode Check
+    // accept all frames when MAC is currently operating in promiscuous mode
+    if (mpib.getMacPromiscuousMode() == true)
     {
-        if (isCoordinator)
+        // accept every frame
+        macEV << "2nd-Level-Filter: MAC is operating in promiscuous mode --> frame is accepted! \n";
+        return false;
+    }
+
+    // Filtering Level 3: Frame Control Field (FCF) Checks
+    // various third-level filter requirements that need to match for frames to be accepted
+
+    // Filtering Level 3.1: Frame Type field shall not match reserved frame types
+    frameTypeEnum frameType = (frameTypeEnum) (((pdu->getFcf()) & ftMask) >> ftShift);
+    if ((frameType != Beacon) && (frameType != Data) && (frameType != Ack) && (frameType != Command))
+    {
+        error("[IEEE802154MAC]: Filtering error - unsupported or reserved frame type!");
+        macEV << "3rd-Level-Filter: frameType unsupported --> frame filtered! \n";
+        return true;
+    }
+
+    // Filtering Level 3.2: Frame Version field shall not contain reserved values
+    frameVersionEnum frameVersion = (frameVersionEnum) (((pdu->getFcf()) & fvMask) >> fvShift);
+    if ((frameVersion != frameVersion2003) && (frameVersion != frameVersion2006))
+    {
+        error("[IEEE802154MAC]: Filtering error - unsupported frame version!");
+        macEV << "3rd-Level-Filter: frameVersion unsupported --> frame filtered! \n";
+        return true;
+    }
+
+    // Filtering Level 3.3: Frame Type == Beacon --> perform FCF checks
+    if (frameType == Beacon)
+    {
+        // If the frame type indicates that the frame is a beacon frame, the source PAN identifier shall match
+        // macPANId unless macPANId is equal to the broadcast PAN identifier, in which case the beacon
+        // frame shall be accepted regardless of the source PAN identifier.
+
+        if (mpib.getMacPANId() == 0xffff)
         {
-            if (pdu->getIsIndirect())
-            {
-                if (pdu->getDest().getInt() != myMacAddr.getInt())
-                {
-                    rxBuffer.insert(pdu);
-                    macEV << "Frame added to Buffer \n";
-                    return true;
-                }
-            }
+            // option 1: if our own macPANId matches the broadcast PAN ID (0xffff) => do not filter
+            macEV << "3rd-Level-Filter: (frameType == BEACON) && (macPANId == 0xffff) --> BEACON is accepted! \n";
+            return false;
+        }
+        else if  (pdu->getSrcPANid() == mpib.getMacPANId())
+        {
+            // option 2: if source PAN ID matches our own macPANId => do not filter
+            macEV << "3rd-Level-Filter: (frameType == BEACON) && (srcPANid == macPANId)  --> BEACON is accepted! \n";
+            return false;
         }
         else
         {
-            return true;
+            macEV << "3rd-Level-Filter: (frameType == BEACON) && (macPANId != 0xffff) && (srcPANid != macPANId) --> BEACON is filtered \n";
+            return true;   // all other cases => filter the beacon frame
         }
     }
 
-    // perform further filtering only if the PAN is currently not in promiscuous mode
-    if (!mpib.getMacPromiscuousMode())
+    // Filtering Level 3.4: Frame Type == Data || Comand --> perform FCF checks
+    if ((frameType == Data) || (frameType == Command))
     {
-        frameType frmType = (frameType) (((pdu->getFcf()) & ftMask) >> ftShift);
-        AddrMode addressMode = (AddrMode) (((pdu->getFcf()) & damMask) >> damShift);
+        AddrModeEnum destAddressMode = (AddrModeEnum) (((pdu->getFcf()) & damMask) >> damShift);
+        AddrModeEnum srcAddressMode = (AddrModeEnum) (((pdu->getFcf()) & samMask) >> samShift);
 
-        // check packet type
-        if ((frmType != Beacon) && (frmType != Data) && (frmType != Ack) && (frmType != Command))
+        // if destination PAN ID is included, it shall match macPANId or shall be the broadcast PAN ID
+        if (destAddressMode != noAddr)
         {
-            error("[IEEE802154MAC]: Filtering error - unknown frame type!");
-        }
-
-        if ((frmType == Ack) && (pdu->getSqnr() != mpib.getMacDSN()))
-        {
-            macEV << "Further Filtering for frmType == Ack & Sqnr != MacDSN --> ACK packet filtered \n";
-            // if dsr address does not match
-            return true;
-        }
-
-        if (frmType == Beacon)
-        {
-            // check source PAN ID for beacon frame
-            if ((mpib.getMacPANId() != 0xffff)  // associated
-            && (pdu->getSrcPANid() != mpib.getMacPANId()))  // PAN ID did not match
+            // TODO: what about mpib.getMacAssociatedPANCoord? does it need to match?
+            if ((pdu->getDestPANid() != 0xffff) && (pdu->getDestPANid() != mpib.getMacPANId()))
             {
-                macEV << "Further Filtering for frmType == Beacon & PAN ID did not match --> BEACON packet filtered \n";
+                macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (macPANId != 0xffff) && (srcPANid != macPANId) --> DATA||COMMAND frame is filtered \n";
+                return true;   // all other cases => filter the beacon frame
+            }
+        }
+
+        // If a short destination address is used, it shall match either macShortAddress or the broadcast address
+        if (destAddressMode == addrShort)
+        {
+            if ((pdu->getDest().getShortAddr() != 0xffff) && (pdu->getDest().getShortAddr() != mpib.getMacShortAddress()))
+            {
+                macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (destShortAddr != 0xffff || macShortAddr) --> DATA||COMMAND frame is filtered \n";
                 return true;
             }
         }
-        else
+        // if an extended destination address is used, it shall match macExtendedAddress
+        else if (destAddressMode == addrLong)
         {
-            // check destination PAN ID (beacon has no destination address fields)
-            if ((addressMode == addrShort) || (addressMode == addrLong))
+            if (!(pdu->getDest().equals(myMacAddr)))
             {
-                if ((pdu->getDestPANid() != 0xffff)  // PAN ID does not match for other packets
-                && (pdu->getDestPANid() != mpib.getMacPANId()) && (mpib.getMacAssociatedPANCoord()))
-                {
-                    macEV << "Further Filtering for frmType != Beacon & has PAN ID --> packet filtered \n";
-                    return true;
-                }
-            }
-
-            // check destination address
-            if ((addressMode == addrShort))  // short address
-            {
-                if (!(pdu->getDest().isBroadcast()) && (pdu->getDest().getShortAddr() != mpib.getMacShortAddress()))
-                {
-                    macEV << "Further Filtering for frmType != Beacon & has Short Addr -> not the designated receiver --> packet filtered \n";
-                    return true;
-                }
-            }
-            else if ((addressMode == addrLong))  // extended address
-            {
-                if (!(pdu->getDest().equals(myMacAddr)))
-                {
-                    macEV << "Further Filtering for frmType != Beacon & has Long Addr -> not the designated receiver --> packet filtered \n";
-                    return true;
-                }
+                macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (destAddr != macExtendedAddress) --> DATA||COMMAND frame is filtered \n";
+                return true;
             }
         }
 
-        // check for Data/Command frame only with source address:: destined for PAN coordinator
-        // TODO temporary solution, consider only star topology
-        if ((frmType == Data) || (frmType == Command))
+        // if only source addressing fields are used, the (MAC/Command) frame shall be accepted only
+        // if the device is the PAN coordinator and the source PAN identifier matches macPANId
+        if ((destAddressMode == noAddr) && (srcAddressMode != noAddr))
         {
-            if (addressMode == noAddr)  // destination address fields not included
+            if ((isCoordinator == false) || (pdu->getSrcPANid() != mpib.getMacPANId()))
             {
-                if (!isCoordinator)
-                {
-                    // not a PAN coordinator
-                    macEV << "Further Filtering for frmType == Data || Command & addressMode == none & no Coordinator --> filtered here \n";
-                    return true;
-                }
+                // not a PAN coordinator
+                macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && ((isCoordinator == false) || (SrcPANid != macPanId)) --> DATA||COMMAND frame is filtered \n";
+                return true;
             }
-            macEV << "Further Filtering for frmType == Data || Command --> okay, NOT filtered \n";
         }
+
+        macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (all_checks_matched) --> DATA||COMMAND frame is accepted \n";
+        return false;
     }
+
+    // TODO confirm this filtering level in the standard
+    // Filter Level XYZ: indirect messages
+    // check if this Msg is send indirect and we are coordinator
+//    if (pdu->getIsIndirect())
+//    {
+//        if (isCoordinator)
+//        {
+//            if (pdu->getIsIndirect())
+//            {
+//                if (pdu->getDest().getInt() != myMacAddr.getInt())
+//                {
+//                    rxBuffer.insert(pdu);
+//                    macEV << "Frame added to Buffer \n";
+//                    return true;
+//                }
+//            }
+//        }
+//        else
+//        {
+//            return true;
+//        }
+//    }
+
+    error("[IEEE802154MAC]: TestCase - reached the end of the filtering process -> which frame got so far?");
     return false;
 }
 
@@ -2513,7 +2553,7 @@ mpdu* IEEE802154Mac::findRxMsg(MACAddressExt dest)
 }
 
 // generate the Frame Control Field (16 bit long) - see IEEE 802.15.4-2006 Sec. 7.2.1.1
-unsigned short IEEE802154Mac::genFCF(frameType ft, bool secu, bool fp, bool arequ, bool pid, AddrMode dam, unsigned short fv, AddrMode sam)
+unsigned short IEEE802154Mac::genFCF(frameTypeEnum ft, bool secu, bool fp, bool arequ, bool pid, AddrModeEnum dam, unsigned short fv, AddrModeEnum sam)
 {
     unsigned short fcf = 0;
     // set Frame Type
@@ -4238,7 +4278,7 @@ unsigned char IEEE802154Mac::calcFrameByteLength(cPacket* frame)
     {
         mpdu* mpduFrm = check_and_cast<mpdu *>(frame);
         unsigned short frmFcf = mpduFrm->getFcf();
-        frameType frmType = (frameType) ((frmFcf & ftMask) >> ftShift);
+        frameTypeEnum frmType = (frameTypeEnum) ((frmFcf & ftMask) >> ftShift);
         MHRLength = calcMacHeaderByteLength(((frmFcf & damMask) >> damShift) + ((frmFcf & samMask) >> samShift), (bool) ((frmFcf && secuMask) >> secuShift));
         //macEV << "MAC Header size: " << (int) MHRLength << " Bytes | MAC Footer size: 2 Bytes \n";
 

@@ -58,7 +58,7 @@ class MACAddressExt
         MACAddressExt()
         {
             address = 0;
-            shortAddr = 65535;          // FIXME what should be the correct initialization value for shortAddr?
+            shortAddr = 0xffff;          // FIXME what should be the correct initialization value for shortAddr?
         }
 
         /**
@@ -67,7 +67,7 @@ class MACAddressExt
         explicit MACAddressExt(uint64 bits)
         {
             address = bits;
-            shortAddr = 65535;          // FIXME what should be the correct initialization value for shortAddr?
+            shortAddr = 0xffff;          // FIXME what should be the correct initialization value for shortAddr?
         }
 
         /**
@@ -76,7 +76,7 @@ class MACAddressExt
         explicit MACAddressExt(const char *hexstr)
         {
             setAddress(hexstr);
-            shortAddr = 65535;          // FIXME what should be the correct initialization value for shortAddr?
+            shortAddr = 0xffff;          // FIXME what should be the correct initialization value for shortAddr?
         }
 
         /**
