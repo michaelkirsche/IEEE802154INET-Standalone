@@ -3,6 +3,8 @@
  *
  * Copyright (C) 2013 Matti Schnurbusch (original code)
  *   - adjusted INET APIs MACAdress Class for 64 Bit values
+ * Copyright (C) 2018 Michael Kirsche
+ *   - restructured class, differentiate between short and long addresses more clearly
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -25,58 +27,78 @@
 #include <string>
 #include "INETDefs.h"
 
-#define MAC_ADDRESS_SIZE 8
-#define MAC_ADDRESS_MASK 0xffffffffffffffffUL    // UL to indicate a "unsigned long" hexadecimal constant
-#define MAC_ADDRESS_SHORT_MASK 0xFFFFUL
-
-// Extended version of INET API's MACAddress Class
+#define MAC_LONG_ADDRESS_SIZE   8
+#define MAC_SHORT_ADDRESS_SIZE  2
+#define MAC_LONG_ADDRESS_MASK   0xffffffffffffffffUL    // UL to indicate a "unsigned long" hexadecimal constant
+#define MAC_ADDRESS_SHORT_MASK  0xffffUL
 
 /**
- * Stores an IEEE 802.15.4 Extended MAC address (8 octets = 64 bits) and a (corresponding 16bit) shortAddress.
+ * Stores an IEEE 802.15.4 Extended MAC address (8 octets = 64-bits) and a (16-bit) short address.
  */
 class MACAddressExt
 {
     private:
-        uint64 address; // 8*8=64bit address
-        unsigned short shortAddr; // 16bit short address, value of 0xffff (65.535) indicates that the device does not have a short address
-        static unsigned int autoAddressCtr; // counter for generateAutoAddress()
+        uint64 longAddr; // 8*8=64bit address
+        unsigned short shortAddr; // 16bit short address, value of 0xffff (65.535) indicates the broadcast address
+        //static unsigned int autoAddressCtr; // counter for generateAutoAddress()
 
     public:
 
         /** The unspecified MAC address, 00:00:00:00:00:00:00:00 */
         static const MACAddressExt UNSPECIFIED_ADDRESS;
 
-        /** The broadcast MAC address, FF:FF:FF:FF:FF:FF:FF:FF */
-        static const MACAddressExt BROADCAST_ADDRESS;
+        /** The long broadcast MAC address, FF:FF:FF:FF:FF:FF:FF:FF */
+        static const MACAddressExt BROADCAST_LONG_ADDRESS;
 
-        /** The special multicast PAUSE MAC address, 01:80:C2:00:00:01 */
-        static const MACAddressExt MULTICAST_PAUSE_ADDRESS;
+        /** The special multicast PAUSE long MAC address, 01:80:C2:00:00:01 */
+        static const MACAddressExt MULTICAST_PAUSE_LONG_ADDRESS;
+
+        /** The short broadcast MAC address, FF:FF */
+        static const MACAddressExt BROADCAST_SHORT_ADDRESS;
 
         /**
-         * Default constructor initializes address bytes to zero.
+         * Default constructor initializes short and long addresses to zero.
          */
         MACAddressExt()
         {
-            address = 0;
-            shortAddr = 0xffff;          // FIXME what should be the correct initialization value for shortAddr?
+            longAddr = 0;
+            shortAddr = 0;
         }
 
         /**
-         * Initializes the address from the the 64-bit argument
+         * Initializes the long address from a 64-bit argument
          */
-        explicit MACAddressExt(uint64 bits)
+        explicit MACAddressExt(uint64 longBits)
         {
-            address = bits;
-            shortAddr = 0xffff;          // FIXME what should be the correct initialization value for shortAddr?
+            longAddr = longBits;
+            shortAddr = 0;
         }
 
         /**
          * Constructor which accepts a hex string (12 hex digits, may also contain spaces, hyphens and colons)
          */
-        explicit MACAddressExt(const char *hexstr)
+        explicit MACAddressExt(const char *longHexStr)
         {
-            setAddress(hexstr);
-            shortAddr = 0xffff;          // FIXME what should be the correct initialization value for shortAddr?
+            setLongAddress(longHexStr);
+            shortAddr = 0;
+        }
+
+        /**
+         * Constructor which initializes long and short address from 64-bit and 16-bit arguments
+         */
+        explicit MACAddressExt(uint64 longBits, unsigned short shortBits)
+        {
+            longAddr = longBits;
+            shortAddr = shortBits;
+        }
+
+        /**
+         * Constructor which initializes long longAddr from a hex string and short longAddr from 16-bit argument
+         */
+        explicit MACAddressExt(const char *longHexStr, unsigned short shortBits)
+        {
+            setLongAddress(longHexStr);
+            shortAddr = shortBits;
         }
 
         /**
@@ -84,7 +106,7 @@ class MACAddressExt
          */
         MACAddressExt(const MACAddressExt& other)
         {
-            address = other.address;
+            longAddr = other.longAddr;
             shortAddr = other.shortAddr;
         }
 
@@ -93,29 +115,40 @@ class MACAddressExt
          */
         MACAddressExt& operator=(const MACAddressExt& other)
         {
-            address = other.address;
+            longAddr = other.longAddr;
             shortAddr = other.shortAddr;
             return *this;
         }
 
         /**
-         * Returns the address size in bytes, that is, 8.
+         * Returns the long address size in bytes, that is, 8.
          */
-        static const unsigned int getAddressSize()
+        static const unsigned short getLongAddressSize()
         {
-            return MAC_ADDRESS_SIZE;
+            return MAC_LONG_ADDRESS_SIZE;
         }
 
         /**
-         * Returns the kth byte of the address.
+         * Returns the short address size in bytes, that is, 2.
          */
-        unsigned char getAddressByte(unsigned int k) const;
+        static const unsigned short getShortAddressSize()
+        {
+            return MAC_SHORT_ADDRESS_SIZE;
+        }
 
         /**
-         * Sets the kth byte of the address.
+         * Returns the kth byte of the 64-bit long address.
          */
-        void setAddressByte(unsigned int k, unsigned char addrbyte);
+        unsigned char getLongAddressByte(unsigned int k) const;
 
+        /**
+         * Sets the kth byte of the 64-bit long address.
+         */
+        void setLongAddressByte(unsigned int k, unsigned char addrbyte);
+
+        /**
+         * Sets the complete 16-bit short address
+         */
         void setShortAddr(unsigned short val)
         {
             shortAddr = val;
@@ -126,77 +159,103 @@ class MACAddressExt
          */
         void genShortAddr()
         {
-            shortAddr = address & (MAC_ADDRESS_SHORT_MASK);
+            shortAddr = longAddr & (MAC_ADDRESS_SHORT_MASK);
         }
 
+        /**
+         * Returns the complete 16-bit short address
+         */
         unsigned short getShortAddr() const
         {
             return shortAddr;
         }
 
         /**
-         * Sets the address and returns true if the syntax of the string is correct. (See setAddress() for the syntax.)
+         * Sets the longAddress and returns true if the syntax of the string is correct. (See setLongAddress() for the syntax.)
          */
-        bool tryParse(const char *hexstr);
+        bool tryParseLongAddr(const char *hexstr);
 
         /**
-         * Converts address value from hex string (16 hex digits, may also contain spaces, hyphens and colons)
+         * Converts longAddr value from hex string (16 hex digits, may also contain spaces, hyphens and colons)
          */
-        void setAddress(const char *hexstr);
+        void setLongAddress(const char *hexstr);
 
         /**
          * Copies the address to the given pointer (array of 8 unsigned chars).
          */
-        void getAddressBytes(unsigned char *addrbytes) const;
-        void getAddressBytes(char *addrbytes) const
+        void getLongAddressBytes(unsigned char *addrbytes) const;
+        void getLongAddressBytes(char *addrbytes) const
         {
-            getAddressBytes((unsigned char *) addrbytes);
+            getLongAddressBytes((unsigned char *) addrbytes);
         }
 
         /**
-         * Sets address bytes. The argument should point to an array of 8 unsigned chars.
+         * Sets long address bytes. The argument should point to an array of 8 unsigned chars.
          */
-        void setAddressBytes(unsigned char *addrbytes);
-        void setAddressBytes(char *addrbytes)
+        void setLongAddressBytes(unsigned char *addrbytes);
+        void setLongAddressBytes(char *addrbytes)
         {
-            setAddressBytes((unsigned char *) addrbytes);
+            setLongAddressBytes((unsigned char *) addrbytes);
         }
 
         /**
-         * Sets the address to the broadcast address (hex FF:FF:FF:FF:FF:FF:FF:FF).
+         * Sets the longAddr to the broadcast 64-bit long address (hex FF:FF:FF:FF:FF:FF:FF:FF).
          */
-        void setBroadcast()
+        void setLongBroadcast()
         {
-            address = MAC_ADDRESS_MASK;
+            longAddr = MAC_LONG_ADDRESS_MASK;
         }
 
         /**
-         * Returns true if this is the broadcast address (hex FF:FF:FF:FF:FF:FF:FF:FF).
+         * Sets the shortAddr to the broadcast 16-bit short address (hex FF:FF).
          */
-        bool isBroadcast() const
+        void setShortBroadcast()
         {
-            return address == MAC_ADDRESS_MASK;
+            shortAddr = MAC_ADDRESS_SHORT_MASK;
         }
 
         /**
-         * Returns true if this is a multicast logical address (first byte's LSB is 1).
+         * Returns true if the current 64-bit longAddr is the broadcast long address (hex FF:FF:FF:FF:FF:FF:FF:FF).
          */
-        bool isMulticast() const
+        bool isLongBroadcast() const
         {
-            return getAddressByte(0) & 0x01;
+            return longAddr == MAC_LONG_ADDRESS_MASK;
         }
-        ;
 
         /**
-         * Returns true if all address bytes are zero.
+         * Returns true if the current 64-bit longAddr is a multicast logical address (first byte's LSB is 1).
          */
-        bool isUnspecified() const
+        bool isLongMulticast() const
         {
-            return address == 0;
+            return getLongAddressByte(0) & 0x01;
         }
 
         /**
-         * Converts address to a hex string.
+         * Returns true if all longAddr bytes are zero.
+         */
+        bool isLongUnspecified() const
+        {
+            return longAddr == 0;
+        }
+
+        /**
+         * Returns true if the current 16-bit shortAddr is the broadcast short address (hex FF:FF).
+         */
+        bool isShortBroadcast() const
+        {
+            return shortAddr == MAC_ADDRESS_SHORT_MASK;
+        }
+
+        /**
+         * Returns true if all shortAddr bytes are zero.
+         */
+        bool isShortUnspecified() const
+        {
+            return longAddr == 0;
+        }
+
+        /**
+         * Converts longAddr to a hex string.
          */
         std::string str() const;
 
@@ -205,53 +264,64 @@ class MACAddressExt
          */
         uint64 getInt() const
         {
-            return address;
+            return longAddr;
         }
 
         /**
-         * Returns true if the two addresses are equal.
+         * Returns true if the two 64-bit long addresses are equal.
          */
-        bool equals(const MACAddressExt& other) const
+        bool longEquals(const MACAddressExt& other) const
         {
-            return address == other.address;
+            return longAddr == other.longAddr;
         }
 
         /**
-         * Returns true if the two addresses are equal.
+         * Returns true if the two 16-bit short addresses are equal.
          */
-        bool operator==(const MACAddressExt& other) const
+        bool shortEquals(const MACAddressExt& other) const
         {
-            return address == other.address;
+            return shortAddr == other.shortAddr;
         }
 
-        /**
-         * Returns true if the two addresses are not equal.
-         */
-        bool operator!=(const MACAddressExt& other) const
-        {
-            return address != other.address;
-        }
+        // TODO need to be either restructured or completely substituted by shortEquals and longEquals !!!
+//        /**
+//         * Returns true if the two addresses are equal.
+//         */
+//        bool operator==(const MACAddressExt& other) const
+//        {
+//            return longAddress == other.longAddress;
+//        }
+//
+//        /**
+//         * Returns true if the two addresses are not equal.
+//         */
+//        bool operator!=(const MACAddressExt& other) const
+//        {
+//            return longAddr != other.longAddr;
+//        }
+
+        // TODO remove if not needed
+//        /**
+//         * Returns -1, 0 or 1 as result of comparison of 2 addresses.
+//         */
+//        int compareTo(const MACAddressExt& other) const;
+
+        // TODO remove if not needed
+//        bool operator<(const MACAddressExt& other) const
+//        {
+//            return longAddr < other.longAddr;
+//        }
+//
+//        bool operator>(const MACAddressExt& other) const
+//        {
+//            return longAddr > other.longAddr;
+//        }
 
         /**
-         * Returns -1, 0 or 1 as result of comparison of 2 addresses.
-         */
-        int compareTo(const MACAddressExt& other) const;
-
-        /**
-         * Generates a unique MAC address which begins with 0a:aa and ends in a unique suffix
+         * Generates a unique 64-bit MAC long address which begins with 0a:aa and ends in a unique suffix
          * based on the node index
          */
         static MACAddressExt generateMacAddressWithNodeIndex(unsigned int index);
-
-        bool operator<(const MACAddressExt& other) const
-        {
-            return address < other.address;
-        }
-
-        bool operator>(const MACAddressExt& other) const
-        {
-            return address > other.address;
-        }
 
 };
 

@@ -109,7 +109,7 @@ void IEEE802154Mac::initialize(int stage)
         myPANiD = 0xffffU;
 
         const char *addressString = par("macAddr");
-        if (myMacAddr.isUnspecified())
+        if (myMacAddr.isLongUnspecified())
         {
             if (!strcmp(addressString, "auto"))
             {
@@ -124,7 +124,7 @@ void IEEE802154Mac::initialize(int stage)
             }
             else
             {
-                myMacAddr.setAddress(addressString);
+                myMacAddr.setLongAddress(addressString);
                 macEV << "myMacAddr is unspecified -> assigning user set address (macAddr in omnetpp.ini) = " << myMacAddr << endl;
             }
         }
@@ -304,6 +304,7 @@ void IEEE802154Mac::initialize(int stage)
         WATCH(associated);
         WATCH(scanning);
         WATCH(myMacAddr);
+        WATCH(myPANiD);
         WATCH(phy_bitrate);
         WATCH(phy_channel);
         WATCH(phy_symbolrate);
@@ -863,8 +864,8 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                     }
                     else
                     {
-                        if (((disAss->getDeviceAddrMode() == addrLong) && (disAss->getDeviceAddress() == mpib.getMacCoordExtendedAddress()))
-                        || ((disAss->getDeviceAddrMode() == addrShort) && disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress()))
+                        if (((disAss->getDeviceAddrMode() == addrLong) && (disAss->getDeviceAddress().longEquals(mpib.getMacCoordExtendedAddress())))
+                        || ((disAss->getDeviceAddrMode() == addrShort) && (disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress())))
                         {
                             genDisAssoCmd(disAss, false);
                         }
@@ -1152,7 +1153,7 @@ void IEEE802154Mac::handleUpperMsg(cMessage *msg)
                 OrphanResponse* oR = check_and_cast<OrphanResponse*>(msg);
                 mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
                 holdMe->encapsulate(oR);
-                holdMe->setDest(MACAddressExt::BROADCAST_ADDRESS);
+                holdMe->setDest(MACAddressExt::BROADCAST_LONG_ADDRESS);
                 holdMe->setSrc(myMacAddr);
                 holdMe->setSrcPANid(mpib.getMacPANId());
                 holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
@@ -2393,7 +2394,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         // if an extended destination address is used, it shall match macExtendedAddress
         else if (destAddressMode == addrLong)
         {
-            if (!(pdu->getDest().equals(myMacAddr)))
+            if (!(pdu->getDest().longEquals(myMacAddr)))
             {
                 macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (destAddr != macExtendedAddress) --> DATA||COMMAND frame is filtered \n";
                 return true;
@@ -2543,7 +2544,7 @@ mpdu* IEEE802154Mac::findRxMsg(MACAddressExt dest)
     {
         mpdu* buffMsg = check_and_cast<mpdu*>(iter());
 
-        if (buffMsg->getDest() == dest)
+        if ((buffMsg->getDest().longEquals(dest)) || (buffMsg->getDest().shortEquals(dest)))
         {
             rxBuffer.remove(buffMsg);
             return buffMsg;
@@ -3089,10 +3090,15 @@ void IEEE802154Mac::doScan()
                 // send beacon request
                 CmdFrame* beaconReq = new CmdFrame("MLME-Beacon.request");
                 beaconReq->setCmdType(Ieee802154_BEACON_REQUEST);
-                beaconReq->setSrc(myMacAddr);
-                beaconReq->setDest(MACAddressExt::BROADCAST_ADDRESS);
+                // correctly set the frame control field of the beacon request with short destination address
+                beaconReq->setFcf(genFCF(Command, false, false, false, false, addrShort, 0, noAddr));
+
+                //beaconReq->setSrc(myMacAddr); // source addressing mode = no source address is present
+                //beaconReq->setDest(MACAddressExt::BROADCAST_ADDRESS); // destination addressing mode = short address
+                MACAddressExt dest = MACAddressExt::UNSPECIFIED_ADDRESS;
+                dest.setShortAddr(0xffff);
+                beaconReq->setDest(dest);
                 beaconReq->setDestPANid(0xffff);
-                beaconReq->setFcf(0);  // ignored upon reception
 
                 // send this direct to the coordinator
                 txBcnCmd = beaconReq;
@@ -4553,6 +4559,7 @@ void IEEE802154Mac::handleBcnTxTimer()
             tmpBcn->setName("Ieee802154BEACONTimer");
 
             // construct frame control field
+            // TODO: revise according to 7.2.2.1.1 Beacon frame MHR fields
             tmpBcn->setFcf(genFCF(Beacon, mpib.getMacSecurityEnabled(), false, false, false, addrLong, 1, addrLong));
 
             unsigned char bseqn = mpib.getMacBSN();
@@ -4561,7 +4568,7 @@ void IEEE802154Mac::handleBcnTxTimer()
             mpib.setMacBSN(bseqn);
             tmpBcn->setSrc(myMacAddr);
             tmpBcn->setDestPANid(0xffff);  // ignored upon reception
-            tmpBcn->setDest(MACAddressExt::BROADCAST_ADDRESS);  // ignored upon reception
+            tmpBcn->setDest(MACAddressExt::BROADCAST_LONG_ADDRESS);  // ignored upon reception
             tmpBcn->setSrcPANid(mpib.getMacPANId());
 
             // construct superframe specification

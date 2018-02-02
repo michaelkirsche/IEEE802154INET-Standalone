@@ -353,7 +353,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool isFFD;
         bool syncLoss;
 
-        // 64-Bit Extended MAC-Address
+        // 64-bit Extended MAC-Address with 16-bit Short Address (via .getShortAddr())
         MACAddressExt myMacAddr;
         // PAN identifier
         unsigned short myPANiD;
