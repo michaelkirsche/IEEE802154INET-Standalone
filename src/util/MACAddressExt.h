@@ -27,10 +27,11 @@
 #include <string>
 #include "INETDefs.h"
 
-#define MAC_LONG_ADDRESS_SIZE   8
-#define MAC_SHORT_ADDRESS_SIZE  2
-#define MAC_LONG_ADDRESS_MASK   0xffffffffffffffffUL    // UL to indicate a "unsigned long" hexadecimal constant
-#define MAC_ADDRESS_SHORT_MASK  0xffffUL
+const unsigned int MAC_LONG_ADDRESS_SIZE      { 8U };
+const unsigned int MAC_SHORT_ADDRESS_SIZE     { 2U };
+const unsigned long long MAC_LONG_ADDRESS_MASK { 0xffffffffffffffffULL };   // ULL to indicate a "unsigned long long" hexadecimal value
+const unsigned int MAC_ADDRESS_SHORT_MASK     { 0xffffU };
+const unsigned int BROADCAST_SHORT_ADDRESS    { 0xffffU };
 
 /**
  * Stores an IEEE 802.15.4 Extended MAC address (8 octets = 64-bits) and a (16-bit) short address.
@@ -40,7 +41,6 @@ class MACAddressExt
     private:
         uint64 longAddr; // 8*8=64bit address
         unsigned short shortAddr; // 16bit short address, value of 0xffff (65.535) indicates the broadcast address
-        //static unsigned int autoAddressCtr; // counter for generateAutoAddress()
 
     public:
 
@@ -52,9 +52,6 @@ class MACAddressExt
 
         /** The special multicast PAUSE long MAC address, 01:80:C2:00:00:01 */
         static const MACAddressExt MULTICAST_PAUSE_LONG_ADDRESS;
-
-        /** The short broadcast MAC address, FF:FF */
-        static const MACAddressExt BROADCAST_SHORT_ADDRESS;
 
         /**
          * Default constructor initializes short and long addresses to zero.

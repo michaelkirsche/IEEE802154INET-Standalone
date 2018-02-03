@@ -54,6 +54,21 @@ void IEEE802154Mac::initialize(int stage)
         mappedMlmeRequestTypes["MLME-ASSOCIATE.response"] = MLMEASSOCIATERESP;
         mappedMlmeRequestTypes["MLME-ORPHAN.response"] = MLMEORPHANRESP;
 
+        // initialize timers
+        backoffTimer = new cMessage("backoffTimer", MAC_BACKOFF_TIMER);
+        deferCCATimer = new cMessage("deferCCATimer", MAC_DEFER_CCA_TIMER);
+        bcnRxTimer = new cMessage("bcnRxTimer", MAC_BCN_RX_TIMER);
+        bcnTxTimer = new cMessage("bcnTxTimer", MAC_BCN_TX_TIMER);
+        ackTimeoutTimer = new cMessage("ackTimeoutTimer", MAC_ACK_TIMEOUT_TIMER);
+        txAckBoundTimer = new cMessage("txAckBoundTimer", MAC_TX_ACK_BOUND_TIMER);
+        txCmdDataBoundTimer = new cMessage("txCmdDataBoundTimer", MAC_TX_CMD_DATA_BOUND_TIMER);
+        ifsTimer = new cMessage("ifsTimer", MAC_IFS_TIMER);
+        txSDTimer = new cMessage("txSDTimer", MAC_TX_SD_TIMER);
+        rxSDTimer = new cMessage("rxSDTimer", MAC_RX_SD_TIMER);
+        finalCAPTimer = new cMessage("finalCAPTimer", MAC_FINAL_CAP_TIMER);
+        scanTimer = new cMessage("scanDurationTimer", MAC_SCAN_TIMER);
+        gtsTimer = new cMessage("gtsTimer", MAC_GTS_TIMER);
+
         syncLoss = false;
         scanning = false;
         scanStep = 0;
@@ -91,7 +106,7 @@ void IEEE802154Mac::initialize(int stage)
         ASSERT(getModuleByPath("^.^.PHY") != NULL);// getModuleByPath returns the PHY module here
         mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + (getModuleByPath("^.^.PHY")->par("SHRDuration").longValue()) + (6 - (getModuleByPath("^.^.PHY")->par("symbolsPerOctet").longValue())));
 
-        // inizialize PHY-related variables from PHY.ned -> FIXME -> PLME-GET msg should be used
+        // initialize PHY-related variables from PHY.ned -> FIXME -> PLME-GET msg should be used
         phy_channel = getModuleByPath("^.^.PHY")->par("currentChannel").longValue();
         ASSERT(phy_channel <= 26);  // check if parameter set in NED file is within boundaries
         phy_bitrate = getRate('b');
@@ -106,55 +121,8 @@ void IEEE802154Mac::initialize(int stage)
         counter = 0;
         waitGTSConf = false;
 
-        myPANiD = 0xffffU;
-
-        const char *addressString = par("macAddr");
-        if (myMacAddr.isLongUnspecified())
-        {
-            if (!strcmp(addressString, "auto"))
-            {
-                ASSERT(getModuleByPath("^.^.^.") != NULL);    // getModuleByPath shall return the IEEE802154Node module
-
-                // generate MAC address with node index (e.g., node[3] -> MAC ...:03)
-                myMacAddr = MACAddressExt::generateMacAddressWithNodeIndex(getModuleByPath("^.^.^.")->getIndex());
-                macEV << "myMacAddr is unspecified -> assigning generated address = " << myMacAddr << endl;
-
-                // change module parameter from "auto" to the generated address
-                par("macAddr").setStringValue(myMacAddr.str().c_str());
-            }
-            else
-            {
-                myMacAddr.setLongAddress(addressString);
-                macEV << "myMacAddr is unspecified -> assigning user set address (macAddr in omnetpp.ini) = " << myMacAddr << endl;
-            }
-        }
-
         trxState = false;
-        headerSize = 0;
-
-        // initialize timers
-        backoffTimer = new cMessage("backoffTimer", MAC_BACKOFF_TIMER);
-        deferCCATimer = new cMessage("deferCCATimer", MAC_DEFER_CCA_TIMER);
-        bcnRxTimer = new cMessage("bcnRxTimer", MAC_BCN_RX_TIMER);
-        bcnTxTimer = new cMessage("bcnTxTimer", MAC_BCN_TX_TIMER);
-        ackTimeoutTimer = new cMessage("ackTimeoutTimer", MAC_ACK_TIMEOUT_TIMER);
-        txAckBoundTimer = new cMessage("txAckBoundTimer", MAC_TX_ACK_BOUND_TIMER);
-        txCmdDataBoundTimer = new cMessage("txCmdDataBoundTimer", MAC_TX_CMD_DATA_BOUND_TIMER);
-        ifsTimer = new cMessage("ifsTimer", MAC_IFS_TIMER);
-        txSDTimer = new cMessage("txSDTimer", MAC_TX_SD_TIMER);
-        rxSDTimer = new cMessage("rxSDTimer", MAC_RX_SD_TIMER);
-        finalCAPTimer = new cMessage("finalCAPTimer", MAC_FINAL_CAP_TIMER);
-        scanTimer = new cMessage("scanDurationTimer", MAC_SCAN_TIMER);
-        gtsTimer = new cMessage("gtsTimer", MAC_GTS_TIMER);
-
-        if (true == startNow)
-        {
-            isCoordinator = par("isPANCoordinator");
-            unsigned short tmpBo = par("BeaconOrder");
-            mpib.setMacBeaconOrder(tmpBo);
-            unsigned short tmpSo = par("SuperframeOrder");
-            mpib.setMacSuperframeOrder(tmpSo);
-        }
+       headerSize = 0;
 
         ASSERT(getModuleByPath("^.^.^.Network.stdLLC") != NULL);    // getModuleByPath returns the LLC module (and thus the parameter)
         unsigned short llcTXoption = getModuleByPath("^.^.^.Network.stdLLC")->par("TXoption");
@@ -183,12 +151,44 @@ void IEEE802154Mac::initialize(int stage)
             case 6:   // indirect GTS without ACK
             case 7:   // indirect GTS with ACK
             {
-                 error("FIXME check if txOption => 6 and 7 are valid cases at all according to the standard \n");
+                error("FIXME check if txOption => 6 and 7 are valid cases at all according to the standard \n");
             }
             default: {
                 error("[IEEE802154MAC]: wrong TXOption set / unknown value set!");
                 break;
             }
+        }
+
+        const char *addressString = par("macAddr");
+        if (myMacAddr.isLongUnspecified())
+        {
+            if (!strcmp(addressString, "auto"))
+            {
+                ASSERT(getModuleByPath("^.^.^.") != NULL);    // getModuleByPath shall return the IEEE802154Node module
+
+                // generate MAC address with node index (e.g., node[3] -> MAC ...:03)
+                myMacAddr = MACAddressExt::generateMacAddressWithNodeIndex(getModuleByPath("^.^.^.")->getIndex());
+                macEV << "myMacAddr is unspecified -> assigning generated address = " << myMacAddr << endl;
+
+                // change module parameter from "auto" to the generated address
+                par("macAddr").setStringValue(myMacAddr.str().c_str());
+            }
+            else
+            {
+                myMacAddr.setLongAddress(addressString);
+                macEV << "myMacAddr is unspecified -> assigning user set address (macAddr in omnetpp.ini) = " << myMacAddr << endl;
+            }
+        }
+
+        myPANiD = BROADCAST_SHORT_ADDRESS;  // default value for macPANId is 0xffff
+
+        if (true == startNow)
+        {
+            isCoordinator = par("isPANCoordinator");
+            unsigned short tmpBo = par("BeaconOrder");
+            mpib.setMacBeaconOrder(tmpBo);
+            unsigned short tmpSo = par("SuperframeOrder");
+            mpib.setMacSuperframeOrder(tmpSo);
         }
 
         panCoorName = par("panCoordinatorName").stdstringValue();
@@ -335,9 +335,13 @@ void IEEE802154Mac::initialize(int stage)
                 {
                     error("[IEEE802154MAC]: you want to start up a PAN Coordinator who is not an FFD!!!");
                 }
+
+                // use the current (user-defined or autogenerated) MAC 64-bit extended address
                 mpib.setMacCoordExtendedAddress(myMacAddr);
-                mpib.setMacShortAddress(myMacAddr.getShortAddr());  // simply use MAC short address
-                mpib.setMacPANId(myMacAddr.getInt());  // simply use MAC extended address
+                // use the current (user-defined or autogenerated) MAC 16-bit short address
+                mpib.setMacShortAddress(myMacAddr.getShortAddr());
+                // use the current PAN ID of the coordinator (user-defined through the stdLLC)
+                mpib.setMacPANId(getModuleByPath("^.^.^.Network.stdLLC")->par("PANId").longValue());
                 mpib.setMacAssociationPermit(true);
                 if (mpib.getMacBeaconOrder() < 15)
                 {
@@ -357,7 +361,7 @@ void IEEE802154Mac::initialize(int stage)
             }  // if == isCoordinator
             else
             {
-                mpib.setMacPANId(0xffff);   // set broadcast PAN ID
+                mpib.setMacPANId(BROADCAST_SHORT_ADDRESS);   // set broadcast PAN ID if device is no coordinator
                 genSetTrxState(phy_RX_ON);
             }  // if != isCoordinator
         }
@@ -414,8 +418,8 @@ void IEEE802154Mac::setDefMpib()
 
     if (isCoordinator)
     {
-        mpib.setMacShortAddress(myMacAddr.getShortAddr());  // simply use MAC extended address
-        mpib.setMacPANId(myMacAddr.getInt());  // simply use MAC extended address
+        mpib.setMacShortAddress(myMacAddr.getShortAddr());  // use the current (user-defined or autogenerated) MAC 16-bit short address
+        mpib.setMacPANId(myPANiD);                          // use the current PAN ID of the coordinator (user-defined)
         mpib.setMacAssociationPermit(true);
         txSfSlotDuration = aBaseSlotDuration * (1 << mpib.getMacSuperframeOrder());
         startBcnTxTimer(true, simTime());  // send out first beacon ASAP
@@ -540,8 +544,9 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
                 AssoCommand->setSqnr(sqnr);
                 (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
                 mpib.setMacDSN(sqnr);
-                AssoCommand->setDestPANid(mpib.getMacPANId());
                 AssoCommand->setSrc(myMacAddr);
+                AssoCommand->setSrcPANid(BROADCAST_SHORT_ADDRESS);
+                AssoCommand->setDestPANid(frame->getCoordPANId());
 
                 if (mpib.getMacSecurityEnabled())
                 {
@@ -556,9 +561,10 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
 
                 mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
                 holdMe->encapsulate(AssoCommand);
+                holdMe->setSrc(AssoCommand->getSrc());
+                holdMe->setSrcPANid(AssoCommand->getSrcPANid());
                 holdMe->setDest(AssoCommand->getDest());
-                holdMe->setSrc(myMacAddr);
-                holdMe->setSrcPANid(mpib.getMacPANId());
+                holdMe->setDestPANid(AssoCommand->getDestPANid());
                 holdMe->setFcf(AssoCommand->getFcf());  // set FCF to FCF value of encapsulated command (ACK flag set)
                 holdMe->setSqnr(AssoCommand->getSqnr());
                 holdMe->setByteLength(calcFrameByteLength(AssoCommand));
@@ -584,17 +590,18 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
             if (isCoordinator)
             {
                 AssociationResponse* assoResp = check_and_cast<AssociationResponse*>(msg);
-                // generate response command Msg
+                // generate response command msg
                 AssoCmdresp* assoCmdResp = new AssoCmdresp("ASSOCIATE-response-command");
 
-                // association response requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
-                assoCmdResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, mpib.getMacPANId(), addrLong, 0, addrLong));
+                // association response requires an ACK (see 802.15.4-2006 - Sec. 7.3.2.1 MHR fields)
+                assoCmdResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 0, addrLong));
                 unsigned char sqnr = mpib.getMacDSN();
                 assoCmdResp->setSqnr(sqnr);
                 (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
                 mpib.setMacDSN(sqnr);
                 assoCmdResp->setDest(assoResp->getAddr());
-                assoCmdResp->setSrcPANid(mpib.getMacPANId());
+                assoCmdResp->setDestPANid(myPANiD);
+                //assoCmdResp->setSrcPANid(mpib.getMacPANId()); // shall be omitted
                 assoCmdResp->setSrc(myMacAddr);
 
                 if (mpib.getMacSecurityEnabled())
@@ -617,10 +624,11 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
 
                 mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
                 holdMe->encapsulate(assoCmdResp);
-                holdMe->setDest(assoCmdResp->getDest());
-                holdMe->setSrc(assoCmdResp->getSrc());
-                holdMe->setSrcPANid(assoCmdResp->getSrcPANid());
                 holdMe->setFcf(assoCmdResp->getFcf());
+                holdMe->setDest(assoCmdResp->getDest());
+                holdMe->setDestPANid(assoCmdResp->getDestPANid());
+                holdMe->setSrc(assoCmdResp->getSrc());
+                //holdMe->setSrcPANid(assoCmdResp->getSrcPANid());  // shall be omitted
                 holdMe->setSqnr(assoCmdResp->getSqnr());
                 holdMe->setByteLength(calcFrameByteLength(assoCmdResp));
 
@@ -690,7 +698,7 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
                 else
                 {
                     if (((disAss->getDeviceAddrMode() == addrLong) && (disAss->getDeviceAddress().longEquals(mpib.getMacCoordExtendedAddress())))
-                            || ((disAss->getDeviceAddrMode() == addrShort) && (disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress())))
+                     || ((disAss->getDeviceAddrMode() == addrShort) && (disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress())))
                     {
                         genDisAssoCmd(disAss, false);
                     }
@@ -725,30 +733,28 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
             {
                 waitGTSConf = true;
                 GTSMessage* GTSrequ = check_and_cast<GTSMessage*>(msg);
-                GTSCmd* gtsRequCmd = new GTSCmd("GTS-request-command");
 
-                if (associated)
-                {
-                    // GTS request requires an ACK
-                    gtsRequCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
-                    numUpperMgmtPkt++;
-                }
-                else
+                if (!associated)
                 {
                     genGTSConf(GTSrequ->getGTSCharacteristics(), mac_NO_SHORT_ADDRESS);
                     numUpperMgmtPktDropped++;
-                    delete (msg);
                     delete (GTSrequ);
-                    delete (gtsRequCmd);
+                    delete (msg);
                     return;
                 }
+
+                GTSCmd* gtsRequCmd = new GTSCmd("GTS-request-command");
+
+                // GTS request requires an ACK (see 802.15.4-2006 - Sec. 7.3.9.1 MHR fields)
+                gtsRequCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, noAddr, 0, addrShort));
+                numUpperMgmtPkt++;
 
                 unsigned char sqnr = mpib.getMacDSN();
                 gtsRequCmd->setSqnr(sqnr);
                 (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
                 mpib.setMacDSN(sqnr);
-                gtsRequCmd->setDestPANid(mpib.getMacPANId());
-                gtsRequCmd->setDest(mpib.getMacCoordExtendedAddress());
+                //gtsRequCmd->setDestPANid(mpib.getMacPANId()); // shall be empty
+                //gtsRequCmd->setDest(mpib.getMacCoordExtendedAddress()); // shall be empty
                 gtsRequCmd->setSrcPANid(mpib.getMacPANId());
                 gtsRequCmd->setSrc(myMacAddr);
 
@@ -774,10 +780,10 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
 
                 mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
                 holdMe->encapsulate(gtsRequCmd);
-                holdMe->setDest(gtsRequCmd->getDest());
+                holdMe->setFcf(gtsRequCmd->getFcf());
+                //holdMe->setDest(gtsRequCmd->getDest()); // shall be empty
                 holdMe->setSrc(gtsRequCmd->getSrc());
                 holdMe->setSrcPANid(gtsRequCmd->getSrcPANid());
-                holdMe->setFcf(gtsRequCmd->getFcf());
                 holdMe->setSqnr(gtsRequCmd->getSqnr());
                 holdMe->setByteLength(calcFrameByteLength(gtsRequCmd));
 
@@ -1003,6 +1009,7 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
             numUpperMgmtPkt++;
             PollRequest* pollMsg = check_and_cast<PollRequest*>(msg);
             CmdFrame* dataReq = new CmdFrame("MCPS-DATA.request");
+            // TODO further checks and improvements according to 802.15.4-2006 - Sec. 7.3.4 and 7.1.16.1 is necessary
             dataReq->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
             dataReq->setSrc(myMacAddr);
             dataReq->setSrcPANid(mpib.getMacPANId());
@@ -1015,10 +1022,11 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
 
             mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
             holdMe->encapsulate(dataReq);
+            holdMe->setFcf(dataReq->getFcf());
             holdMe->setDest(dataReq->getDest());
+            holdMe->setDestPANid(dataReq->getDestPANid());
             holdMe->setSrc(dataReq->getSrc());
             holdMe->setSrcPANid(dataReq->getSrcPANid());
-            holdMe->setFcf(dataReq->getFcf());
             holdMe->setSqnr(dataReq->getSqnr());
             holdMe->setByteLength(calcFrameByteLength(dataReq));
 
@@ -1033,10 +1041,11 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
             OrphanResponse* oR = check_and_cast<OrphanResponse*>(msg);
             mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
             holdMe->encapsulate(oR);
+            // TODO further checks and improvements according to 802.15.4-2006 - Sec. 7.1.8.2 is necessary
+            holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
             holdMe->setDest(MACAddressExt::BROADCAST_LONG_ADDRESS);
             holdMe->setSrc(myMacAddr);
             holdMe->setSrcPANid(mpib.getMacPANId());
-            holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
 
             txData = holdMe;
             csmacaEntry('d');
@@ -1762,7 +1771,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
                 if (aresp->getStatus() == Success)
                 {
-                    macEV << "Assocation process was successful \n";
+                    macEV << "Association process was successful \n";
                     mpib.setMacAssociatedPANCoord(true);
                     mpib.setMacPANId(aresp->getSrcPANid());
                     mpib.setMacCoordExtendedAddress(aresp->getSrc());
@@ -1839,7 +1848,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
 
                 // TODO check correct setting of all MHR fields
                 tmpBcn->setSrc(myMacAddr);
-                tmpBcn->setDestPANid(0xffff);  // ignored upon reception
+                tmpBcn->setDestPANid(BROADCAST_SHORT_ADDRESS);  // ignored upon reception
                 tmpBcn->setDest(cmdFrame->getSrc());  // ignored upon reception
                 tmpBcn->setSrcPANid(mpib.getMacPANId());
                 tmpBcn->setByteLength(calcFrameByteLength(tmpBcn));
@@ -2309,6 +2318,7 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
     }
     else
     {
+        macEV << "PD-DATA.confirm status is " << phyStateToString(status) << endl;
         error("[IEEE802154MAC]: transmission failed \n");
     }
 }
@@ -2369,7 +2379,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         // If the frame type indicates that the frame is a beacon frame, the source PAN identifier shall match
         // macPANId unless macPANId is equal to the broadcast PAN identifier, in which case the beacon
         // frame shall be accepted regardless of the source PAN identifier.
-        if (mpib.getMacPANId() == 0xffff)
+        if (mpib.getMacPANId() == BROADCAST_SHORT_ADDRESS)
         {
             // option 1: if our own macPANId matches the broadcast PAN ID (0xffff) => do not filter
             macEV << "3rd-Level-Filter: (frameType == BEACON) && (macPANId == 0xffff) --> BEACON is accepted! \n";
@@ -2398,7 +2408,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         if (destAddressMode != noAddr)
         {
             // TODO: what about mpib.getMacAssociatedPANCoord? does it need to match?
-            if ((pdu->getDestPANid() != 0xffff) && (pdu->getDestPANid() != mpib.getMacPANId()))
+            if ((pdu->getDestPANid() != BROADCAST_SHORT_ADDRESS) && (pdu->getDestPANid() != mpib.getMacPANId()))
             {
                 macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (macPANId != 0xffff) && (srcPANid != macPANId) --> DATA||COMMAND frame is filtered \n";
                 return true;   // all other cases => filter the beacon frame
@@ -2408,7 +2418,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         // If a short destination address is used, it shall match either macShortAddress or the broadcast address
         if (destAddressMode == addrShort)
         {
-            if ((pdu->getDest().getShortAddr() != 0xffff) && (pdu->getDest().getShortAddr() != mpib.getMacShortAddress()))
+            if ((pdu->getDest().getShortAddr() != BROADCAST_SHORT_ADDRESS) && (pdu->getDest().getShortAddr() != mpib.getMacShortAddress()))
             {
                 macEV << "3rd-Level-Filter: (frameType == DATA||COMMAND) && (destShortAddr != 0xffff || macShortAddr) --> DATA||COMMAND frame is filtered \n";
                 return true;
@@ -2658,14 +2668,15 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
 {
     AssoCmdresp* assoResp = new AssoCmdresp("MLME-ASSOCIATE.response");
     MACAddressExt devAddr = tmpAssoReq->getCapabilityInformation().addr;
-    devAddr.genShortAddr();
-    assoResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrLong, 0, addrShort));
+    // FCF fields set according to 802.15.4-2006 - Sec. 7.3.2.1
+    assoResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 0, addrLong));
     assoResp->setDest(devAddr);
+    assoResp->setDestPANid(mpib.getMacPANId());
     assoResp->setShortAddress(devAddr.getShortAddr());
     assoResp->setSrc(myMacAddr);
+    assoResp->setSrcPANid(mpib.getMacPANId());    // should actually be omitted because FCF PAN ID compression is set to one
     assoResp->setCmdType(Ieee802154_ASSOCIATION_RESPONSE);
     assoResp->setStatus(status);
-    assoResp->setSrcPANid(mpib.getMacPANId());
     unsigned char sqnr = mpib.getMacDSN();
     assoResp->setSqnr(sqnr);
     (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
@@ -2675,10 +2686,11 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
 
     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
     holdMe->encapsulate(assoResp);
-    holdMe->setDest(assoResp->getDest());
-    holdMe->setSrc(myMacAddr);
-    holdMe->setSrcPANid(mpib.getMacPANId());
     holdMe->setFcf(assoResp->getFcf());
+    holdMe->setDest(assoResp->getDest());
+    holdMe->setDestPANid(assoResp->getDestPANid());
+    holdMe->setSrc(assoResp->getSrc());
+    holdMe->setSrcPANid(assoResp->getSrcPANid());
     holdMe->setSqnr(assoResp->getSqnr());
     holdMe->setByteLength(calcFrameByteLength(assoResp));
 
@@ -2758,99 +2770,108 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
 void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
 {
     DisAssoCmd* disCmd = new DisAssoCmd("MLME-disassociate-command");
+
+    // set FCF according to Spec. 802.15.4-2006 - Sec. 7.3.3.1 MHR fields
     if (disAss->getDeviceAddrMode() == addrShort)
     {
-        disCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
-
-        unsigned char sqnr = mpib.getMacDSN();
-        disCmd->setSqnr(sqnr);
-        (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
-        mpib.setMacDSN(sqnr);
-        disCmd->setDestPANid(disAss->getDevicePANId());
-        disCmd->setDest(disAss->getDeviceAddress());
-        disCmd->setSrcPANid(mpib.getMacPANId());
-        disCmd->setSrc(myMacAddr);
-
-        if (mpib.getMacSecurityEnabled())
-        {
-            Ash ash;
-            ash.secu.KeyIdMode = disAss->getKeyIdMode();
-            ash.secu.Seculevel = disAss->getSecurityLevel();
-            ash.FrameCount = 1;
-            ash.KeyIdentifier.KeyIndex = disAss->getKeyIndex();
-            ash.KeyIdentifier.KeySource = disAss->getKeySource();
-            disCmd->setAsh(ash);
-        }
-
-        disCmd->setCmdType(Ieee802154_DISASSOCIATION_NOTIFICATION);
-        disCmd->setDisassociateReason(disAss->getDisassociateReason());
-        mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
-        holdMe->encapsulate(disCmd);
-        holdMe->setDest(disCmd->getDest());
-        holdMe->setSrc(disCmd->getSrc());
-        holdMe->setSrcPANid(disCmd->getSrcPANid());
-        holdMe->setFcf(disCmd->getFcf());
-        holdMe->setSqnr(disCmd->getSqnr());
-        holdMe->setByteLength(calcFrameByteLength(disCmd));
-
-        // XXX further refactoring necessary
-        // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
-        //if ((txData != NULL) || (txGTS != NULL) || (txAck != NULL))
-        if ((txData != NULL) || (txGTS != NULL))
-        {
-            macEV << "Processing other data right now -> disasscoiate request will be transmitted later -> inserted into txBuffer \n";
-            txBuffer.insert(holdMe);
-        }
-        else
-        {
-            Ieee802154MacTaskType task = TP_MLME_DISASSOCIATE_REQUEST;
-            taskP.taskStatus(task) = true;
-
-            switch (dataTransMode)
-            {
-                case DIRECT_TRANS:
-                case INDIRECT_TRANS: {
-                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                    taskP.taskStep(task)++; // advance to next task step
-                    strcpy(taskP.taskFrFunc(task), "csmacaDisAssociation");
-                    ASSERT(txData == NULL);
-                    txData = holdMe;
-                    csmacaEntry('d');
-                    break;
-                }  // cases DIRECT_TRANS & INDIRECT_TRANS
-
-                case GTS_TRANS: {
-                    taskP.mcps_data_request_TxOption = GTS_TRANS;
-                    taskP.taskStep(task)++; // advance to next task step
-                    // waiting for GTS arriving, callback from handleGtsTimer()
-                    strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                    ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
-                    txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
-                    numGTSRetry = 0;
-
-                    // If I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
-                    // If I'm the device, should try to transmit if now is in my GTS
-                    // refer to 802.15.4-2006 Spec. Section 7.5.7.3
-                    if (index_gtsTimer == 99)
-                    {
-                        ASSERT(gtsTimer->isScheduled());
-                        // first check if the requested transaction can be completed before the end of current GTS
-                        if (gtsCanProceed())
-                        {
-                            // directly hand over to FSM, which will go to next step, state parameters are ignored
-                            FSM_MCPS_DATA_request();
-                        }
-                    }
-                    break;
-                }  // case GTS_TRANS
-
-                default: {
-                    error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
-                    return;
-                }  // default case
-            }  // switch (dataTransMode)
-        } // if-else (txData != NULL || txGTS != NULL)
+        disCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrShort, 0, addrLong));
     }
+    else if (disAss->getDeviceAddrMode() == addrLong)
+    {
+        disCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 0, addrLong));
+    }
+
+    unsigned char sqnr = mpib.getMacDSN();
+    disCmd->setSqnr(sqnr);
+    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+    mpib.setMacDSN(sqnr);
+
+    disCmd->setDest(disAss->getDeviceAddress());
+    disCmd->setDestPANid(disAss->getDevicePANId());
+
+    disCmd->setSrc(myMacAddr);
+    //disCmd->setSrcPANid(mpib.getMacPANId());    // shall be omitted according to 802.15.4-2006 Sec. 7.3.3.1
+
+    if (mpib.getMacSecurityEnabled())
+    {
+        Ash ash;
+        ash.secu.KeyIdMode = disAss->getKeyIdMode();
+        ash.secu.Seculevel = disAss->getSecurityLevel();
+        ash.FrameCount = 1;
+        ash.KeyIdentifier.KeyIndex = disAss->getKeyIndex();
+        ash.KeyIdentifier.KeySource = disAss->getKeySource();
+        disCmd->setAsh(ash);
+    }
+
+    disCmd->setCmdType(Ieee802154_DISASSOCIATION_NOTIFICATION);
+    disCmd->setDisassociateReason(disAss->getDisassociateReason());
+    mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
+    holdMe->encapsulate(disCmd);
+    holdMe->setDest(disCmd->getDest());
+    holdMe->setDestPANid(disCmd->getDestPANid());
+    holdMe->setSrc(disCmd->getSrc());
+    //holdMe->setSrcPANid(disCmd->getSrcPANid());   // shall be omitted according to 802.15.4-2006 Sec. 7.3.3.1
+    holdMe->setFcf(disCmd->getFcf());
+    holdMe->setSqnr(disCmd->getSqnr());
+    holdMe->setByteLength(calcFrameByteLength(disCmd));
+
+    // XXX further refactoring necessary
+    // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
+    //if ((txData != NULL) || (txGTS != NULL) || (txAck != NULL))
+    if ((txData != NULL) || (txGTS != NULL))
+    {
+        macEV << "Processing other data right now -> disasscoiate request will be transmitted later -> inserted into txBuffer \n";
+        txBuffer.insert(holdMe);
+    }
+    else
+    {
+        Ieee802154MacTaskType task = TP_MLME_DISASSOCIATE_REQUEST;
+        taskP.taskStatus(task) = true;
+
+        switch (dataTransMode)
+        {
+            case DIRECT_TRANS:
+            case INDIRECT_TRANS: {
+                taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+                taskP.taskStep(task)++; // advance to next task step
+                strcpy(taskP.taskFrFunc(task), "csmacaDisAssociation");
+                ASSERT(txData == NULL);
+                txData = holdMe;
+                csmacaEntry('d');
+                break;
+            }  // cases DIRECT_TRANS & INDIRECT_TRANS
+
+            case GTS_TRANS: {
+                taskP.mcps_data_request_TxOption = GTS_TRANS;
+                taskP.taskStep(task)++; // advance to next task step
+                // waiting for GTS arriving, callback from handleGtsTimer()
+                strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
+                ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
+                txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
+                numGTSRetry = 0;
+
+                // If I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
+                // If I'm the device, should try to transmit if now is in my GTS
+                // refer to 802.15.4-2006 Spec. Section 7.5.7.3
+                if (index_gtsTimer == 99)
+                {
+                    ASSERT(gtsTimer->isScheduled());
+                    // first check if the requested transaction can be completed before the end of current GTS
+                    if (gtsCanProceed())
+                    {
+                        // directly hand over to FSM, which will go to next step, state parameters are ignored
+                        FSM_MCPS_DATA_request();
+                    }
+                }
+                break;
+            }  // case GTS_TRANS
+
+            default: {
+                error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                return;
+            }  // default case
+        }  // switch (dataTransMode)
+    } // if-else (txData != NULL || txGTS != NULL)
     return;
 }
 
@@ -2906,7 +2927,7 @@ unsigned short IEEE802154Mac::calcFCS(mpdu* pdu, cMessage *payload, bool calcFla
         ptr--;
         x--;
     }
-    crc &= 0xffff;
+    crc &= BROADCAST_SHORT_ADDRESS;
     macEV << "\n Calculated CRC=" << crc << endl;
 
     return crc;
@@ -2987,23 +3008,25 @@ void IEEE802154Mac::genStartConf(MACenum status)
 
 void IEEE802154Mac::genOrphanInd()
 {
-    // we ignore Notification and send Indication instead
+    // TODO requires restructuring to represent 802.15.4-2006 - Sec. 7.3.6 Orphan notification command
+
+    // we currently ignore the Notification and send an Indication instead
     Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
     OrphanIndication* orphInd = new OrphanIndication("MLME-ORPHAN.indication");
     orphInd->setOrphanAddress(myMacAddr);
 
     mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
     holdMe->encapsulate(orphInd);
+    holdMe->setFcf(genFCF(Command, false, false, false, true, addrShort, 0, addrLong));
     holdMe->setDest(mpib.getMacCoordExtendedAddress());
+    holdMe->setDestPANid(BROADCAST_SHORT_ADDRESS);
     holdMe->setSrc(myMacAddr);
-    holdMe->setSrcPANid(mpib.getMacPANId());
-    holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+    //holdMe->setSrcPANid(mpib.getMacPANId());  // shall be omitted
     holdMe->setIsGTS(false);
     unsigned char sqnr = mpib.getMacDSN();
     holdMe->setSqnr(sqnr);
     (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
     mpib.setMacDSN(sqnr);
-
 
     taskP.taskStep(task)++; // advance to next task step
     strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
@@ -3119,9 +3142,9 @@ void IEEE802154Mac::doScan()
                 //beaconReq->setSrc(myMacAddr); // source addressing mode = no source address is present
                 //beaconReq->setDest(MACAddressExt::BROADCAST_ADDRESS); // destination addressing mode = short address
                 MACAddressExt dest = MACAddressExt::UNSPECIFIED_ADDRESS;
-                dest.setShortAddr(0xffff);
+                dest.setShortAddr(BROADCAST_SHORT_ADDRESS);
                 beaconReq->setDest(dest);
-                beaconReq->setDestPANid(0xffff);
+                beaconReq->setDestPANid(BROADCAST_SHORT_ADDRESS);
 
                 // send this direct to the coordinator
                 txBcnCmd = beaconReq;
@@ -4590,7 +4613,7 @@ void IEEE802154Mac::handleBcnTxTimer()
             (bseqn < 255) ? bseqn++ : bseqn = 0;    //  check if beacon sequence number needs to roll over
             mpib.setMacBSN(bseqn);
             tmpBcn->setSrc(myMacAddr);
-            tmpBcn->setDestPANid(0xffff);  // ignored upon reception
+            tmpBcn->setDestPANid(BROADCAST_SHORT_ADDRESS);  // ignored upon reception
             tmpBcn->setDest(MACAddressExt::BROADCAST_LONG_ADDRESS);  // ignored upon reception
             tmpBcn->setSrcPANid(mpib.getMacPANId());
 

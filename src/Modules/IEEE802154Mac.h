@@ -39,16 +39,16 @@
 #include "PhyControlInfo_m.h"       // from INET - provides PhyIndication enums
 #include "NotificationBoard.h"      // from INET - provides NotificationBoard access
 
-#define macEV (ev.isDisabled()||!macDebug) ? EV : EV << "[802154_MAC]: "    // switchable debug output
+#define macEV (ev.isDisabled()||!macDebug) ? EV : EV << "[802154_MAC]: " // switchable debug output
 
 // MAC Commands with fixed size (currently according to 802.15.4-2003 Specs)
-#define SIZE_OF_802154_ASSOCIATION_RESPONSE             29  // Fig 50: MHR (23) + Payload (4) + FCS (2)
-#define SIZE_OF_802154_DISASSOCIATION_NOTIFICATION      21  // Fig 51: MHR (17) + Payload (2) + FCS (2)
-#define SIZE_OF_802154_PANID_CONFLICT_NOTIFICATION      26  // Fig 53: MHR (23) + Payload (1) + FCS (2)
-#define SIZE_OF_802154_ORPHAN_NOTIFICATION              20  // Fig 54: MHR (17) + Payload (1) + FCS (2)
-#define SIZE_OF_802154_BEACON_REQUEST                   10  // Fig 55: MHR (7)  + Payload (1) + FCS (2)
-#define SIZE_OF_802154_GTS_REQUEST                      11  // Fig 57: MHR (7)  + Payload (2) + FCS (2)
-#define SIZE_OF_802154_ACK                              5   // Fig 46: MHR (3)  + FCS (2)
+const unsigned int SIZE_OF_802154_ASSOCIATION_RESPONSE        { 29U }; // Fig 50: MHR (23) + Payload (4) + FCS (2)
+const unsigned int SIZE_OF_802154_DISASSOCIATION_NOTIFICATION { 21U }; // Fig 51: MHR (17) + Payload (2) + FCS (2)
+const unsigned int SIZE_OF_802154_PANID_CONFLICT_NOTIFICATION { 26U }; // Fig 53: MHR (23) + Payload (1) + FCS (2)
+const unsigned int SIZE_OF_802154_ORPHAN_NOTIFICATION         { 20U }; // Fig 54: MHR (17) + Payload (1) + FCS (2)
+const unsigned int SIZE_OF_802154_BEACON_REQUEST              { 10U }; // Fig 55: MHR (7)  + Payload (1) + FCS (2)
+const unsigned int SIZE_OF_802154_GTS_REQUEST                 { 11U }; // Fig 57: MHR (7)  + Payload (2) + FCS (2)
+const unsigned int SIZE_OF_802154_ACK                         {  5U }; // Fig 46: MHR (3)  + FCS (2)
 
 struct taskPending
 {
@@ -353,7 +353,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
 
         // 64-bit Extended MAC-Address with 16-bit Short Address (via .getShortAddr())
         MACAddressExt myMacAddr;
-        // PAN identifier
+        // PAN identifier (myPANiD)
         unsigned short myPANiD;
 
         std::string panCoorName;

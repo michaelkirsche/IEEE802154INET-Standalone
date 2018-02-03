@@ -139,7 +139,7 @@ MACAddressExt llc::tokenDest(cMessage* msg)
     }
 
     // Use the internal representation of the IPv6 address to create the 64-bit EUI MAC address
-    // create 8 groups with each 16 bit's (a.k.a. 8 tupels)
+    // create 8 groups with each 16 bit's (a.k.a. 8 tuples)
     uint16_t groups[8] = { uint16_t(*&destAddr.words()[0] >> 16), uint16_t(*&destAddr.words()[0] & 0xffff), uint16_t(*&destAddr.words()[1] >> 16), uint16_t(*&destAddr.words()[1]
             & 0xffff), uint16_t(*&destAddr.words()[2] >> 16), uint16_t(*&destAddr.words()[2] & 0xffff), uint16_t(*&destAddr.words()[3] >> 16), uint16_t(*&destAddr.words()[3]
             & 0xffff) };
@@ -212,7 +212,7 @@ void llc::genOrphanResp(OrphanIndication* oi)
 {
     OrphanResponse* oR = new OrphanResponse("MLME-ORPHAN.response");
     oR->setOrphanAddress(oi->getOrphanAddress());
-    oR->setShortAddress(0xffff);
+    oR->setShortAddress(BROADCAST_SHORT_ADDRESS);
     oR->setAssociatedMember(false);
 
     send(oR, "outMngt");

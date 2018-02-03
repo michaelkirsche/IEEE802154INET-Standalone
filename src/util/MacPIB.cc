@@ -38,7 +38,7 @@ MacPIB::MacPIB()
     macMinBE = 3;
     macMinLIFSPeriod = 40;
     macMinSIFSPeriod = 12;
-    macPANId = 0xFFFF;
+    macPANId = 0xffff;
     macPromiscuousMode = false;
     macResponseWaitTime = 32;
     macRxOnWhenIdle = false;

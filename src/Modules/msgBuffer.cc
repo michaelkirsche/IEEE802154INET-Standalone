@@ -30,7 +30,7 @@ void msgBuffer::initialize()
     if (ev.isGUI())
     {
         char buf[60];
-        sprintf(buf, "Size: %d pks | Holding : %u pks | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
+        sprintf(buf, "Size: %d pkts | Holding : %u pkts | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
         getDisplayString().setTagArg("t", 0, buf);
     }
 }
@@ -101,7 +101,7 @@ void msgBuffer::handleMessage(cMessage* msg)
                 {
                     send(msg, "outMCPS");
                 }
-                else if (msg->arrivedOn("inLLC"))  // arrived on upperLayerInMngt -> forward to IEEE802154Mac.MLME_SAP
+                else if (msg->arrivedOn("inLLC"))   // arrived on upperLayerInMngt -> forward to IEEE802154Mac.MLME_SAP
                 {
                     send(msg, "outMLME");
                 }
@@ -144,7 +144,7 @@ void msgBuffer::handleMessage(cMessage* msg)
                         }
                     }
                 }
-                delete (msg);    // solving undisposed object error for Buffer-get-Elem
+                delete (msg);   // solving undisposed object error for Buffer-get-Elem
             }
             else
             {

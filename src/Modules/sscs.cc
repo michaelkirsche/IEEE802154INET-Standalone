@@ -21,7 +21,7 @@ Define_Module (sscs);
 
 void sscs::initialize()
 {
-    // initialize the debug ouput bool from NED parameter value
+    // initialize the debug output bool from NED parameter value
     sscsDebug = (hasPar("sscsDebug") ? (par("sscsDebug").boolValue()) : (false));
 }
 

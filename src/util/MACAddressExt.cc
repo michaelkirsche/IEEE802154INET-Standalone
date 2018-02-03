@@ -69,9 +69,9 @@ bool MACAddressExt::tryParseLongAddr(const char *hexstr)
     // if hex string is shorter, address is filled with zeros;
     // Non-hex characters are discarded before conversion.
     longAddr = 0; // clear top 16 bits too that setLongAddressByte() calls skip
-    int k = 0;
+    unsigned int k = 0U;
     const char *s = hexstr;
-    for (int pos = 0; pos < MAC_LONG_ADDRESS_SIZE; pos++)
+    for (unsigned int pos = 0U; pos < MAC_LONG_ADDRESS_SIZE; pos++)
     {
         if (!s || !*s)
         {
@@ -121,7 +121,7 @@ void MACAddressExt::setLongAddress(const char *hexstr)
 
 void MACAddressExt::getLongAddressBytes(unsigned char *addrbytes) const
 {
-    for (int i = 0; i < MAC_LONG_ADDRESS_SIZE; i++)
+    for (unsigned int i = 0U; i < MAC_LONG_ADDRESS_SIZE; i++)
     {
         addrbytes[i] = getLongAddressByte(i);
     }
@@ -130,7 +130,7 @@ void MACAddressExt::getLongAddressBytes(unsigned char *addrbytes) const
 void MACAddressExt::setLongAddressBytes(unsigned char *addrbytes)
 {
     longAddr = 0; // clear top 16 bits too that setLongAddressByte() calls skip
-    for (int i = 0; i < MAC_LONG_ADDRESS_SIZE; i++)
+    for (unsigned int i = 0U; i < MAC_LONG_ADDRESS_SIZE; i++)
     {
         setLongAddressByte(i, addrbytes[i]);
     }
@@ -141,7 +141,7 @@ std::string MACAddressExt::str() const
 {
     char buf[24];
     char *s = buf;
-    for (int i = 0; i < MAC_LONG_ADDRESS_SIZE; i++, s += 3)
+    for (unsigned int i = 0U; i < MAC_LONG_ADDRESS_SIZE; i++, s += 3)
     {
         sprintf(s, "%2.2X:", getLongAddressByte(i));
     }

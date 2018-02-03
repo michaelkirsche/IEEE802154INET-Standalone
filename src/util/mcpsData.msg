@@ -25,19 +25,20 @@ cplusplus {{
 
 enum MCPSStatus;
 class noncobject MACAddressExt;
-enum AddrMode;
+enum AddrModeEnum;
 enum purgeStatus;
+enum Ieee802154TxOption;
 
 // This is the format that the SSCS layer should send to our MAC Entity
 packet mcpsDataReq {                   // Range of each field
-    unsigned char SrcAddrMode@enum(AddrMode); // 0x00–0x03
-	unsigned char DstAddrMode@enum(AddrMode); // 0x00–0x03
+    unsigned char SrcAddrMode@enum(AddrModeEnum); // 0x00–0x03
+	unsigned char DstAddrMode@enum(AddrModeEnum); // 0x00–0x03
 	unsigned short DstPANId;           // 0x0000–0xffff
 	MACAddressExt DstAddr;			
 	unsigned char msduLength;          // <= aMaxMACPayloadSize
 	//msdu, Payload just encapsulated
 	unsigned char msduHandle;          // 0x00–0xff 
-	unsigned char TxOptions;           // actuallay a 3-Bit field 000 - 111
+	unsigned char TxOptions@enum(Ieee802154TxOption);  // actuallay a 3-Bit field 000 - 111
 	unsigned char SecurityLevel;	   // 0x00–0x07
 	unsigned char KeyIdMode;           // 0x00–0x03
 	unsigned long KeySource;           // depending on KeyidMode max set of uint8_t[8]			

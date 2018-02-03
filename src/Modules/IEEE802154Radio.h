@@ -202,7 +202,7 @@ class IEEE802154Radio : public ChannelAccess
         //@}
 
         /**
-         * Struct to store a pointer to the message, rcvdPower AND a SnrList, needed in addNewSnr().
+         * Structure to store a pointer to the message, rcvdPower AND a SnrList, needed in addNewSnr().
          */
         struct SnrStruct
         {

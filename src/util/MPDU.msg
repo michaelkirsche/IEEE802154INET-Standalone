@@ -31,7 +31,7 @@ class noncobject Ash;
 class noncobject PAN_ELE;
 
 enum Ieee802154MacCmdType;
-enum AddrMode;
+enum AddrModeEnum;
 enum MlmeAssociationStatus;
 enum DisAssociateReason;
 enum MACenum;
@@ -115,7 +115,7 @@ packet AckFrame
 
 packet DisAssociation
 {
-    unsigned char DeviceAddrMode @enum(AddrMode);   // refer to IEEE802154Enum.h
+    unsigned char DeviceAddrMode @enum(AddrModeEnum);   // refer to IEEE802154Enum.h
     unsigned short DevicePANId;
     MACAddressExt DeviceAddress;
     unsigned char DisassociateReason @enum(DisAssociateReason); // refer to IEEE802154Enum.h
@@ -141,7 +141,7 @@ packet AssociationRequest extends Association
 {
     unsigned int LogicalChannel;            // logical channel on which to start using new superframe configuration
     unsigned char ChannelPage;              // 0 - 31, channel page on which to start using new superframe configuration
-    unsigned char CoordAddrMode @enum(AddrMode);
+    unsigned char CoordAddrMode @enum(AddrModeEnum);
     unsigned short CoordPANId;              // 0x0000–0xfffe, PAN identifier of the coordinator to which we want to associate
     MACAddressExt CoordAddress;        
 }
@@ -284,7 +284,7 @@ message SyncIndication
 
 message PollRequest
 {
-    unsigned char CoordAddrMode @enum(AddrMode);    // addressing mode of the coordinator, 16-bit short or 64-bit extended address
+    unsigned char CoordAddrMode @enum(AddrModeEnum);    // addressing mode of the coordinator, 16-bit short or 64-bit extended address
     unsigned short CoordPANId;              // 0x0000–0xfffe, PAN identifier of the coordinator which is polled
     MACAddressExt CoordAddress;             // address, type as specified by CoordAddrMode
     unsigned char SecurityLevel;            // 0x00–0x07, compare Table 95 in Spec. 802.15.4-2006           
