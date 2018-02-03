@@ -523,7 +523,7 @@ llc::llc()
     TXoption = 0;
     firstDevice = true;
     associateSuccess = false;
-    //msgHandle = intrand(255); // XXX possible RNG collission when setting up bigger networks (only 8 bit - 255 values to select from)
+    //msgHandle = intrand(255); // XXX possible RNG collision when setting up bigger networks (only 8 bit - 255 values to select from)
                                 // we use the node index for the moment (see llc:initialize())
     associateSuccess = false;
     associateStarted = false;

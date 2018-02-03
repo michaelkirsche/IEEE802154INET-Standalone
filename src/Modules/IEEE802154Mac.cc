@@ -274,6 +274,9 @@ void IEEE802154Mac::initialize(int stage)
         numRxGTSPkt = 0;
         numRxAckPkt = 0;
         numTxAckInactive = 0;
+        numRxCmdPktDropped = 0;
+        numRxDataPktDropped = 0;
+        numRxPktFiltered = 0;
     }
     else if (stage == 1)
     {
@@ -300,6 +303,9 @@ void IEEE802154Mac::initialize(int stage)
         WATCH(numRxGTSPkt);
         WATCH(numRxAckPkt);
         WATCH(numTxAckInactive);
+        WATCH(numRxCmdPktDropped);
+        WATCH(numRxDataPktDropped);
+        WATCH(numRxPktFiltered);
         WATCH(isCoordinator);
         WATCH(associated);
         WATCH(scanning);
@@ -1232,109 +1238,55 @@ void IEEE802154Mac::handleLowerPLMEMsg(cMessage* msg)
 // handle messages received from PHY via PD-SAP
 void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
 {
-    if (dynamic_cast<CmdFrame*>(msg))
-    {
-        CmdFrame* bcnReq = check_and_cast<CmdFrame*>(msg);
-        if (bcnReq->getCmdType() == Ieee802154_BEACON_REQUEST)  // it is a beacon request command
-        {
-            if (isCoordinator)
-            {
-                macEV << "Coordinator is answering with a Beacon frame for this Device \n";
-
-                //--- construct a beacon ---
-                beaconFrame* tmpBcn = new beaconFrame("Ieee802154BEACONReply");
-                tmpBcn->setName("Ieee802154BEACONReply");
-
-                unsigned char bseqn = mpib.getMacBSN();
-                tmpBcn->setSqnr(bseqn);
-                (bseqn < 255) ? bseqn++ : bseqn = 0;    //  check if beacon sequence number needs to roll over
-                mpib.setMacBSN(bseqn);
-
-                tmpBcn->setSrc(myMacAddr);
-                tmpBcn->setDestPANid(0xffff);  // ignored upon reception
-                tmpBcn->setDest(bcnReq->getSrc());  // ignored upon reception
-                tmpBcn->setSrcPANid(mpib.getMacPANId());
-                tmpBcn->setByteLength(calcFrameByteLength(tmpBcn));
-
-                // construct Superframe specification
-                txSfSpec.BO = mpib.getMacBeaconOrder();
-                txSfSpec.BI = aBaseSuperframeDuration * (1 << mpib.getMacBeaconOrder());
-                txSfSpec.SO = mpib.getMacSuperframeOrder();
-                txSfSpec.SD = aBaseSuperframeDuration * (1 << mpib.getMacSuperframeOrder());
-                txSfSpec.battLifeExt = mpib.getMacBattLifeExt();
-                txSfSpec.panCoor = isCoordinator;
-                txSfSpec.assoPmt = mpib.getMacAssociationPermit();
-
-                // this parameter may vary each time when new GTS slots were allocated in last superframe
-                txSfSpec.finalCap = tmp_finalCap;
-                tmpBcn->setSfSpec(txSfSpec);
-                if (txBcnCmd != NULL)
-                {   // will be released in PD_DATA_confirm
-                    macEV << "Coordinator is already trying to answer on BEACON.request - inserting this BEACON into txBuffer \n";
-                    txBuffer.insert(tmpBcn);
-                }
-                else
-                {
-                    // Beacon is send direct as a usual data packet
-                    Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
-                    taskP.taskStatus(task) = true;
-                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                    taskP.taskStep(task)++; // advance to next task step
-                    strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                    ASSERT(txBcnCmd == NULL);
-                    txBcnCmd = tmpBcn;
-                    csmacaEntry('c');
-                }
-                delete (msg); // XXX fix for undisposed objects
-                return;
-            } // if (coordinator)
-            else
-            {
-                macEV << "Not a Coordinator - dropping Msg \n";
-                delete (msg); // XXX fix for undisposed objects
-                return;
-            } // ifnot (coordinator)
-        } // if (cmdType == Ieee802154_BEACON_REQUEST)
-    } // if (dynamic_cast<CmdFrame*>)
-    else if (dynamic_cast<AckFrame*>(msg))
-    {
-        handleAck(msg);
-        delete (msg); // XXX fix for undisposed objects
-        return;
-    } // if (dynamic_cast<AckFrame*>)
-    else if (mappedMsgTypes[msg->getName()] == CONF)
+    // check if lower PD message is a PHY PD-DATA.confirm (reply to a previous PD-DATA.request)
+    if (mappedMsgTypes[msg->getName()] == CONF)
     {
         handle_PD_DATA_confirm((phyState) msg->getKind());
-        delete (msg); // XXX fix for undisposed objects (PD-DATA.confirm)
+        delete (msg);
         return;
-    } // if (PD_DATA_confirm)
-    else if (dynamic_cast<OrphanIndication*>(msg))
+    }
+
+    if (dynamic_cast<OrphanIndication*>(msg))
     {
-        if (isCoordinator)
-        {
-            send(msg, "outMLME");
-        }
-        else
-        {
-            macEV << "Dropping Orphan notify since we are NOT a Coordinator \n";
-            delete (msg);
-            return;
-        }
+        error("[802154MAC] TestCase: orphan indication should not pass from lower layer to MAC at all !");
+        // TODO restructure: incoming orphan notification should lead to creation of MLME-ORPHAN.indication and pass to higher layer
+//        if (isCoordinator)
+//        {
+//            send(msg, "outMLME");
+//        }
+//        else
+//        {
+//            macEV << "Dropping Orphan notify since we are NOT a Coordinator \n";
+//            delete (msg);
+//            return;
+//        }
     } // if (dynamic_cast<OrphanIndication*>)
     else if (dynamic_cast<OrphanResponse*>(msg))
     {
-        if (isCoordinator)
-        {
-            macEV << "Dropping Orphan response since we are a Coordinator \n";
-            delete (msg);
-            return;
-        }
-        else
-        {
-            send(msg, "outMLME");
-        }
+        error("[802154MAC] TestCase: orphan response should not pass from lower layer to MAC at all !");
+        // TODO restructure: orphan response should arrive from higher layer as a response to a MLME-ORPHAN.indication and lead to the creation of
+        // a Coordinator realignment msg which is then passed to the PHY and send to the other device which that initially sent the orphan indication
+//        if (isCoordinator)
+//        {
+//            macEV << "Dropping Orphan response since we are a Coordinator \n";
+//            delete (msg);
+//            return;
+//        }
+//        else
+//        {
+//            send(msg, "outMLME");
+//        }
     } // if (dynamic_cast<OrphanResponse*>)
 
+    // check if incoming msg is an ACK (which is not an MPDU and thus impossible to check_and_cast like other MPDU-based msg types)
+    if (dynamic_cast<AckFrame*>(msg))
+    {
+        handleAck(msg);
+        delete (msg); // fix for undisposed objects
+        return;
+    }
+
+    // check_and_cast incoming msg to mpdu for further use and perform sanity check (member of a known subclass)
     mpdu* frame = check_and_cast<mpdu *>(msg);
     if (!frame)
     {
@@ -1347,11 +1299,12 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
     if (filter(frame))
     {
         macEV << "The received MAC frame is filtered --> frame dropped \n";
+        numRxPktFiltered++;
         delete (frame);
         return;
     }
 
-    // determine the frame type (e.g., Data, Beacon, ACK, Command)
+    // determine the frame type (e.g., DATA, BEACON, ACK, COMMAND)
     unsigned short frameCtrl = frame->getFcf();
     frameTypeEnum frameType;
     frameType = (frameTypeEnum) ((frameCtrl & ftMask) >> ftShift);
@@ -1377,7 +1330,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
         }
     }
 
-    // send an acknowledgment if needed (no matter if this is a duplicated packet or not)
+    // for DATA || COMMAND frames -> check if acknowledgment is required (no matter if this is a duplicated packet or not)
     if ((frameType == Data) || (frameType == Command))
     {
         (frameType == Data) ? macEV << "Checking if received DATA frame requires ACK \n" : macEV << "Checking if received COMMAND frame requires ACK \n";
@@ -1432,34 +1385,6 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
     {
         macEV << "BEACON received, no ACK necessary \n";
     }
-    else
-    {
-        error("[802154MAC]: ACK should have already been handled by now!");
-    }
-
-    // drop new received command packet if MAC is currently processing a command packet
-    if (frameType == Command)
-    {
-        if ((rxCmd) || (txBcnCmd))
-        {
-            macEV << "Received COMMAND frame is dropped, because MAC is currently processing a MAC COMMAND frame \n";
-            // TODO we should update the statistics counter
-            delete (frame);
-            return;
-        }
-    }
-
-    // drop new received data packet if MAC is current processing last received data packet
-    if (frameType == Data)
-    {
-        if (rxData)
-        {
-            macEV << "Received DATA frame is dropped, because MAC is currently processing the last received DATA frame \n";
-            // TODO we should update the statistics counter
-            delete (frame);
-            return;
-        }
-    }
 
     switch (frameType)
     {
@@ -1470,14 +1395,32 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
         }
 
         case Data: {
-            macEV << "Continue to process the received DATA packet \n";
-            handleData(frame);
+            // drop new received data packet if MAC is current processing last received data packet
+            if (rxData)
+            {
+                macEV << "Received DATA frame is dropped, because MAC is currently processing the last received DATA frame \n";
+                numRxDataPktDropped++;
+            }
+            else
+            {
+                macEV << "Continue to process the received DATA packet \n";
+                handleData(frame);
+            }
             break;
         }
 
         case Command: {
-            macEV << "Continue to process the eceived COMMAND packet \n";
-            handleCommand(frame);
+            // drop new received command packet if MAC is currently processing the last received command packet
+            if ((rxCmd) || (txBcnCmd))
+            {
+                macEV << "Received COMMAND frame is dropped, because MAC is currently processing a MAC COMMAND frame \n";
+                numRxCmdPktDropped++;
+            }
+            else
+            {
+                macEV << "Continue to process the received COMMAND packet \n";
+                handleCommand(frame);
+            }
             break;
         }
 
@@ -1486,7 +1429,7 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
             return;
         }
     }
-    delete (frame); // fix for undisposed object: (mpdu) net.IEEE802154Nodes[*].NIC.MAC.IEEE802154Mac.DATA.indication
+    delete (frame); // fix for undisposed object
 }
 
 void IEEE802154Mac::handleSelfMsg(cMessage* msg)
@@ -1572,7 +1515,6 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
     }
     else
     {
-        unsigned short frmCtrl = frame->getFcf();
         // update beacon parameters
         rxSfSpec = bcnFrame->getSfSpec();
         rxBO = rxSfSpec.BO;
@@ -1598,7 +1540,7 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         }
 
         // update PAN descriptor
-        rxPanDescriptor.CoordAddrMode = ((frmCtrl & samMask) >> samShift);
+        rxPanDescriptor.CoordAddrMode = ((frame->getFcf() & samMask) >> samShift);
         rxPanDescriptor.CoordPANId = (frame->getSrcPANid());
 
         // mpib.setMacPANId(frame->getSrcPANid());
@@ -1852,13 +1794,73 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
         }  // case Ieee802154_DATA_REQUEST
 
         case Ieee802154_PANID_CONFLICT_NOTIFICATION:
-        case Ieee802154_BEACON_REQUEST:
         case Ieee802154_COORDINATOR_REALIGNMENT: {
             rxCmd = cmdFrame;
             send(rxCmd, "outMLME");
             // TODO delete command message buffer after processing?!?
             break;
         }  // case
+
+        case Ieee802154_BEACON_REQUEST: {
+            if (isCoordinator)
+            {
+                macEV << "Coordinator is answering with a Beacon frame for this Device \n";
+
+                //--- construct a beacon reply ---
+                beaconFrame* tmpBcn = new beaconFrame("Ieee802154BEACONReply");
+                tmpBcn->setName("Ieee802154BEACONReply");
+
+                unsigned char bseqn = mpib.getMacBSN();
+                tmpBcn->setSqnr(bseqn);
+                (bseqn < 255) ? bseqn++ : bseqn = 0;    // check if beacon sequence number needs to roll over
+                mpib.setMacBSN(bseqn);
+
+                // TODO check correct setting of all MHR fields
+                tmpBcn->setSrc(myMacAddr);
+                tmpBcn->setDestPANid(0xffff);  // ignored upon reception
+                tmpBcn->setDest(cmdFrame->getSrc());  // ignored upon reception
+                tmpBcn->setSrcPANid(mpib.getMacPANId());
+                tmpBcn->setByteLength(calcFrameByteLength(tmpBcn));
+
+                // construct Superframe specification
+                txSfSpec.BO = mpib.getMacBeaconOrder();
+                txSfSpec.BI = aBaseSuperframeDuration * (1 << mpib.getMacBeaconOrder());
+                txSfSpec.SO = mpib.getMacSuperframeOrder();
+                txSfSpec.SD = aBaseSuperframeDuration * (1 << mpib.getMacSuperframeOrder());
+                txSfSpec.battLifeExt = mpib.getMacBattLifeExt();
+                txSfSpec.panCoor = isCoordinator;
+                txSfSpec.assoPmt = mpib.getMacAssociationPermit();
+
+                // this parameter may vary each time when new GTS slots were allocated in last superframe
+                txSfSpec.finalCap = tmp_finalCap;
+                tmpBcn->setSfSpec(txSfSpec);
+                if (txBcnCmd != NULL)
+                {   // will be released in PD_DATA_confirm
+                    macEV << "Coordinator is already trying to answer on BEACON.request - inserting this BEACON into txBuffer \n";
+                    txBuffer.insert(tmpBcn);
+                }
+                else
+                {
+                    // Beacon is send direct as a usual data packet
+                    Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+                    taskP.taskStatus(task) = true;
+                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+                    taskP.taskStep(task)++; // advance to next task step
+                    strcpy
+                    (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                    ASSERT(txBcnCmd == NULL);
+                    txBcnCmd = tmpBcn;
+                    csmacaEntry('c');
+                }
+                return;
+            } // if (coordinator)
+            else
+            {
+                macEV << "Not a Coordinator - dropping Msg \n";
+                delete (cmdFrame); // XXX fix for undisposed objects
+                return;
+            } // ifnot (coordinator)
+        }
 
         case Ieee802154_GTS_REQUEST: {
             if (isCoordinator)
@@ -2293,7 +2295,7 @@ bool IEEE802154Mac::filter(mpdu* pdu)
 {
     // Filtering Level 1: Check Frame Check Sequence (FCS)
     // discard all frames whose received FCS field does not match the calculated FCS value
-    // currently modeled via PHY layer flags for collissions and bit error
+    // currently modeled via PHY layer flags for collisions and bit error
 
     // check flag set by PHY layer (COLLISION or BITERROR)
     if (pdu->getKind() == COLLISION)
@@ -2345,7 +2347,6 @@ bool IEEE802154Mac::filter(mpdu* pdu)
         // If the frame type indicates that the frame is a beacon frame, the source PAN identifier shall match
         // macPANId unless macPANId is equal to the broadcast PAN identifier, in which case the beacon
         // frame shall be accepted regardless of the source PAN identifier.
-
         if (mpib.getMacPANId() == 0xffff)
         {
             // option 1: if our own macPANId matches the broadcast PAN ID (0xffff) => do not filter
@@ -5758,30 +5759,30 @@ void IEEE802154Mac::resetTRX()
 
 void IEEE802154Mac::finish()
 {
-    double currentTime = simTime().dbl();
-    if (currentTime == 0)
-    {
-        return;
-    }
-
+    simtime_t currentTime = simTime();
     recordScalar("Total simulation time", currentTime);
-    recordScalar("Total num of upper pkts received", numUpperPkt);
-    recordScalar("Num of upper pkts dropped", numUpperPktLost);
-    recordScalar("Num of BEACON pkts sent", numTxBcnPkt);
-    recordScalar("Num of DATA pkts sent successfully", numTxDataSucc);
-    recordScalar("Num of DATA pkts failed", numTxDataFail);
-    recordScalar("Num of DATA pkts sent successfully in GTS", numTxGTSSucc);
-    recordScalar("Num of DATA pkts failed in GTS", numTxGTSFail);
-    recordScalar("Num of ACK pkts sent", numTxAckPkt);
-    recordScalar("Num of BEACON pkts received", numRxBcnPkt);
-    recordScalar("Num of BEACON pkts lost", numLostBcn);
-    recordScalar("Num of DATA pkts received", numRxDataPkt);
-    recordScalar("Num of DATA pkts received in GTS", numRxGTSPkt);
-    recordScalar("Num of ACK pkts received", numRxAckPkt);
-    recordScalar("Num of collisions", numCollisions);
-    recordScalar("Num of bit errors", numBitErrors);
 
-    return;
+    if (currentTime > 0)
+    {
+        recordScalar("Total num of upper pkts received", numUpperPkt);
+        recordScalar("Num of upper pkts dropped", numUpperPktLost);
+        recordScalar("Num of BEACON pkts sent", numTxBcnPkt);
+        recordScalar("Num of DATA pkts sent successfully", numTxDataSucc);
+        recordScalar("Num of DATA pkts failed", numTxDataFail);
+        recordScalar("Num of DATA pkts sent successfully in GTS", numTxGTSSucc);
+        recordScalar("Num of DATA pkts failed in GTS", numTxGTSFail);
+        recordScalar("Num of ACK pkts sent", numTxAckPkt);
+        recordScalar("Num of BEACON pkts received", numRxBcnPkt);
+        recordScalar("Num of BEACON pkts lost", numLostBcn);
+        recordScalar("Num of DATA pkts received", numRxDataPkt);
+        recordScalar("Num of DATA pkts received in GTS", numRxGTSPkt);
+        recordScalar("Num of ACK pkts received", numRxAckPkt);
+        recordScalar("Num of COMMAND pkts dropped due to concurrent proccessing", numRxCmdPktDropped);
+        recordScalar("Num of DATA pkts dropped due to concurrent proccessing", numRxDataPktDropped);
+        recordScalar("Num of pkts filtered in MAC", numRxPktFiltered);
+        recordScalar("Num of collisions", numCollisions);
+        recordScalar("Num of bit errors", numBitErrors);
+    }
 }
 
 IEEE802154Mac::IEEE802154Mac()

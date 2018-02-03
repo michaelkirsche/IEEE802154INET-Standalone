@@ -673,11 +673,20 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // count only ACKs received before timeout, for both Command and Data in <handleAck()>
         unsigned long numRxAckPkt;
 
-        // number of Collisions detected during frame reception and reported back from PHY to MAC
+        // number of collisions detected during frame reception and reported back from PHY to MAC
         unsigned long numCollisions;
 
-        // num of BitErrors detected during frame reception and reported back from PHY to MAC
+        // number of BitErrors detected during frame reception and reported back from PHY to MAC
         unsigned long numBitErrors;
+
+        // number of command frames received and then dropped in MAC due to concurrent processing of another command frame
+        unsigned long numRxCmdPktDropped;
+
+        // number of data frames received and then dropped in MAC due to concurrent processing of another data frame
+        unsigned long numRxDataPktDropped;
+
+        // number of filtered frames, counted in <filter()>
+        unsigned long numRxPktFiltered;
 
         // outgoing PAN descriptor transmitted used by coordinators (TBD)
         PAN_ELE txPanDescriptor;
