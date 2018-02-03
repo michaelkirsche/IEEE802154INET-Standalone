@@ -258,8 +258,10 @@ void IEEE802154Mac::initialize(int stage)
          */
 
         // packet and statistics counter
-        numUpperPkt = 0;
-        numUpperPktLost = 0;
+        numUpperDataPkt = 0;
+        numUpperDataPktDropped = 0;
+        numUpperMgmtPkt = 0;
+        numUpperMgmtPktDropped = 0;
         numCollisions = 0;
         numBitErrors = 0;
         numLostBcn = 0;
@@ -285,8 +287,10 @@ void IEEE802154Mac::initialize(int stage)
         WATCH(bPeriod);
         WATCH(inTxSD_txSDTimer);
         WATCH(inRxSD_rxSDTimer);
-        WATCH(numUpperPkt);
-        WATCH(numUpperPktLost);
+        WATCH(numUpperDataPkt);
+        WATCH(numUpperDataPktDropped);
+        WATCH(numUpperMgmtPkt);
+        WATCH(numUpperMgmtPktDropped);
         WATCH(numCollisions);
         WATCH(numBitErrors);
         WATCH(numLostBcn);
@@ -440,19 +444,13 @@ void IEEE802154Mac::handleMessage(cMessage *msg)
     {
         handleSelfMsg(msg);
     }
-    // XXX further refactoring of handleUpperMsg
-//    else if (msg->arrivedOn("MCPS_SAP"))
-//    {
-//        handleUpperMCPSMsg(msg);
-//    }
-//    else if (msg->arrivedOn("MLME_SAP"))
-//    {
-//        handleUpperMLMEMsg(msg);
-//    }
-    // XXX remove after refactoring and testing is complete
-    else if ((msg->arrivedOn("MCPS_SAP")) || (msg->arrivedOn("MLME_SAP")))
+    else if (msg->arrivedOn("MCPS_SAP"))
     {
-        handleUpperMsg(msg);
+        handleUpperMCPSMsg(msg);
+    }
+    else if (msg->arrivedOn("MLME_SAP"))
+    {
+        handleUpperMLMEMsg(msg);
     }
     else if (msg->arrivedOn("inPD"))
     {
@@ -465,728 +463,743 @@ void IEEE802154Mac::handleMessage(cMessage *msg)
     return;
 }
 
-// XXX to be removed after refactoring and final testing
-void IEEE802154Mac::handleUpperMsg(cMessage *msg)
+// handle messages received from UpperLayer via MLME-SAP
+void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
 {
-    // Data Msg
-    if (dynamic_cast<StartRequest*>(msg))
+    // Has to be a MLME request Message from higher layer
+    switch (mappedMlmeRequestTypes[msg->getName()])
     {
-        macEV << "StartRequest arrived \n";
-
-        StartRequest* startMsg = check_and_cast<StartRequest*>(msg);
-        isCoordinator = startMsg->getPANCoordinator();
-        // inform PHY to set the new channel
-        setRadioChannel(startMsg->getLogicalChannel());
-        mpib.setMacBeaconOrder(startMsg->getBeaconOrder());
-        mpib.setMacSuperframeOrder(startMsg->getSuperframeOrder());
-        mpib.setMacBattLifeExt(startMsg->getBatteryLifeExtension());
-        mpib.setMacPANId(startMsg->getPANId());  // use MAC extended address
-        mpib.setMacAssociationPermit(true);
-        if (isCoordinator)
-        {
-            par("isPANCoordinator").setBoolValue(isCoordinator);
-
-            myMacAddr.genShortAddr();
-
-            mpib.setMacCoordExtendedAddress(myMacAddr);
-            mpib.setMacShortAddress(myMacAddr.getShortAddr());  // use MAC extended address
-
-            txSfSlotDuration = aBaseSlotDuration * (1 << mpib.getMacSuperframeOrder());
-            startBcnTxTimer(true, startMsg->getStartTime());  // send out first beacon ASAP
-            genStartConf(mac_SUCCESS);
-        }
-        else
-        {
-            genSetTrxState(phy_RX_ON);
-            genStartConf(mac_SUCCESS);
-        }
-
-        delete (startMsg);  // XXX solving undisposed object error startMsg
-
-        // send a get request just that the buffer knows to forward next packet
-        cMessage* buffMsg = new cMessage("Buffer-get-Elem");
-        buffMsg->setKind(99);
-        send(buffMsg, "outMCPS");
-
-        return;
-    }
-
-    // Check if we are already processing a Msg
-    if (taskP.taskStatus(TP_MCPS_DATA_REQUEST) || scanning)
-    {
-        macEV << "A " << msg->getName() << " (#" << numUpperPkt << ") received from upper layer, but dropped due to concurrent msg processing \n";
-        numUpperPktLost++;
-        delete msg;
-
-        cMessage* buffMsg = new cMessage("Buffer-get-Elem");
-        buffMsg->setKind(99);
-        send(buffMsg, "outMCPS");
-        return;
-    }
-
-    if (msg->arrivedOn("MCPS_SAP"))
-    {
-        // this must be a mcps-data.request
-        mcpsDataReq* dataReq = check_and_cast<mcpsDataReq*>(msg);
-        macEV << "MCPS-DATA.request arrived on MCPS_SAP for " << dataReq->getDstAddr().str() << endl;
-
-        // Check if the data request packet has a valid size
-        if (dataReq->getByteLength() > aMaxMACFrameSize)
-        {
-            macEV << dataReq->getName() << " received from upper layer, but dropped due to oversize \n";
-            sendMCPSDataConf(mac_FRAME_TOO_LONG, dataReq->getMsduHandle());
-            delete (msg);
-            return;
-        }
-
-        // set missing parameter and generate MPDU Data request
-        mpdu* data = new mpdu("DATA.indication");
-        data->setSrcPANid(mpib.getMacPANId());
-        data->setSrc(myMacAddr);
-        data->setByteLength(dataReq->getMsduLength());
-        data->setDestPANid(mpib.getMacPANId());
-        data->setDest(dataReq->getDstAddr());
-        data->encapsulate(dataReq->decapsulate());
-        data->setSqnr(dataReq->getMsduHandle());
-
-        Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
-        taskP.taskStatus(task) = true;
-        switch (dataReq->getTxOptions())
-        {
-            case 0:  // direct CAP noAck
+        case MLMEASSOCIATE: {
+            if (isCoordinator)
             {
+                macEV << msg->getName() << "is dropped - PAN Coordinator won't associate... \n";
+                numUpperMgmtPktDropped++;
+                delete (msg);
+                return;
+            }
+            else if (mpib.getMacAssociatedPANCoord())
+            {
+                macEV << msg->getName() << "is dropped - Device is already associated - dissociate first... \n";
+                numUpperMgmtPktDropped++;
+                delete (msg);
+                return;
+            }
+            else if (!isFFD)
+            {
+                macEV << msg->getName() << "is dropped - RFD won't associate...\n";
+                numUpperMgmtPktDropped++;
+                delete (msg);
+                return;
+            }
+            else if (dynamic_cast<AssociationRequest *>(msg))
+            {
+                AssociationRequest* frame = check_and_cast<AssociationRequest *>(msg);
+                AssoCmdreq* AssoCommand = new AssoCmdreq("ASSOCIATE-request-command");
+                MACAddressExt dest;
+                switch (frame->getCoordAddrMode())
+                {
+                    case addrShort: {
+                        mpib.setMacCoordShortAddress(frame->getCoordAddress().getShortAddr());
+                        dest.setShortAddr(mpib.getMacCoordShortAddress());
+                        AssoCommand->setDest(dest);
+                        // association request requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
+                        AssoCommand->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrShort, 01, addrLong));
+                        break;
+                    }
+                    case addrLong: {
+                        mpib.setMacCoordExtendedAddress(frame->getCoordAddress());
+                        AssoCommand->setDest(mpib.getMacCoordExtendedAddress());
+                        AssoCommand->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 01, addrLong));
+                        break;
+                    }
+                    default: {
+                        macEV << msg->getName() << "is dropped - has unsupported Addressing Mode...\n";
+                        numUpperMgmtPktDropped++;
+                        delete msg;
+                        return;
+                    }
+                }
+
+                numUpperMgmtPkt++;
+
+                mpib.setMacPANId(frame->getCoordPANId());
+
+                setCurrentChannelPage(frame->getChannelPage());
+                setRadioChannel(frame->getLogicalChannel());
+
+                ack4Asso = true;
+
+                // need to touch payload since LLC doesn't know my MAC address payload
+                DevCapability devCap = frame->getCapabilityInformation();
+                devCap.addr = myMacAddr;
+                AssoCommand->setCapabilityInformation(devCap);
+                AssoCommand->setCmdType(Ieee802154_ASSOCIATION_REQUEST);
+
+                // set MHR values
+                unsigned char sqnr = mpib.getMacDSN();
+                AssoCommand->setSqnr(sqnr);
+                (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+                mpib.setMacDSN(sqnr);
+                AssoCommand->setDestPANid(mpib.getMacPANId());
+                AssoCommand->setSrc(myMacAddr);
+
+                if (mpib.getMacSecurityEnabled())
+                {
+                    Ash assoAsh;
+                    assoAsh.FrameCount = 1;
+                    assoAsh.KeyIdentifier.KeyIndex = frame->getKeyIndex();
+                    assoAsh.KeyIdentifier.KeySource = frame->getKeySource();
+                    assoAsh.secu.KeyIdMode = frame->getKeyIdMode();
+                    assoAsh.secu.Seculevel = frame->getSecurityLevel();
+                    AssoCommand->setAsh(assoAsh);
+                }
+
+                mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
+                holdMe->encapsulate(AssoCommand);
+                holdMe->setDest(AssoCommand->getDest());
+                holdMe->setSrc(myMacAddr);
+                holdMe->setSrcPANid(mpib.getMacPANId());
+                holdMe->setFcf(AssoCommand->getFcf());  // set FCF to FCF value of encapsulated command (ACK flag set)
+                holdMe->setSqnr(AssoCommand->getSqnr());
+                holdMe->setByteLength(calcFrameByteLength(AssoCommand));
+
+                Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+                taskP.taskStatus(task) = true;
+
+                // Associate Requests always direct to Coordinator
                 taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
-                data->setByteLength(calcFrameByteLength(data));
-                data->setIsGTS(false);
                 taskP.taskStep(task)++; // advance to next task step
                 strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                 ASSERT(txData == NULL);
-                txData = data;
+                txData = holdMe;
                 csmacaEntry('d');
-                break;
-            }
 
-            case 1:  // direct CAP ACK
+                delete (msg);    // fix for undisposed object message
+                return;
+            }
+            break;
+        }  // case MLMEASSOCIATE
+
+        case MLMEASSOCIATERESP: {
+            if (isCoordinator)
             {
-                taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
-                data->setByteLength(calcFrameByteLength(data));
-                data->setIsGTS(false);
-                waitDataAck = true;
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                ASSERT(txData == NULL);
-                txData = data;
-                csmacaEntry('d');
-                break;
-            }
+                AssociationResponse* assoResp = check_and_cast<AssociationResponse*>(msg);
+                // generate response command Msg
+                AssoCmdresp* assoCmdResp = new AssoCmdresp("ASSOCIATE-response-command");
 
-            case 2:  // direct GTS noACK
-            {
-                data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
-                data->setByteLength(calcFrameByteLength(data));
-                taskP.mcps_data_request_TxOption = GTS_TRANS;
-                data->setIsGTS(true);
-                waitDataAck = false;
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                ASSERT(txGTS == NULL);
-                txGTS = data;
-                csmacaEntry('d');
-                break;
-            }
+                // association response requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
+                assoCmdResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, mpib.getMacPANId(), addrLong, 0, addrLong));
+                unsigned char sqnr = mpib.getMacDSN();
+                assoCmdResp->setSqnr(sqnr);
+                (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+                mpib.setMacDSN(sqnr);
+                assoCmdResp->setDest(assoResp->getAddr());
+                assoCmdResp->setSrcPANid(mpib.getMacPANId());
+                assoCmdResp->setSrc(myMacAddr);
 
-            case 3:  // direct GTS ACK
-            {
-                taskP.mcps_data_request_TxOption = GTS_TRANS;
-                data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
-                data->setByteLength(calcFrameByteLength(data));
-                data->setIsGTS(true);
-                waitDataAck = true;
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                ASSERT(txGTS == NULL);
-                txGTS = data;
-                csmacaEntry('d');
-                break;
-            }
-
-            case 4:  // indirect noACK
-            {
-                taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect
-                data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
-                data->setByteLength(calcFrameByteLength(data));
-                data->setIsGTS(false);
-                data->setIsIndirect(true);
-                waitDataAck = false;
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                ASSERT(txData == NULL);
-                txData = data;
-                csmacaEntry('d');
-                break;
-            }
-
-            case 5:  // indirect ACK
-            {
-                taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect ...
-                data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
-                data->setByteLength(calcFrameByteLength(data));
-                data->setIsGTS(false);
-                data->setIsIndirect(true);
-                waitDataAck = true;
-                taskP.taskStep(task)++; // advance to next task step
-                strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                ASSERT(txData == NULL);
-                txData = data;
-                csmacaEntry('d');
-                break;
-            }
-
-            default: {
-                error("[IEEE802154MAC]: got invalid TXoption in MCPS-DATA.request");
-                break;
-            }
-        }  // switch
-
-        delete (msg);        // fix for undisposed object message (incoming messages from MCPS_SAP)
-        return;
-    }  // if (msg->arrivedOn("MCPS_SAP"))
-    else
-    {
-        // Has to be a MLME request Message from higher layer
-        switch (mappedMlmeRequestTypes[msg->getName()])
-        {
-            case MLMEASSOCIATE: {
-                if (isCoordinator)
+                if (mpib.getMacSecurityEnabled())
                 {
-                    macEV << msg->getName() << "is dropped - PAN Coordinator won't associate... \n";
-                    delete msg;
-                    return;
+                    Ash ash;
+                    ash.secu.KeyIdMode = assoResp->getKeyIdMode();
+                    ash.secu.Seculevel = assoResp->getSecurityLevel();
+                    ash.KeyIdentifier.KeyIndex = assoResp->getKeyIndex();
+                    ash.KeyIdentifier.KeySource = assoResp->getKeySource();
+                    ash.FrameCount = 1;
+                    assoCmdResp->setAsh(ash);
                 }
-                else if (mpib.getMacAssociatedPANCoord())
+
+                assoCmdResp->setCmdType(Ieee802154_ASSOCIATION_RESPONSE);
+                assoCmdResp->setShortAddress(assoResp->getAddr().getShortAddr());
+                assoCmdResp->setStatus(assoResp->getStatus());
+
+                Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+                taskP.taskStatus(task) = true;
+
+                mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
+                holdMe->encapsulate(assoCmdResp);
+                holdMe->setDest(assoCmdResp->getDest());
+                holdMe->setSrc(assoCmdResp->getSrc());
+                holdMe->setSrcPANid(assoCmdResp->getSrcPANid());
+                holdMe->setFcf(assoCmdResp->getFcf());
+                holdMe->setSqnr(assoCmdResp->getSqnr());
+                holdMe->setByteLength(calcFrameByteLength(assoCmdResp));
+
+                switch (dataTransMode)
                 {
-                    macEV << msg->getName() << "is dropped - Device is already associated - dissociate first... \n";
-                    delete msg;
-                    return;
-                }
-                else if (!isFFD)
-                {
-                    macEV << msg->getName() << "is dropped - RFD won't associate...\n";
-                    delete msg;
-                    return;
-                }
-                else if (dynamic_cast<AssociationRequest *>(msg))
-                    {
-                        AssociationRequest* frame = check_and_cast<AssociationRequest *>(msg);
-                        AssoCmdreq* AssoCommand = new AssoCmdreq("ASSOCIATE-request-command");
-                        MACAddressExt dest;
-                        switch (frame->getCoordAddrMode())
-                        {
-                            case addrShort: {
-                                mpib.setMacCoordShortAddress(frame->getCoordAddress().getShortAddr());
-                                dest.setShortAddr(mpib.getMacCoordShortAddress());
-                                AssoCommand->setDest(dest);
-                                // association request requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
-                                AssoCommand->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrShort, 01, addrLong));
-                                break;
-                            }
-                            case addrLong: {
-                                mpib.setMacCoordExtendedAddress(frame->getCoordAddress());
-                                AssoCommand->setDest(mpib.getMacCoordExtendedAddress());
-                                AssoCommand->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, true, addrLong, 01, addrLong));
-                                break;
-                            }
-                            default: {
-                                macEV << msg->getName() << "is dropped - has unsupported Addressing Mode...\n";
-                                delete msg;
-                                return;
-                            }
-                        }
-                        mpib.setMacPANId(frame->getCoordPANId());
-
-                        setCurrentChannelPage(frame->getChannelPage());
-                        setRadioChannel(frame->getLogicalChannel());
-
-                        ack4Asso = true;
-
-                        // need to touch payload since LLC doesn't know my MAC address payload
-                        DevCapability devCap = frame->getCapabilityInformation();
-                        devCap.addr = myMacAddr;
-                        AssoCommand->setCapabilityInformation(devCap);
-                        AssoCommand->setCmdType(Ieee802154_ASSOCIATION_REQUEST);
-
-                        // set MHR values
-                        unsigned char sqnr = mpib.getMacDSN();
-                        AssoCommand->setSqnr(sqnr);
-                        (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
-                        mpib.setMacDSN(sqnr);
-                        AssoCommand->setDestPANid(mpib.getMacPANId());
-                        AssoCommand->setSrc(myMacAddr);
-
-                        if (mpib.getMacSecurityEnabled())
-                        {
-                            Ash assoAsh;
-                            assoAsh.FrameCount = 1;
-                            assoAsh.KeyIdentifier.KeyIndex = frame->getKeyIndex();
-                            assoAsh.KeyIdentifier.KeySource = frame->getKeySource();
-                            assoAsh.secu.KeyIdMode = frame->getKeyIdMode();
-                            assoAsh.secu.Seculevel = frame->getSecurityLevel();
-                            AssoCommand->setAsh(assoAsh);
-                        }
-
-                        mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
-                        holdMe->encapsulate(AssoCommand);
-                        holdMe->setDest(AssoCommand->getDest());
-                        holdMe->setSrc(myMacAddr);
-                        holdMe->setSrcPANid(mpib.getMacPANId());
-                        holdMe->setFcf(AssoCommand->getFcf());  // set FCF to FCF value of encapsulated command (ACK flag set)
-                        holdMe->setSqnr(AssoCommand->getSqnr());
-                        holdMe->setByteLength(calcFrameByteLength(AssoCommand));
-
-                        Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
-                        taskP.taskStatus(task) = true;
-
-                        // Associate Requests always direct to Coordinator
+                    case DIRECT_TRANS:
+                    case INDIRECT_TRANS: {
                         taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                         taskP.taskStep(task)++; // advance to next task step
                         strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                         ASSERT(txData == NULL);
                         txData = holdMe;
                         csmacaEntry('d');
-
-                        delete (msg);    // fix for undisposed object message
-                        return;
+                        break;
                     }
-                break;
-            }  // case MLMEASSOCIATE
 
-            case MLMEASSOCIATERESP: {
+                    case GTS_TRANS: {
+                        taskP.mcps_data_request_TxOption = GTS_TRANS;
+                        taskP.taskStep(task)++; // advance to next task step
+                        // waiting for GTS arriving, callback from handleGtsTimer()
+                        strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
+                        ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
+                        txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
+                        numGTSRetry = 0;
+
+                        // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
+                        // if I'm the device, should try to transmit if now is in my GTS
+                        // refer to 802.15.4-2006 Spec. 7.5.7.3
+                        if (index_gtsTimer == 99)
+                        {
+                            ASSERT(gtsTimer->isScheduled());
+                            // first check if the requested transaction can be completed before the end of current GTS
+                            if (gtsCanProceed())
+                            {
+                                // directly hand over to FSM, which will go to next step, state parameters are ignored
+                                FSM_MCPS_DATA_request();
+                            }
+                        }
+                        break;
+                    }
+
+                    default: {
+                        error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                        break;
+                    }
+                }  // switch (dataTransMode)
+            }  // if isCoordinator
+            else
+            {
+                error("[802154MAC]: Device received 'Association Response' from Higher Layer - How could that happen?");
+            }
+
+            numUpperMgmtPkt++;
+            delete (msg);    // fix for undisposed object message
+            return;
+        }  // case MLMEASSOCIATERESP
+
+        case MLMEDISASSOCIATE: {
+            DisAssociation* disAss = check_and_cast<DisAssociation*>(msg);
+            tmpDisAss = disAss;
+            if (disAss->getDevicePANId() == mpib.getMacPANId())
+            {
                 if (isCoordinator)
                 {
-                    AssociationResponse* assoResp = check_and_cast<AssociationResponse*>(msg);
-                    // generate response command Msg
-                    AssoCmdresp* assoCmdResp = new AssoCmdresp("ASSOCIATE-response-command");
-
-                    // association response requires an ACK (see 2006rev -> Figure 31—Message sequence chart for association)
-                    assoCmdResp->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, mpib.getMacPANId(), addrLong, 0, addrLong));
-                    unsigned char sqnr = mpib.getMacDSN();
-                    assoCmdResp->setSqnr(sqnr);
-                    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
-                    mpib.setMacDSN(sqnr);
-                    assoCmdResp->setDest(assoResp->getAddr());
-                    assoCmdResp->setSrcPANid(mpib.getMacPANId());
-                    assoCmdResp->setSrc(myMacAddr);
-
-                    if (mpib.getMacSecurityEnabled())
-                    {
-                        Ash ash;
-                        ash.secu.KeyIdMode = assoResp->getKeyIdMode();
-                        ash.secu.Seculevel = assoResp->getSecurityLevel();
-                        ash.KeyIdentifier.KeyIndex = assoResp->getKeyIndex();
-                        ash.KeyIdentifier.KeySource = assoResp->getKeySource();
-                        ash.FrameCount = 1;
-                        assoCmdResp->setAsh(ash);
-                    }
-
-                    assoCmdResp->setCmdType(Ieee802154_ASSOCIATION_RESPONSE);
-                    assoCmdResp->setShortAddress(assoResp->getAddr().getShortAddr());
-                    assoCmdResp->setStatus(assoResp->getStatus());
-
-                    Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
-                    taskP.taskStatus(task) = true;
-
-                    mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
-                    holdMe->encapsulate(assoCmdResp);
-                    holdMe->setDest(assoCmdResp->getDest());
-                    holdMe->setSrc(assoCmdResp->getSrc());
-                    holdMe->setSrcPANid(assoCmdResp->getSrcPANid());
-                    holdMe->setFcf(assoCmdResp->getFcf());
-                    holdMe->setSqnr(assoCmdResp->getSqnr());
-                    holdMe->setByteLength(calcFrameByteLength(assoCmdResp));
-
-                    switch (dataTransMode)
-                    {
-                        case DIRECT_TRANS:
-                        case INDIRECT_TRANS: {
-                            taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                            taskP.taskStep(task)++; // advance to next task step
-                            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                            ASSERT(txData == NULL);
-                            txData = holdMe;
-                            csmacaEntry('d');
-                            break;
-                        }
-
-                        case GTS_TRANS: {
-                            taskP.mcps_data_request_TxOption = GTS_TRANS;
-                            taskP.taskStep(task)++; // advance to next task step
-                            // waiting for GTS arriving, callback from handleGtsTimer()
-                            strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                            ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
-                            txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
-                            numGTSRetry = 0;
-
-                            // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
-                            // if I'm the device, should try to transmit if now is in my GTS
-                            // refer to 802.15.4-2006 Spec. 7.5.7.3
-                            if (index_gtsTimer == 99)
-                            {
-                                ASSERT(gtsTimer->isScheduled());
-                                // first check if the requested transaction can be completed before the end of current GTS
-                                if (gtsCanProceed())
-                                {
-                                    // directly hand over to FSM, which will go to next step, state parameters are ignored
-                                    FSM_MCPS_DATA_request();
-                                }
-                            }
-                            break;
-                        }
-
-                        default: {
-                            error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
-                            break;
-                        }
-                    }  // switch (dataTransMode)
-                }  // if isCoordinator
+                    genDisAssoCmd(disAss, disAss->getTxIndirect());
+                }
                 else
                 {
-                    macEV << "Device received 'Association Response' from Higher Layer - How could that happen?\n";
-                }
-
-                delete (msg);    // fix for undisposed object message
-                return;
-            }  // case MLMEASSOCIATERESP
-
-            case MLMEDISASSOCIATE: {
-                DisAssociation* disAss = check_and_cast<DisAssociation*>(msg);
-                tmpDisAss = disAss;
-                if (disAss->getDevicePANId() == mpib.getMacPANId())
-                {
-                    if (isCoordinator)
+                    if (((disAss->getDeviceAddrMode() == addrLong) && (disAss->getDeviceAddress().longEquals(mpib.getMacCoordExtendedAddress())))
+                            || ((disAss->getDeviceAddrMode() == addrShort) && (disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress())))
                     {
-                        genDisAssoCmd(disAss, disAss->getTxIndirect());
+                        genDisAssoCmd(disAss, false);
                     }
                     else
                     {
-                        if (((disAss->getDeviceAddrMode() == addrLong) && (disAss->getDeviceAddress().longEquals(mpib.getMacCoordExtendedAddress())))
-                        || ((disAss->getDeviceAddrMode() == addrShort) && (disAss->getDeviceAddress().getShortAddr() == mpib.getMacCoordShortAddress())))
-                        {
-                            genDisAssoCmd(disAss, false);
-                        }
-                        else
-                        {
-                            genMLMEDisasConf(mac_INVALID_PARAMETER);
-                        }
+                        genMLMEDisasConf(mac_INVALID_PARAMETER);
                     }
+                }
+            }
+            else
+            {
+                genMLMEDisasConf(mac_INVALID_PARAMETER);
+            }
+            numUpperMgmtPkt++;
+            break;
+        }  // case MLMEDISASSOCIATE
+
+        case MLMEGET: {
+            GetRequest* GETrequ = check_and_cast<GetRequest*>(msg);
+            send(GETrequ, "outPLME");
+            numUpperMgmtPkt++;
+            break;
+        }  // case MLMEGET
+
+        case MLMEGTS: {
+            if (isCoordinator)
+            {
+                macEV << "Coordinator got an MLME GTS Request dropping it!\n";
+                numUpperMgmtPktDropped++;
+            }
+            else
+            {
+                waitGTSConf = true;
+                GTSMessage* GTSrequ = check_and_cast<GTSMessage*>(msg);
+                GTSCmd* gtsRequCmd = new GTSCmd("GTS-request-command");
+
+                if (associated)
+                {
+                    // GTS request requires an ACK
+                    gtsRequCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
+                    numUpperMgmtPkt++;
                 }
                 else
                 {
-                    genMLMEDisasConf(mac_INVALID_PARAMETER);
-                }
-                break;
-            }  // case MLMEDISASSOCIATE
-
-            case MLMEGET: {
-                GetRequest* GETrequ = check_and_cast<GetRequest*>(msg);
-                send(GETrequ, "outPLME");
-                break;
-            }  // case MLMEGET
-
-            case MLMEGTS: {
-                if (isCoordinator)
-                {
-                    macEV << "Coordinator got an MLME GTS Request dropping it!\n";
-                }
-                else
-                {
-                    waitGTSConf = true;
-                    GTSMessage* GTSrequ = check_and_cast<GTSMessage*>(msg);
-                    GTSCmd* gtsRequCmd = new GTSCmd("GTS-request-command");
-
-                    if (associated)
-                    {
-                        // GTS request requires an ACK
-                        gtsRequCmd->setFcf(genFCF(Command, mpib.getMacSecurityEnabled(), false, true, false, addrShort, 0, addrShort));
-                    }
-                    else
-                    {
-                        genGTSConf(GTSrequ->getGTSCharacteristics(), mac_NO_SHORT_ADDRESS);
-                        delete msg;
-                        delete GTSrequ;
-                        delete gtsRequCmd;
-                        return;
-                    }
-
-                    unsigned char sqnr = mpib.getMacDSN();
-                    gtsRequCmd->setSqnr(sqnr);
-                    (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
-                    mpib.setMacDSN(sqnr);
-                    gtsRequCmd->setDestPANid(mpib.getMacPANId());
-                    gtsRequCmd->setDest(mpib.getMacCoordExtendedAddress());
-                    gtsRequCmd->setSrcPANid(mpib.getMacPANId());
-                    gtsRequCmd->setSrc(myMacAddr);
-
-                    if (mpib.getMacSecurityEnabled())
-                    {
-                        Ash ash;
-                        ash.FrameCount = 1;
-                        ash.KeyIdentifier.KeyIndex = GTSrequ->getKeyIndex();
-                        ash.KeyIdentifier.KeySource = GTSrequ->getKeySource();
-                        ash.secu.KeyIdMode = GTSrequ->getKeyIdMode();
-                        ash.secu.Seculevel = GTSrequ->getSecurityLevel();
-                        gtsRequCmd->setAsh(ash);
-                    }
-
-                    GTSDescriptor desc;
-                    desc.devShortAddr = myMacAddr.getShortAddr();
-                    desc.Type = true;
-                    desc.length = GTSrequ->getGTSCharacteristics().length;
-                    gtsRequCmd->setGTSCharacteristics(desc);
-                    gtsRequCmd->setFcs(0);
-                    Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
-                    taskP.taskStatus(task) = true;
-
-                    mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
-                    holdMe->encapsulate(gtsRequCmd);
-                    holdMe->setDest(gtsRequCmd->getDest());
-                    holdMe->setSrc(gtsRequCmd->getSrc());
-                    holdMe->setSrcPANid(gtsRequCmd->getSrcPANid());
-                    holdMe->setFcf(gtsRequCmd->getFcf());
-                    holdMe->setSqnr(gtsRequCmd->getSqnr());
-                    holdMe->setByteLength(calcFrameByteLength(gtsRequCmd));
-
-                    switch (dataTransMode)
-                    {
-                        case DIRECT_TRANS:
-                        case INDIRECT_TRANS: {
-                            taskP.mcps_data_request_TxOption = DIRECT_TRANS;
-                            taskP.taskStep(task)++; // advance to next task step
-                            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
-                            ASSERT(txData == NULL);
-                            txData = holdMe;
-                            csmacaEntry('d');
-                            break;
-                        }
-
-                        case GTS_TRANS: {
-                            taskP.mcps_data_request_TxOption = GTS_TRANS;
-                            taskP.taskStep(task)++; // advance to next task step
-                            // waiting for GTS arriving, callback from handleGtsTimer()
-                            strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                            ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
-                            txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
-                            numGTSRetry = 0;
-
-                            // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
-                            // if I'm the device, should try to transmit if now is in my GTS
-                            // refer to Spec. 7.5.7.3
-                            if (index_gtsTimer == 99)
-                            {
-                                ASSERT(gtsTimer->isScheduled());
-                                // first check if the requested transaction can be completed before the end of current GTS
-                                if (gtsCanProceed())
-                                {
-                                    // directly hand over to FSM, which will go to next step, state parameters are ignored
-                                    FSM_MCPS_DATA_request();
-                                }
-                            }
-                            break;
-                        }
-
-                        default:
-                            error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
-                            break;
-                    }  // switch (dataTransMode)
-                }
-                break;
-            }  // case MLMEGTS
-
-            case MLMERESET: {
-                MLMEReset* resetRequ = check_and_cast<MLMEReset*>(msg);
-                if (resetRequ->getSetDefaultPIB())
-                {
-                    genSetTrxState(phy_FORCE_TRX_OFF);
-                    mlmeReset = true;
-                }
-                else
-                {
-                    macEV << "Got a Reset.request with status false drop \n";
-                    delete msg;
+                    genGTSConf(GTSrequ->getGTSCharacteristics(), mac_NO_SHORT_ADDRESS);
+                    numUpperMgmtPktDropped++;
+                    delete (msg);
+                    delete (GTSrequ);
+                    delete (gtsRequCmd);
                     return;
                 }
 
-                break;
-            }  // case MLMERESET
-
-            case MLMERXENABLE: {
-                RxEnableRequest* rxReq = check_and_cast<RxEnableRequest*>(msg);
-                if (dataTransMode == INDIRECT_TRANS)
-                {
-                    // ignore defer
-                }
-                else
-                {
-                    // calculate time before receiver is enabled + time for which the receiver is enabled > than the superframe duration
-                    if (rxReq->getRxOnTime() + rxReq->getRxOnDuration() > aBaseSuperframeDuration * pow(2, mpib.getMacBeaconOrder()))
-                    {
-                        RxEnableConfirm* conf = new RxEnableConfirm("MLME-RX-ENABLE.confirm");
-                        conf->setStatus(rx_ON_TIME_TOO_LONG);
-                        send(conf, "outMLME");
-                        delete (msg);    // fix for undisposed object message
-                        return;
-                    }
-                    else if ((rxReq->getRxOnTime() - aTurnaroundTime) < (bcnRxTime - simTime())) // TODO adapt to symbols to simtime_t conversion
-                    {
-                        // there shouldn't be anything transmitting or receiving
-                        genSetTrxState(phy_RX_ON);
-                        mlmeRxEnable = true;
-                        startRxOnDurationTimer(rxReq->getRxOnDuration());
-                        delete (msg);    // fix for undisposed object message
-                        return;
-                    }
-                    else if (rxReq->getDeferPermit())
-                    {
-                        startdeferRxEnableTimer(rxReq->getRxOnTime() - aTurnaroundTime);
-                        deferRxEnable = rxReq;
-                        delete (msg);    // fix for undisposed object message
-                        return;
-                    }
-                    else
-                    {
-                        RxEnableConfirm* conf = new RxEnableConfirm("MLME-RX-ENABLE.confirm");
-                        conf->setStatus(rx_PAST_TIME);
-                        send(conf, "outMLME");
-                        delete (msg);
-                        return;
-                    }
-                }
-                break;
-            }  // case MLMERXENABLE
-
-            case MLMESCAN: {
-                ScanRequest* scanReq = check_and_cast<ScanRequest*>(msg);
-
-                if (scanning)
-                {
-                    // send a confirm for upper layer without changing our status variables
-                    ScanConfirm* scanConf = new ScanConfirm("MLME-SCAN.confirm");
-                    scanConf->setStatus(scan_SCAN_IN_PROGRESS);
-                    scanConf->setScanType(scanReq->getScanType());
-                    scanConf->setChannelPage(scanReq->getChannelPage());
-                    scanConf->setUnscannedChannels(134217727);  // 27 channels unscanned
-                    scanConf->setResultListSize(0);
-                    send(scanConf, "outMLME");
-                }
-                else
-                {
-                    scanning = true;
-                    scanType = (ScanType) scanReq->getScanType();
-                    if (!isFFD)
-                    {
-                        if (scanType == scan_ORPHAN)
-                        {
-                            macEV << "RFD do not support an orphan scan \n";
-                            ScanConfirm* scanConf = new ScanConfirm("MLME-SCAN.confirm");
-                            scanConf->setStatus(scan_INVALID_PARAMETER);
-                            scanConf->setScanType(scanReq->getScanType());
-                            scanConf->setChannelPage(scanReq->getChannelPage());
-                            scanConf->setUnscannedChannels(134217727);  // 27 channels unscanned
-                            scanConf->setResultListSize(0);
-                            send(scanConf, "outMLME");
-                        }
-                    }
-                    scanDuration = scanReq->getScanDuration();
-                    scanChannels = scanReq->getScanChannels();
-                    channelPage = scanReq->getChannelPage();
-                    scanSteps = scanChannels;
-                    scanCount = 0;
-                    scanResultListSize = 0;
-                    doScan();
-                }
-
-                delete (scanReq);    // fix for undisposed object: (ScanRequest) net.IEEE802154Nodes[0].NIC.MAC.IEEE802154Mac.MLME-SCAN.request
-                break;
-            }  // case MLMESCAN
-
-            case MLMESET: {
-                SetRequest* SetReq = check_and_cast<SetRequest*>(msg);
-                send(SetReq, "outPLME");
-                break;
-            }  // case MLMESET
-
-            case MLMESYNC: {
-                SyncRequest* syncMsg = check_and_cast<SyncRequest*>(msg);
-                syncLoss = true;
-
-                setRadioChannel(syncMsg->getLogicalChannel());
-
-                // FIXME TODO check necessary operations to support sync loss
-
-                break;
-            }  // case MLMESYNC
-
-            case MLMEPOLL: {
-                PollRequest* pollMsg = check_and_cast<PollRequest*>(msg);
-                CmdFrame* dataReq = new CmdFrame("MCPS-DATA.request");
-                dataReq->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
-                dataReq->setSrc(myMacAddr);
-                dataReq->setSrcPANid(mpib.getMacPANId());
-                dataReq->setDest(pollMsg->getCoordAddress());
                 unsigned char sqnr = mpib.getMacDSN();
-                dataReq->setSqnr(sqnr);
+                gtsRequCmd->setSqnr(sqnr);
                 (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
                 mpib.setMacDSN(sqnr);
-                dataReq->setCmdType(Ieee802154_DATA_REQUEST);
+                gtsRequCmd->setDestPANid(mpib.getMacPANId());
+                gtsRequCmd->setDest(mpib.getMacCoordExtendedAddress());
+                gtsRequCmd->setSrcPANid(mpib.getMacPANId());
+                gtsRequCmd->setSrc(myMacAddr);
+
+                if (mpib.getMacSecurityEnabled())
+                {
+                    Ash ash;
+                    ash.FrameCount = 1;
+                    ash.KeyIdentifier.KeyIndex = GTSrequ->getKeyIndex();
+                    ash.KeyIdentifier.KeySource = GTSrequ->getKeySource();
+                    ash.secu.KeyIdMode = GTSrequ->getKeyIdMode();
+                    ash.secu.Seculevel = GTSrequ->getSecurityLevel();
+                    gtsRequCmd->setAsh(ash);
+                }
+
+                GTSDescriptor desc;
+                desc.devShortAddr = myMacAddr.getShortAddr();
+                desc.Type = true;
+                desc.length = GTSrequ->getGTSCharacteristics().length;
+                gtsRequCmd->setGTSCharacteristics(desc);
+                gtsRequCmd->setFcs(0);
+                Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+                taskP.taskStatus(task) = true;
 
                 mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
-                holdMe->encapsulate(dataReq);
-                holdMe->setDest(dataReq->getDest());
-                holdMe->setSrc(dataReq->getSrc());
-                holdMe->setSrcPANid(dataReq->getSrcPANid());
-                holdMe->setFcf(dataReq->getFcf());
-                holdMe->setSqnr(dataReq->getSqnr());
-                holdMe->setByteLength(calcFrameByteLength(dataReq));
+                holdMe->encapsulate(gtsRequCmd);
+                holdMe->setDest(gtsRequCmd->getDest());
+                holdMe->setSrc(gtsRequCmd->getSrc());
+                holdMe->setSrcPANid(gtsRequCmd->getSrcPANid());
+                holdMe->setFcf(gtsRequCmd->getFcf());
+                holdMe->setSqnr(gtsRequCmd->getSqnr());
+                holdMe->setByteLength(calcFrameByteLength(gtsRequCmd));
 
-                txData = holdMe;
-                Poll = true;
-                csmacaEntry('d');
-                break;
-            }  // case MLMEPOLL
+                switch (dataTransMode)
+                {
+                    case DIRECT_TRANS:
+                    case INDIRECT_TRANS: {
+                        taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+                        taskP.taskStep(task)++; // advance to next task step
+                        strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                        ASSERT(txData == NULL);
+                        txData = holdMe;
+                        csmacaEntry('d');
+                        break;
+                    }
 
-            case MLMEORPHANRESP: {
-                OrphanResponse* oR = check_and_cast<OrphanResponse*>(msg);
-                mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
-                holdMe->encapsulate(oR);
-                holdMe->setDest(MACAddressExt::BROADCAST_LONG_ADDRESS);
-                holdMe->setSrc(myMacAddr);
-                holdMe->setSrcPANid(mpib.getMacPANId());
-                holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+                    case GTS_TRANS: {
+                        taskP.mcps_data_request_TxOption = GTS_TRANS;
+                        taskP.taskStep(task)++; // advance to next task step
+                        // waiting for GTS arriving, callback from handleGtsTimer()
+                        strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
+                        ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
+                        txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
+                        numGTSRetry = 0;
 
-                txData = holdMe;
-                csmacaEntry('d');
-                break;
-            }  // case MLMEORPHANRESP
+                        // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
+                        // if I'm the device, should try to transmit if now is in my GTS
+                        // refer to Spec. 7.5.7.3
+                        if (index_gtsTimer == 99)
+                        {
+                            ASSERT(gtsTimer->isScheduled());
+                            // first check if the requested transaction can be completed before the end of current GTS
+                            if (gtsCanProceed())
+                            {
+                                // directly hand over to FSM, which will go to next step, state parameters are ignored
+                                FSM_MCPS_DATA_request();
+                            }
+                        }
+                        break;
+                    }
 
-            default: {
-                error("MAC has unknown MLME - Message Type from Higher Layer !!");
-                break;
-            }  // default
-        }  // switch
-    }  // else
-}
+                    default:
+                        error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
+                        break;
+                }  // switch (dataTransMode)
+            }
+            break;
+        }  // case MLMEGTS
 
-// handle messages received from UpperLayer via MLME-SAP
-void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
-{
-    error("continue here to refactor everything!");
+        case MLMERESET: {
+            MLMEReset* resetRequ = check_and_cast<MLMEReset*>(msg);
+            if (resetRequ->getSetDefaultPIB())
+            {
+                genSetTrxState(phy_FORCE_TRX_OFF);
+                mlmeReset = true;
+                numUpperMgmtPkt++;
+            }
+            else
+            {
+                macEV << "Got a Reset.request with status false drop \n";
+                numUpperMgmtPktDropped++;
+                delete msg;
+                return;
+            }
+
+            break;
+        }  // case MLMERESET
+
+        case MLMERXENABLE: {
+            RxEnableRequest* rxReq = check_and_cast<RxEnableRequest*>(msg);
+            if (dataTransMode == INDIRECT_TRANS)
+            {
+                // ignore defer
+                numUpperMgmtPktDropped++;
+            }
+            else
+            {
+                numUpperMgmtPkt++;
+                // calculate time before receiver is enabled + time for which the receiver is enabled > than the superframe duration
+                if (rxReq->getRxOnTime() + rxReq->getRxOnDuration() > aBaseSuperframeDuration * pow(2, mpib.getMacBeaconOrder()))
+                {
+                    RxEnableConfirm* conf = new RxEnableConfirm("MLME-RX-ENABLE.confirm");
+                    conf->setStatus(rx_ON_TIME_TOO_LONG);
+                    send(conf, "outMLME");
+                    delete (msg);    // fix for undisposed object message
+                    return;
+                }
+                else if ((rxReq->getRxOnTime() - aTurnaroundTime) < (bcnRxTime - simTime())) // TODO adapt to symbols to simtime_t conversion
+                {
+                    // there shouldn't be anything transmitting or receiving
+                    genSetTrxState(phy_RX_ON);
+                    mlmeRxEnable = true;
+                    startRxOnDurationTimer(rxReq->getRxOnDuration());
+                    delete (msg);    // fix for undisposed object message
+                    return;
+                }
+                else if (rxReq->getDeferPermit())
+                {
+                    startdeferRxEnableTimer(rxReq->getRxOnTime() - aTurnaroundTime);
+                    deferRxEnable = rxReq;
+                    delete (msg);    // fix for undisposed object message
+                    return;
+                }
+                else
+                {
+                    RxEnableConfirm* conf = new RxEnableConfirm("MLME-RX-ENABLE.confirm");
+                    conf->setStatus(rx_PAST_TIME);
+                    send(conf, "outMLME");
+                    delete (msg);
+                    return;
+                }
+            }
+            break;
+        }  // case MLMERXENABLE
+
+        case MLMESCAN: {
+            numUpperMgmtPkt++;
+            ScanRequest* scanReq = check_and_cast<ScanRequest*>(msg);
+
+            if (scanning)
+            {
+                // send a confirm for upper layer without changing our status variables
+                ScanConfirm* scanConf = new ScanConfirm("MLME-SCAN.confirm");
+                scanConf->setStatus(scan_SCAN_IN_PROGRESS);
+                scanConf->setScanType(scanReq->getScanType());
+                scanConf->setChannelPage(scanReq->getChannelPage());
+                scanConf->setUnscannedChannels(134217727);  // 27 channels unscanned
+                scanConf->setResultListSize(0);
+                send(scanConf, "outMLME");
+            }
+            else
+            {
+                scanning = true;
+                scanType = (ScanType) scanReq->getScanType();
+                if (!isFFD)
+                {
+                    if (scanType == scan_ORPHAN)
+                    {
+                        macEV << "RFD do not support an orphan scan \n";
+                        ScanConfirm* scanConf = new ScanConfirm("MLME-SCAN.confirm");
+                        scanConf->setStatus(scan_INVALID_PARAMETER);
+                        scanConf->setScanType(scanReq->getScanType());
+                        scanConf->setChannelPage(scanReq->getChannelPage());
+                        scanConf->setUnscannedChannels(134217727);  // 27 channels unscanned
+                        scanConf->setResultListSize(0);
+                        send(scanConf, "outMLME");
+                    }
+                }
+                scanDuration = scanReq->getScanDuration();
+                scanChannels = scanReq->getScanChannels();
+                channelPage = scanReq->getChannelPage();
+                scanSteps = scanChannels;
+                scanCount = 0;
+                scanResultListSize = 0;
+                doScan();
+            }
+
+            delete (scanReq);    // fix for undisposed object: (ScanRequest) net.IEEE802154Nodes[0].NIC.MAC.IEEE802154Mac.MLME-SCAN.request
+            break;
+        }  // case MLMESCAN
+
+        case MLMESET: {
+            numUpperMgmtPkt++;
+            SetRequest* SetReq = check_and_cast<SetRequest*>(msg);
+            send(SetReq, "outPLME");
+            break;
+        }  // case MLMESET
+
+        case MLMESTART: {
+            numUpperMgmtPkt++;
+
+            StartRequest* startMsg = check_and_cast<StartRequest*>(msg);
+            isCoordinator = startMsg->getPANCoordinator();
+            // inform PHY to set the new channel
+            setRadioChannel(startMsg->getLogicalChannel());
+            mpib.setMacBeaconOrder(startMsg->getBeaconOrder());
+            mpib.setMacSuperframeOrder(startMsg->getSuperframeOrder());
+            mpib.setMacBattLifeExt(startMsg->getBatteryLifeExtension());
+            mpib.setMacPANId(startMsg->getPANId());
+            mpib.setMacAssociationPermit(true);
+            if (isCoordinator)
+            {
+                par("isPANCoordinator").setBoolValue(isCoordinator);
+
+                myMacAddr.genShortAddr();
+
+                mpib.setMacCoordExtendedAddress(myMacAddr);
+                mpib.setMacShortAddress(myMacAddr.getShortAddr());
+
+                txSfSlotDuration = aBaseSlotDuration * (1 << mpib.getMacSuperframeOrder());
+                startBcnTxTimer(true, startMsg->getStartTime());  // send out first beacon ASAP
+                genStartConf(mac_SUCCESS);
+            }
+            else
+            {
+                genSetTrxState(phy_RX_ON);
+                genStartConf(mac_SUCCESS);
+            }
+
+            delete (startMsg);  // XXX solving undisposed object error startMsg
+
+            // send a get request just that the buffer knows to forward next packet
+            cMessage* buffMsg = new cMessage("Buffer-get-Elem");
+            buffMsg->setKind(99);
+            send(buffMsg, "outMCPS");
+
+            break;
+        }  // case MLMESTART
+
+        case MLMESYNC: {
+            numUpperMgmtPkt++;
+            SyncRequest* syncMsg = check_and_cast<SyncRequest*>(msg);
+            syncLoss = true;
+
+            setRadioChannel(syncMsg->getLogicalChannel());
+
+            // FIXME TODO check necessary operations to support sync loss
+
+            break;
+        }  // case MLMESYNC
+
+        case MLMEPOLL: {
+            numUpperMgmtPkt++;
+            PollRequest* pollMsg = check_and_cast<PollRequest*>(msg);
+            CmdFrame* dataReq = new CmdFrame("MCPS-DATA.request");
+            dataReq->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+            dataReq->setSrc(myMacAddr);
+            dataReq->setSrcPANid(mpib.getMacPANId());
+            dataReq->setDest(pollMsg->getCoordAddress());
+            unsigned char sqnr = mpib.getMacDSN();
+            dataReq->setSqnr(sqnr);
+            (sqnr < 255) ? sqnr++ : sqnr = 0;    // check if 8-bit data sequence number needs to roll over
+            mpib.setMacDSN(sqnr);
+            dataReq->setCmdType(Ieee802154_DATA_REQUEST);
+
+            mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
+            holdMe->encapsulate(dataReq);
+            holdMe->setDest(dataReq->getDest());
+            holdMe->setSrc(dataReq->getSrc());
+            holdMe->setSrcPANid(dataReq->getSrcPANid());
+            holdMe->setFcf(dataReq->getFcf());
+            holdMe->setSqnr(dataReq->getSqnr());
+            holdMe->setByteLength(calcFrameByteLength(dataReq));
+
+            txData = holdMe;
+            Poll = true;
+            csmacaEntry('d');
+            break;
+        }  // case MLMEPOLL
+
+        case MLMEORPHANRESP: {
+            numUpperMgmtPkt++;
+            OrphanResponse* oR = check_and_cast<OrphanResponse*>(msg);
+            mpdu* holdMe = new mpdu("MLME-COMMAND.inside");
+            holdMe->encapsulate(oR);
+            holdMe->setDest(MACAddressExt::BROADCAST_LONG_ADDRESS);
+            holdMe->setSrc(myMacAddr);
+            holdMe->setSrcPANid(mpib.getMacPANId());
+            holdMe->setFcf(genFCF(Command, false, false, false, false, addrLong, 0, addrLong));
+
+            txData = holdMe;
+            csmacaEntry('d');
+            break;
+        }  // case MLMEORPHANRESP
+
+        default: {
+            error("MAC has unknown MLME - Message Type from Higher Layer !!");
+            break;
+        }  // default
+    }  // switch
 }
 
 // handle messages received from UpperLayer via MCPS-SAP
 void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
 {
-    error("continue here to refactor everything!");
+    // Check if we are already processing a msg
+    if (taskP.taskStatus(TP_MCPS_DATA_REQUEST) || scanning)
+    {
+        macEV << "A " << msg->getName() << " (#" << numUpperDataPkt << ") received from upper layer, but dropped due to concurrent msg processing \n";
+        numUpperDataPktDropped++;
+        delete (msg);
+
+        cMessage* buffMsg = new cMessage("Buffer-get-Elem");
+        buffMsg->setKind(99);
+        send(buffMsg, "outMCPS");
+        return;
+    }
+
+    // check_and_cast for a MCPS-DATA.request
+    mcpsDataReq* dataReq = check_and_cast<mcpsDataReq*>(msg);
+    macEV << "MCPS-DATA.request arrived on MCPS_SAP for " << dataReq->getDstAddr().str() << endl;
+
+    // Check if the data request packet has a valid size
+    if (dataReq->getByteLength() > aMaxMACFrameSize)
+    {
+        macEV << dataReq->getName() << " received from upper layer, but dropped due to oversize \n";
+        sendMCPSDataConf(mac_FRAME_TOO_LONG, dataReq->getMsduHandle());
+        numUpperDataPktDropped++;
+        delete (msg);
+        return;
+    }
+
+    // set missing parameter and generate MPDU Data request
+    mpdu* data = new mpdu("DATA.indication");
+    data->setSrcPANid(mpib.getMacPANId());
+    data->setSrc(myMacAddr);
+    data->setByteLength(dataReq->getMsduLength());
+    data->setDestPANid(mpib.getMacPANId());
+    data->setDest(dataReq->getDstAddr());
+    data->encapsulate(dataReq->decapsulate());
+    data->setSqnr(dataReq->getMsduHandle());
+
+    numUpperDataPkt++;
+
+    Ieee802154MacTaskType task = TP_MCPS_DATA_REQUEST;
+    taskP.taskStatus(task) = true;
+    switch (dataReq->getTxOptions())
+    {
+        case 0:  // direct CAP noAck
+        {
+            taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+            data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+            data->setByteLength(calcFrameByteLength(data));
+            data->setIsGTS(false);
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy
+            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txData == NULL);
+            txData = data;
+            csmacaEntry('d');
+            break;
+        }
+
+        case 1:  // direct CAP ACK
+        {
+            taskP.mcps_data_request_TxOption = DIRECT_TRANS;
+            data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+            data->setByteLength(calcFrameByteLength(data));
+            data->setIsGTS(false);
+            waitDataAck = true;
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy
+            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txData == NULL);
+            txData = data;
+            csmacaEntry('d');
+            break;
+        }
+
+        case 2:  // direct GTS noACK
+        {
+            data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+            data->setByteLength(calcFrameByteLength(data));
+            taskP.mcps_data_request_TxOption = GTS_TRANS;
+            data->setIsGTS(true);
+            waitDataAck = false;
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy
+            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txGTS == NULL);
+            txGTS = data;
+            csmacaEntry('d');
+            break;
+        }
+
+        case 3:  // direct GTS ACK
+        {
+            taskP.mcps_data_request_TxOption = GTS_TRANS;
+            data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+            data->setByteLength(calcFrameByteLength(data));
+            data->setIsGTS(true);
+            waitDataAck = true;
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy
+            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txGTS == NULL);
+            txGTS = data;
+            csmacaEntry('d');
+            break;
+        }
+
+        case 4:  // indirect noACK
+        {
+            taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect
+            data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
+            data->setByteLength(calcFrameByteLength(data));
+            data->setIsGTS(false);
+            data->setIsIndirect(true);
+            waitDataAck = false;
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy
+            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txData == NULL);
+            txData = data;
+            csmacaEntry('d');
+            break;
+        }
+
+        case 5:  // indirect ACK
+        {
+            taskP.mcps_data_request_TxOption = DIRECT_TRANS;  // it's still indirect ...
+            data->setFcf(genFCF(Data, false, false, true, false, addrLong, 01, addrLong));
+            data->setByteLength(calcFrameByteLength(data));
+            data->setIsGTS(false);
+            data->setIsIndirect(true);
+            waitDataAck = true;
+            taskP.taskStep(task)++; // advance to next task step
+            strcpy
+            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            ASSERT(txData == NULL);
+            txData = data;
+            csmacaEntry('d');
+            break;
+        }
+
+        default: {
+            error("[IEEE802154MAC]: got invalid TXoption in MCPS-DATA.request");
+            break;
+        }
+    }  // switch
+
+    delete (msg);        // fix for undisposed object message (incoming messages from MCPS_SAP)
 }
 
 // handle messages received from PHY via PLME-SAP
@@ -1429,7 +1442,6 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
             return;
         }
     }
-    delete (frame); // fix for undisposed object
 }
 
 void IEEE802154Mac::handleSelfMsg(cMessage* msg)
@@ -1676,8 +1688,18 @@ void IEEE802154Mac::handleData(mpdu* frame)
 
 void IEEE802154Mac::handleCommand(mpdu* frame)
 {
-    // all commands in this environment are encapsulated in MPDU
-    CmdFrame* cmdFrame = check_and_cast<CmdFrame*>(frame->decapsulate());
+    CmdFrame* cmdFrame;
+    // check if a command is encapsulated in a MPDU
+    if (frame->hasEncapsulatedPacket())
+    {
+        cmdFrame = check_and_cast<CmdFrame*>(frame->decapsulate());
+    }
+    else
+    {
+        cmdFrame = check_and_cast<CmdFrame*>(frame);
+    }
+
+    // switch-case for the different command frame types
     switch (cmdFrame->getCmdType())
     {
         case Ieee802154_ASSOCIATION_REQUEST: {
@@ -5764,8 +5786,10 @@ void IEEE802154Mac::finish()
 
     if (currentTime > 0)
     {
-        recordScalar("Total num of upper pkts received", numUpperPkt);
-        recordScalar("Num of upper pkts dropped", numUpperPktLost);
+        recordScalar("Num of upper DATA pkts received in MAC", numUpperDataPkt);
+        recordScalar("Num of upper DATA pkts dropped in MAC", numUpperDataPktDropped);
+        recordScalar("Num of upper MANAGEMENT pkts received in MAC", numUpperMgmtPkt);
+        recordScalar("Num of upper MANAGEMENT pkts dropped in MAC", numUpperMgmtPktDropped);
         recordScalar("Num of BEACON pkts sent", numTxBcnPkt);
         recordScalar("Num of DATA pkts sent successfully", numTxDataSucc);
         recordScalar("Num of DATA pkts failed", numTxDataFail);
@@ -5777,8 +5801,8 @@ void IEEE802154Mac::finish()
         recordScalar("Num of DATA pkts received", numRxDataPkt);
         recordScalar("Num of DATA pkts received in GTS", numRxGTSPkt);
         recordScalar("Num of ACK pkts received", numRxAckPkt);
-        recordScalar("Num of COMMAND pkts dropped due to concurrent proccessing", numRxCmdPktDropped);
-        recordScalar("Num of DATA pkts dropped due to concurrent proccessing", numRxDataPktDropped);
+        recordScalar("Num of COMMAND pkts dropped due to concurrent processing", numRxCmdPktDropped);
+        recordScalar("Num of DATA pkts dropped due to concurrent processing", numRxDataPktDropped);
         recordScalar("Num of pkts filtered in MAC", numRxPktFiltered);
         recordScalar("Num of collisions", numCollisions);
         recordScalar("Num of bit errors", numBitErrors);

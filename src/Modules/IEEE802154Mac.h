@@ -176,8 +176,6 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
          */
         void handleMessage(cMessage* msg);
 
-        // XXX to be deleted after final testing
-        void handleUpperMsg(cMessage* msg); // XXX refactor into separate functions for MCPS and MLME
         void handleUpperMLMEMsg(cMessage* msg);
         void handleUpperMCPSMsg(cMessage* msg);
 
@@ -634,11 +632,17 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         phyState trx_state_req;
 
         /** @name Statistical variables */
-        // number of data packets received from upper layer, counted in <handleUpperMsg()>
-        unsigned long numUpperPkt;
+        // number of data packets received from upper layer, counted in <handleUpperMCPSMsg()>
+        unsigned long numUpperDataPkt;
 
-        // number of data packets from upper layer dropped by MAC due to busy MAC or invalid size (e.g. oversize), counted in <handleUpperMsg()>
-        unsigned long numUpperPktLost;
+        // number of data packets from upper layer dropped by the MAC due to busy MAC or invalid size, counted in <handleUpperMCPSMsg()>
+        unsigned long numUpperDataPktDropped;
+
+        // number of management packets received from upper layer, counted in <handleUpperMLMEMsg()>
+        unsigned long numUpperMgmtPkt;
+
+        // number of management packets from upper layer dropped by the MAC, counted in <handleUpperMLMEMsg()>
+        unsigned long numUpperMgmtPktDropped;
 
         // number of incoming beacons lost, counted in <handleBcnRxTimer()>
         unsigned long numLostBcn;
