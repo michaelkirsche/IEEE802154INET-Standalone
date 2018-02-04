@@ -122,7 +122,7 @@ void IEEE802154Mac::initialize(int stage)
         waitGTSConf = false;
 
         trxState = false;
-       headerSize = 0;
+        headerSize = 0;
 
         ASSERT(getModuleByPath("^.^.^.Network.stdLLC") != NULL);    // getModuleByPath returns the LLC module (and thus the parameter)
         unsigned short llcTXoption = getModuleByPath("^.^.^.Network.stdLLC")->par("TXoption");
@@ -1112,8 +1112,7 @@ void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
             data->setByteLength(calcFrameByteLength(data));
             data->setIsGTS(false);
             taskP.taskStep(task)++; // advance to next task step
-            strcpy
-            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
             ASSERT(txData == NULL);
             txData = data;
             csmacaEntry('d');
@@ -1128,8 +1127,7 @@ void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
             data->setIsGTS(false);
             waitDataAck = true;
             taskP.taskStep(task)++; // advance to next task step
-            strcpy
-            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
             ASSERT(txData == NULL);
             txData = data;
             csmacaEntry('d');
@@ -1138,14 +1136,13 @@ void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
 
         case 2:  // direct GTS noACK
         {
+            taskP.mcps_data_request_TxOption = GTS_TRANS;
             data->setFcf(genFCF(Data, false, false, false, false, addrLong, 01, addrLong));
             data->setByteLength(calcFrameByteLength(data));
-            taskP.mcps_data_request_TxOption = GTS_TRANS;
             data->setIsGTS(true);
             waitDataAck = false;
             taskP.taskStep(task)++; // advance to next task step
-            strcpy
-            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
             ASSERT(txGTS == NULL);
             txGTS = data;
             csmacaEntry('d');
@@ -1160,8 +1157,7 @@ void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
             data->setIsGTS(true);
             waitDataAck = true;
             taskP.taskStep(task)++; // advance to next task step
-            strcpy
-            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
             ASSERT(txGTS == NULL);
             txGTS = data;
             csmacaEntry('d');
@@ -1177,8 +1173,7 @@ void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
             data->setIsIndirect(true);
             waitDataAck = false;
             taskP.taskStep(task)++; // advance to next task step
-            strcpy
-            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
             ASSERT(txData == NULL);
             txData = data;
             csmacaEntry('d');
@@ -1194,8 +1189,7 @@ void IEEE802154Mac::handleUpperMCPSMsg(cMessage* msg)
             data->setIsIndirect(true);
             waitDataAck = true;
             taskP.taskStep(task)++; // advance to next task step
-            strcpy
-            (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+            strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
             ASSERT(txData == NULL);
             txData = data;
             csmacaEntry('d');
@@ -1448,9 +1442,12 @@ void IEEE802154Mac::handleLowerPDMsg(cMessage* msg)
 
         default: {
             error("[IEEE802154MAC]: undefined MAC frame type: %d \n", frameType);
-            return;
+            delete (frame);
+            break;
         }
     }
+
+    return;
 }
 
 void IEEE802154Mac::handleSelfMsg(cMessage* msg)
@@ -1566,7 +1563,6 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
 
         // mpib.setMacPANId(frame->getSrcPANid());
         rxPanDescriptor.CoordAddress = frame->getSrc();
-        //rxPanDescriptor.LogicalChannel = ppib.getCurrChann(); // XXX ppib not used anymore
         rxPanDescriptor.LogicalChannel = phy_channel;
 
         // start rxSDTimer
@@ -1586,14 +1582,14 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
             {
                 w_time = w_time - aTurnaroundTime / phy_symbolrate;
             }
-            macEV << "Schedule for my GTS with start slot #" << (int) gtsStartSlot << "\n";
+            macEV << "Schedule for my GTS with start slot #" << (int) gtsStartSlot << endl;
             startGtsTimer(w_time);
 
             if (waitGTSConf)
             {
                 int i = 0;
 
-                while (bcnFrame->getGtsList(i).devShortAddr != myMacAddr.getShortAddr() && i < 7)
+                while ((bcnFrame->getGtsList(i).devShortAddr != myMacAddr.getShortAddr()) && (i < 7))
                 {
                     i++;
                 }
@@ -1620,10 +1616,11 @@ void IEEE802154Mac::handleBeacon(mpdu *frame)
         {
             csmacaTrxBeacon('r');
         }
-        genBeaconInd(frame);        // inform higher layer
+        genBeaconInd(frame); // inform higher layer
         resetTRX();
     }
     numRxBcnPkt++;
+    delete (bcnFrame);
     return;
 }
 
@@ -1687,6 +1684,7 @@ void IEEE802154Mac::handleData(mpdu* frame)
     // (refer to Figure 68 of the 802.15.4-2006 Spec. for details of SIFS/LIFS)
     ASSERT(rxData == NULL);
     rxData = (frame->dup());
+    delete (frame); // fix for undisposed object due to duplication of frame
 
     if (!((frmCtrl & arequMask) >> arequShift))
     {
@@ -1702,6 +1700,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
     if (frame->hasEncapsulatedPacket())
     {
         cmdFrame = check_and_cast<CmdFrame*>(frame->decapsulate());
+        delete (frame); // fix for undisposed object due to decapsulate creating a copy of frame
     }
     else
     {
@@ -1729,8 +1728,6 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (tmpAssoReq);
-                return;
-
             }
             else
             {
@@ -1738,7 +1735,6 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (cmdFrame);
-                return;
             }
             break;
         }  // case Ieee802154_ASSOCIATION_REQUEST
@@ -1753,7 +1749,6 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing;
                 delete (cmdFrame);
-                return;
             }
             else
             {
@@ -1785,7 +1780,6 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 delete (rxCmd); // fix for undisposed object (mpdu)
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (aresp); // XXX fix for undisposed object (AssoCmdresp)
-                return;
             }
             break;
         }  // case Ieee802154_ASSOCIATION_RESPONSE
@@ -1877,20 +1871,18 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                     taskP.taskStatus(task) = true;
                     taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                     taskP.taskStep(task)++; // advance to next task step
-                    strcpy
-                    (taskP.taskFrFunc(task), "handle_PD_DATA_request");
+                    strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                     ASSERT(txBcnCmd == NULL);
                     txBcnCmd = tmpBcn;
                     csmacaEntry('c');
                 }
-                return;
             } // if (coordinator)
             else
             {
                 macEV << "Not a Coordinator - dropping Msg \n";
                 delete (cmdFrame); // XXX fix for undisposed objects
-                return;
             } // ifnot (coordinator)
+            break;
         }
 
         case Ieee802154_GTS_REQUEST: {
@@ -1914,14 +1906,12 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 send(gtsInd, "outMLME");
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (gtsRequ);
-                return;
             }
             else
             {
                 macEV << "Device is dropping received GTS Request Command \n";
                 rxCmd = NULL;   // XXX delete command message buffer after processing
                 delete (cmdFrame);
-                return;
             }
             break;
         }  // case Ieee802154_GTS_REQUEST
@@ -1945,7 +1935,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             macEV << "Got unknown Command type in a Command Frame - dropping frame \n";
             rxCmd = NULL;   // XXX delete command message buffer after processing
             delete (cmdFrame);
-            return;
+            break;
         }  // default
     }  // switch
 
@@ -2083,6 +2073,7 @@ void IEEE802154Mac::handle_PLME_SET_TRX_STATE_confirm(phyState status)
             startTxCmdDataBoundTimer(delay);
         }
     }
+    return;
 }
 
 void IEEE802154Mac::handle_PLME_CCA_confirm(phyState status)
@@ -2157,6 +2148,7 @@ void IEEE802154Mac::handle_PLME_CCA_confirm(phyState status)
             }
         }
     }
+    return;
 }
 
 void IEEE802154Mac::handle_PLME_GET_confirm(cMessage* msg)
@@ -2172,15 +2164,15 @@ void IEEE802154Mac::handle_PLME_GET_confirm(cMessage* msg)
         case currentChannel: {
             phy_channel = (unsigned short) getConf->getValue();
             break;
-    }
+        }
         case channelSupported: {
             error("TODO --- not yet implemented \n");
             break;
-    }
+        }
         case transmitPower: {
             error("TODO --- not yet implemented \n");
             break;
-}
+        }
         case CCA_Mode: {
             error("TODO --- not yet implemented \n");
             break;
@@ -2206,7 +2198,7 @@ void IEEE802154Mac::handle_PLME_GET_confirm(cMessage* msg)
             break;
         }
     }
-    delete (msg);   // fix for undisposed objects
+    delete (getConf);   // fix for undisposed objects
     return;
 }
 
@@ -2758,7 +2750,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
 
                 default: {
                     error("[IEEE802154MAC]: undefined txOption: %d!", dataTransMode);
-                    return;
+                    break;
                 }  // default
             }  // switch
         }
