@@ -57,12 +57,6 @@ bool msgBuffer::purgeElem(unsigned char msduHandle)
         {
             error("[msgBuffer] undefined cMessage type selected for purging from the buffer --> needs to be implemented ?!?");
         }
-
-        // XXX cMessage ID is not used for message purging, instead the msgHandle is used
-        //if (msduHandle == toPurge->getId())
-        //{
-            //buffer.remove(start + i);
-        //}
         return true;
     }
     return false;
@@ -163,8 +157,7 @@ void msgBuffer::handleMessage(cMessage* msg)
 
 void msgBuffer::add(cMessage* elem)
 {
-    //buffer.add(elem); // XXX adds the msg at the first free buffer position, not the current end
-    buffer.addAt(end, elem);    // XXX changed to add the msg at the current last position and then increment it
+    buffer.addAt(end, elem);    // add the msg at the current last position and then increment it
     isEmpty = false;
     end++;
     elems++;

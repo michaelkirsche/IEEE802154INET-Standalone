@@ -90,11 +90,10 @@ void IEEE802154Mac::initialize(int stage)
         mpib.setMacRxOnWhenIdle(true);  // if not, we wont receive any Messages during CFP / CAP
         mpib.setMacPromiscuousMode(par("promiscuousMode").boolValue());
 
-        // initialize MacDSN (data sequence number) and MacBSN (beacon sequence number) to random 8-bit values
-        //mpib.setMacDSN(intrand(255));
+        // initialize MacBSN (beacon sequence number) to random 8-bit values
         mpib.setMacBSN(intrand(255));
 
-        // XXX instead of randomly selecting a 8-bit MacDSN, we use the index of the node for the moment
+        // instead of randomly selecting a 8-bit MacDSN (data sequence number), we use the index of the node for the moment
         // module path to traverse: net.IEEE802154Nodes[index].NIC.MAC.IEEE802154Mac
         unsigned int hostIndex = this->getParentModule()->getParentModule()->getParentModule()->getIndex();
         ASSERT(hostIndex <= 255);   // msgHandle is 8-bit at the moment, to avoid collisions, we use less than 256 hosts
@@ -102,7 +101,6 @@ void IEEE802154Mac::initialize(int stage)
 
         macEV << "Initialization for MacDSN = " << mpib.getMacDSN() << " and MacBSN = " << mpib.getMacBSN() << endl;
 
-        //mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + ppib.getSHR() + (6 - ppib.getSymbols()));
         ASSERT(getModuleByPath("^.^.PHY") != NULL);// getModuleByPath returns the PHY module here
         mpib.setMacAckWaitDuration(aUnitBackoffPeriod + aTurnaroundTime + (getModuleByPath("^.^.PHY")->par("SHRDuration").longValue()) + (6 - (getModuleByPath("^.^.PHY")->par("symbolsPerOctet").longValue())));
 
@@ -249,7 +247,7 @@ void IEEE802154Mac::initialize(int stage)
         gtsTransDuration = 0;
 
         /**
-         *  FIXME --> untested
+         *  TODO --> untested
          *  for indirect transmission
          txPaFields.numShortAddr = 0;
          txPaFields.numExtendedAddr  = 0;
@@ -983,7 +981,7 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
                 genStartConf(mac_SUCCESS);
             }
 
-            delete (startMsg);  // XXX solving undisposed object error startMsg
+            delete (startMsg);  // solving undisposed object error startMsg
 
             // send a get request just that the buffer knows to forward next packet
             cMessage* buffMsg = new cMessage("Buffer-get-Elem");
@@ -1211,7 +1209,7 @@ void IEEE802154Mac::handleLowerPLMEMsg(cMessage* msg)
     if (mappedMsgTypes[msg->getName()] == CCA)
     {
         handle_PLME_CCA_confirm((phyState) msg->getKind());
-        delete (msg);   // XXX fix for undisposed objects
+        delete (msg);   // fix for undisposed objects
         return;
     }
     else if ((mappedMsgTypes[msg->getName()] == ED) && (dynamic_cast<edConf*>(msg)))
@@ -1241,7 +1239,7 @@ void IEEE802154Mac::handleLowerPLMEMsg(cMessage* msg)
     else if ((!msg->isPacket()) && (mappedMsgTypes[msg->getName()] == SETTRXSTATE))
     {
         handle_PLME_SET_TRX_STATE_confirm((phyState) msg->getKind());
-        delete (msg);   // XXX fix for undisposed objects
+        delete (msg);   // fix for undisposed objects
         return;
     }
     else
@@ -1723,17 +1721,16 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 send(assoInd, "outMLME");
                 // we associate with everyone
                 genAssoResp(Success, tmpAssoReq);
-                // XXX set Transceiver to ON (and thus handle_PLME_SET_TRX_STATE and eventually transfer) ?!?
-                //genSetTrxState(phy_TX_ON);
+
                 delete (rxCmd); // fix for undisposed object (mpdu)
-                rxCmd = NULL;   // XXX delete command message buffer after processing
+                rxCmd = NULL;   // delete command message buffer after processing
                 delete (tmpAssoReq);
             }
             else
             {
                 macEV << "Device is dropping Association Request frame since we are NOT a coordinator \n";
                 delete (rxCmd); // fix for undisposed object (mpdu)
-                rxCmd = NULL;   // XXX delete command message buffer after processing
+                rxCmd = NULL;   // delete command message buffer after processing
                 delete (cmdFrame);
             }
             break;
@@ -1747,7 +1744,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 // Discard
                 macEV << "Coordinator got a Associate Response -- dropping it \n";
                 delete (rxCmd); // fix for undisposed object (mpdu)
-                rxCmd = NULL;   // XXX delete command message buffer after processing;
+                rxCmd = NULL;   // delete command message buffer after processing;
                 delete (cmdFrame);
             }
             else
@@ -1778,8 +1775,8 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 send(assoConf, "outMLME");
 
                 delete (rxCmd); // fix for undisposed object (mpdu)
-                rxCmd = NULL;   // XXX delete command message buffer after processing
-                delete (aresp); // XXX fix for undisposed object (AssoCmdresp)
+                rxCmd = NULL;   // delete command message buffer after processing
+                delete (aresp); // fix for undisposed object (AssoCmdresp)
             }
             break;
         }  // case Ieee802154_ASSOCIATION_RESPONSE
@@ -1801,20 +1798,20 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             associated = false;
 
             delete (rxCmd); // fix for undisposed object (mpdu)
-            rxCmd = NULL;   // XXX delete command message buffer after processing
+            rxCmd = NULL;   // delete command message buffer after processing
             delete (cmdFrame);
             delete (tmpDisCmd);
             break;
         }  // case Ieee802154_DISASSOCIATION_NOTIFICATION
 
         case Ieee802154_DATA_REQUEST: {
-            genACK(cmdFrame->getSqnr(), false);
             // TODO: does data request already contain the ACK flag set in the FCF? If so, genACK is obsolete here
+            genACK(cmdFrame->getSqnr(), false);
 
             // TODO: further processing of DATA_REQUEST command necessary
             //send(cmdFrame, "outMLME");
             delete (rxCmd);
-            rxCmd = NULL;   // XXX delete command message buffer after processing
+            rxCmd = NULL;   // delete command message buffer after processing
             break;
         }  // case Ieee802154_DATA_REQUEST
 
@@ -1880,7 +1877,7 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
             else
             {
                 macEV << "Not a Coordinator - dropping Msg \n";
-                delete (cmdFrame); // XXX fix for undisposed objects
+                delete (cmdFrame); // fix for undisposed objects
             } // ifnot (coordinator)
             break;
         }
@@ -1904,13 +1901,13 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                     gtsInd->setSecurityLevel(gtsRequ->getAsh().secu.Seculevel);
                 }
                 send(gtsInd, "outMLME");
-                rxCmd = NULL;   // XXX delete command message buffer after processing
+                rxCmd = NULL;   // delete command message buffer after processing
                 delete (gtsRequ);
             }
             else
             {
                 macEV << "Device is dropping received GTS Request Command \n";
-                rxCmd = NULL;   // XXX delete command message buffer after processing
+                rxCmd = NULL;   // delete command message buffer after processing
                 delete (cmdFrame);
             }
             break;
@@ -1927,13 +1924,13 @@ void IEEE802154Mac::handleCommand(mpdu* frame)
                 genACK(frame->getSqnr(), false); // generate an ACK for the incomming MLME-POLL.request with FramePending = false
                 // XXX needed? MLME-POLL.request FCF should include the Ack flag, which gets evaluated (and taken care of) during reception
             }
-            rxCmd = NULL;   // XXX delete command message buffer after processing
+            rxCmd = NULL;   // delete command message buffer after processing
             break;
         }  // case Ieee802154_POLL_REQUEST
 
         default: {
             macEV << "Got unknown Command type in a Command Frame - dropping frame \n";
-            rxCmd = NULL;   // XXX delete command message buffer after processing
+            rxCmd = NULL;   // delete command message buffer after processing
             delete (cmdFrame);
             break;
         }  // default
@@ -2266,7 +2263,7 @@ void IEEE802154Mac::handle_PLME_SET_confirm(cMessage* msg)
         }
     } // switch(setConf->getPIBAttr)
 
-    delete (msg);   // XXX fix for undisposed objects (PLME-SET.confirm)
+    delete (msg);   // fix for undisposed objects (PLME-SET.confirm)
     return;
 }
 
@@ -2305,13 +2302,12 @@ void IEEE802154Mac::handle_PD_DATA_confirm(phyState status)
     else if (txPkt == txBeacon)
     {
         beaconWaitingTx = false;
-        delete txBeacon;
+        delete (txBeacon);
         txBeacon = NULL;
     }
     else
     {
-        macEV << "PD-DATA.confirm status is " << phyStateToString(status) << endl;
-        error("[IEEE802154MAC]: transmission failed \n");
+        error("[IEEE802154MAC]: transmission failed - PD-DATA.confirm status is: %s \n", phyStateToString(status));
     }
 }
 
@@ -2686,7 +2682,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
     holdMe->setSqnr(assoResp->getSqnr());
     holdMe->setByteLength(calcFrameByteLength(assoResp));
 
-    // XXX further refactoring necessary
+    // FIXME further refactoring necessary
     // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
     if ((txData != NULL) || (txGTS != NULL))
     {
@@ -2714,7 +2710,7 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
             {
                 case DIRECT_TRANS:
                 case INDIRECT_TRANS: {
-                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;   // XXX fix for missing taskPending->TxOption
+                    taskP.mcps_data_request_TxOption = DIRECT_TRANS;
                     taskP.taskStep(task)++; // advance to next task step
                     strcpy(taskP.taskFrFunc(task), "handle_PD_DATA_request");
                     ASSERT(txData == NULL);
@@ -2724,12 +2720,12 @@ void IEEE802154Mac::genAssoResp(MlmeAssociationStatus status, AssoCmdreq* tmpAss
                 }  // CASES DIRECT_TRANS & INDIRECT_TRANS
 
                 case GTS_TRANS: {
-                    taskP.mcps_data_request_TxOption = GTS_TRANS;   // XXX fix for missing taskPending->TxOption
+                    taskP.mcps_data_request_TxOption = GTS_TRANS;
                     taskP.taskStep(task)++; // advance to next task step
                     // waiting for GTS arriving, callback from handleGtsTimer()
                     strcpy(taskP.taskFrFunc(task), "handleGtsTimer");
-                    ASSERT(txGTS == NULL); // fix for txGTS segmentation fault (use txGTS instead of txData)
-                    txGTS = holdMe; // fix for txGTS segmentation fault (use txGTS instead of txData)
+                    ASSERT(txGTS == NULL);
+                    txGTS = holdMe;
                     numGTSRetry = 0;
 
                     // if I'm the PAN coordinator, should defer the transmission until the start of the receive GTS
@@ -2807,12 +2803,12 @@ void IEEE802154Mac::genDisAssoCmd(DisAssociation* disAss, bool direct)
     holdMe->setSqnr(disCmd->getSqnr());
     holdMe->setByteLength(calcFrameByteLength(disCmd));
 
-    // XXX further refactoring necessary
+    // FIXME further refactoring necessary
     // because prompt GTS transfer leads to collisions with the immediate transport of ACK frames
     //if ((txData != NULL) || (txGTS != NULL) || (txAck != NULL))
     if ((txData != NULL) || (txGTS != NULL))
     {
-        macEV << "Processing other data right now -> disasscoiate request will be transmitted later -> inserted into txBuffer \n";
+        macEV << "Processing other data right now -> disassociate request will be transmitted later -> inserted into txBuffer \n";
         txBuffer.insert(holdMe);
     }
     else
@@ -2964,7 +2960,7 @@ void IEEE802154Mac::genScanConf(ScanStatus status)
     if (scanType == scan_ED)
     {
         scanConf->setEnergyDetectListArraySize(scanResultListSize);
-        for (int i = 0; i < scanResultListSize; i++)
+        for (unsigned int i = 0U; i < scanResultListSize; i++)
         {
             scanConf->setEnergyDetectList(i, scanEnergyDetectList[i]);
         }
@@ -2973,7 +2969,7 @@ void IEEE802154Mac::genScanConf(ScanStatus status)
     if (scanType == scan_ACTIVE || scanType == scan_PASSIVE)
     {
         scanConf->setPANDescriptorListArraySize(scanResultListSize);
-        for (int i = 0; i < scanResultListSize; i++)
+        for (unsigned int i = 0U; i < scanResultListSize; i++)
         {
             scanConf->setPANDescriptorList(i, scanPANDescriptorList[i]);
         }
@@ -4311,8 +4307,8 @@ void IEEE802154Mac::startScanTimer(simtime_t wtime)
 unsigned char IEEE802154Mac::calcFrameByteLength(cPacket* frame)
 {
     macEV << "Calculating size of " << frame->getName() << endl;
-    unsigned char byteLength;   // to calculate -> MHR + MAC payload + MFR (FCS)
-    unsigned char MHRLength;    // to calculate MHR
+    unsigned char byteLength = 0U;   // to calculate -> MHR + MAC payload + MFR (FCS)
+    unsigned char MHRLength = 0U;    // to calculate MHR
 
     if (dynamic_cast<AckFrame*>(frame))
     {
@@ -4344,15 +4340,13 @@ unsigned char IEEE802154Mac::calcFrameByteLength(cPacket* frame)
         }
         else if (frmType == Command)
         {
-            CmdFrame* cmdFrm;
+            CmdFrame* cmdFrm = NULL;
             if (dynamic_cast<CmdFrame*>(frame))
             {
                 cmdFrm = check_and_cast<CmdFrame *>(frame);
             }
             else if (frame->hasEncapsulatedPacket() == true) // unpack, Command must be inside
             {
-                //cmdFrm = check_and_cast<CmdFrame *>(frame->decapsulate());    // FIXME remove after testing
-                //frame->encapsulate(cmdFrm);
                 cmdFrm = check_and_cast<CmdFrame *>(frame->getEncapsulatedPacket());
             }
 
@@ -4472,7 +4466,7 @@ unsigned char IEEE802154Mac::calcFrameByteLength(cPacket* frame)
 
 unsigned char IEEE802154Mac::calcMacHeaderByteLength(unsigned char addrModeSum, bool secu)
 {
-    int ashSize = 0;
+    unsigned int ashSize = 0U;
     if (secu)
     {
         ashSize = 14;
@@ -5840,7 +5834,7 @@ IEEE802154Mac::IEEE802154Mac()
     rxData = NULL;
     rxCmd = NULL;
 
-    for (unsigned char i = 0; i <= 26; i++)
+    for (unsigned int i = 0U; i <= 26; i++)
     {
         scanPANDescriptorList[i].CoordAddrMode = 0;
         scanPANDescriptorList[i].CoordPANId = 0;

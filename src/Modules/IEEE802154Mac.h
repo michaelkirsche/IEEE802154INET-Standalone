@@ -331,8 +331,8 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         unsigned int scanChannels; // 27 bit indicating the channels to be scanned
         unsigned int scanDuration; // The time spent scanning each channel is
         // [aBaseSuperframeDuration * (2n + 1)] symbols, where n is the value of the ScanDuration parameter
-        unsigned char scanEnergyDetectList[26] = { 0 };
-        PAN_ELE scanPANDescriptorList[26];
+        unsigned char scanEnergyDetectList[27] = { 0 };
+        PAN_ELE scanPANDescriptorList[27];
         unsigned short channelPage;
         bool scanning;
 
@@ -376,10 +376,10 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         bool mlmeReset;
         bool ack4Asso;
 
-        // small receive buffer (modelled as a FIFO queue) for the coordinator
+        // small receive buffer (modeled as a FIFO queue) for the coordinator
         cPacketQueue rxBuffer;
 
-        // small transmit buffer (modelled as a FIFO queue) for responses on messages on the MAC layer
+        // small transmit buffer (modeled as a FIFO queue) for responses on messages on the MAC layer
         cPacketQueue txBuffer;
 
         // Frame Types for temporary save for frames currently being transmitted

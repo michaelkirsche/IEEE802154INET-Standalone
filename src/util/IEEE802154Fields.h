@@ -52,7 +52,7 @@ struct Ash
         KeyIdField KeyIdentifier;
 };
 
-// Elements of PAN descriptor (Table 41)
+// Elements of PAN descriptor (802.15.4-2006 - Table 55)
 struct PAN_ELE
 {
         unsigned char CoordAddrMode;

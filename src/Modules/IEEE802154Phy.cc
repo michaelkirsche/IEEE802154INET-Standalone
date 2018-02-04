@@ -134,7 +134,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 GetRequest* PhyPIBGet;
                 PhyPIBGet = check_and_cast<GetRequest *>(msg);
                 getPhyPIB(PhyPIBGet->getPIBattr(), PhyPIBGet->getPIBind());
-                delete (msg);       // XXX fix for undisposed object
+                delete (msg);       // fix for undisposed object
                 break;
             }
 
@@ -143,7 +143,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 SetRequest* PhyPIBSet;
                 PhyPIBSet = check_and_cast<SetRequest *>(msg);
                 setPhyPIB(PhyPIBSet);
-                delete (PhyPIBSet);   // XXX fix for undisposed object
+                delete (PhyPIBSet);   // fix for undisposed object
                 break;
             }
 
@@ -161,7 +161,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                     ccaConf->setKind(phy_TRX_OFF);
                     send(ccaConf, "outPLME");
                 }
-                delete (msg);   // XXX fix for undisposed object
+                delete (msg);   // fix for undisposed object
                 break;
             }
 
@@ -171,7 +171,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                     phyEV << "PLME-ED.request arrived -> performing ED \n";
                     performED();
                 }
-                delete (msg);   // XXX fix for undisposed object
+                delete (msg);   // fix for undisposed object
                 break;
             }
 
@@ -184,7 +184,7 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
     else if (msg->arrivedOn("PD_SAP")) // --> Message arrived from MAC layer over PHY-DATA SAP
     {
         // check which type of MAC packet is arriving to decide how to generate a PPDU and calculate correct MAC payload size
-        if (dynamic_cast<AckFrame *>(msg) != 0)
+        if (dynamic_cast<AckFrame *>(msg) != NULL)
         {
             ppdu *pdu = generatePPDU(msg, true);
             send(pdu, "outToRadio");
@@ -224,20 +224,14 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
             send(msg, "outPD");
             return;
         }
-        else if (dynamic_cast<CmdFrame*>(msg) != NULL)
-        {
-            error("just for testing remove later, this should be a beacon request, name is %s \n", msg->getName()); // XXX remove after testing
-            send(msg, "outPD");
-            return;
-        }
         else if (dynamic_cast<pdDataInd *>(msg) != NULL)
         {
             pdDataInd *pdu = check_and_cast<pdDataInd*>(msg);
             if (pdu->hasEncapsulatedPacket() == true)
             {
                 cPacket* payload = pdu->decapsulate();  // use cPacket since it can either be an MPDU or an ACK
-                //payload->setKind(pdu->getPpduLinkQuality());  // FIXME we cannot hide LQI in kind because PhyIndication enums are saved there for MAC filtering
-                // XXX PHY should actually forward the pdDataIndication to the MAC, not decapsulate and only forward the PPDU
+                //payload->setKind(pdu->getPpduLinkQuality());  // we cannot hide LQI in kind because PhyIndication enums are saved there for MAC filtering
+                // FIXME PHY should actually forward the pdDataIndication to the MAC, not decapsulate and only forward the PPDU
                 // LQI from pdDataIndication is needed for mscp.DataIndication
                 // in function: void IEEE802154Mac::sendMCPSDataIndication(mpdu* rxData)
                 phyEV << "is sending up the Payload of " << pdu->getName() << " which is a " << payload->getName() << endl;
@@ -245,16 +239,10 @@ void IEEE802154Phy::handleMessage(cMessage *msg)
                 send(payload, "outPD");
                 delete (pdu);
             }
-            else
-            {
-                // this should be a beacon request command
-                error("just for testing remove later, this should be a beacon request, name is %s \n", msg->getName()); // XXX remove after testing
-                send(msg, "outPD"); // can probably be removed
-            }
             return;
         }
 
-        // forward PLME-xxx.confirm messages from the lower radio layer to the MAC layer
+        // forward PLME-xyz.confirm messages from the lower radio layer to the MAC layer
         switch (mappedLowerLayerMsgTypes[msg->getName()])
         {
             case CONF: {

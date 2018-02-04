@@ -28,14 +28,14 @@ void llc::initialize()
     // initialize the debug output bool from NED parameter value
     llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
 
-    // XXX instead of randomly selecting a 8-bit msgHandle, we use the index of the node for the moment (see llc:llc() constructor)
+    // instead of randomly selecting a 8-bit msgHandle, we use the index of the node for the moment (see llc:llc() constructor)
     // module path to traverse: net.IEEE802154Nodes[index].Network.stdLLC
     unsigned int hostIndex = this->getParentModule()->getParentModule()->getIndex();
     // msgHandle is 8-bit at the moment, to avoid collisions, we use less than 256 hosts
     ASSERT(hostIndex <= 255);
-    //msgHandle = hostIndex;    // XXX simply setting it to the index of the host can lead to collisions if other hosts send slower/faster
+    //msgHandle = hostIndex;    // simply setting it to the index of the host can lead to collisions if other hosts send slower/faster
 
-    // XXX to further prohibit collisions of sequence numbers between different nodes, we divide ranges of sequence numbers between hosts
+    // to further prohibit collisions of sequence numbers between different nodes, we divide ranges of sequence numbers between hosts
     // the standard does not enable any way of detecting if received ACKs were sent by the correct node except for their sequence number
     // if many nodes coexist in radio range, their used sequence numbers may overlap and ACKs meant for other hosts may be received and accepted
     // to prevent, we split the sequence numbers into ranges, depending on the number of present hosts in the simulation
@@ -249,8 +249,8 @@ void llc::handleMessage(cMessage *msg)
     {
         if ((msg->getKind() == IP_C_REGISTER_PROTOCOL))
         {
-            // FIXME add "register protocol message" handling
-            llcEV << "FIXME(!) Register Protocol Message is not handled yet - FullPath: " << msg->getFullPath() << endl;
+            // TODO add "register protocol message" handling
+            llcEV << "TODO(!) Register Protocol Message is not handled yet - FullPath: " << msg->getFullPath() << endl;
             delete (msg);
             return;
         }
@@ -270,7 +270,7 @@ void llc::handleMessage(cMessage *msg)
             // because the 8 bit DSN value on the MAC layer is going to overflow
 
             //ASSERT(msgHandle <= 255);   // sequence number in MPDU is 8-bit / unsigned char
-            ASSERT(msgHandle <= maxMsgHandle);  // XXX fix to prevent sequence number collisions
+            ASSERT(msgHandle <= maxMsgHandle);  // fix to prevent sequence number collisions
             data->setMsduHandle(msgHandle);
             (msgHandle < maxMsgHandle) ? msgHandle++ : msgHandle = minMsgHandle;    // check if 8-bit sequence number needs to roll over
 
@@ -523,7 +523,7 @@ llc::llc()
     TXoption = 0;
     firstDevice = true;
     associateSuccess = false;
-    //msgHandle = intrand(255); // XXX possible RNG collision when setting up bigger networks (only 8 bit - 255 values to select from)
+    //msgHandle = intrand(255); // possible RNG collision when setting up bigger networks (only 8 bit - 255 values to select from)
                                 // we use the node index for the moment (see llc:initialize())
     associateSuccess = false;
     associateStarted = false;

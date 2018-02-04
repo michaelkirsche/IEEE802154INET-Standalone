@@ -149,13 +149,6 @@ std::string MACAddressExt::str() const
     return std::string(buf);
 }
 
-// TODO remove it not needed
-//int MACAddressExt::compareTo(const MACAddressExt& other) const
-//{
-//    // note: "return address-other.address" is not OK because 64-bit result does not fit into the return type
-//    return (longAddress < other.longAddress) ? -1 : (longAddress == other.longAddress) ? 0 : 1;
-//}
-
 MACAddressExt MACAddressExt::generateMacAddressWithNodeIndex(unsigned int index)
 {
     uint64_t genMacAddr = 0x0AAA000000000000 + (index & MAC_LONG_ADDRESS_MASK);

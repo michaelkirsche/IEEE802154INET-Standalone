@@ -534,7 +534,7 @@ void IEEE802154Radio::sendUp(AirFrame *airframe)
     if (frame->hasEncapsulatedPacket() == true)
     {
         dataInd->encapsulate(frame->decapsulate());
-        // FIXME decapsulation is not necessary here, pdDataIndication should directly be sent to MAC, which unwrapps it
+        // FIXME decapsulation is not necessary here, pdDataIndication should directly be sent to MAC, which unwraps it
         // and uses (e.g.) the LinkQualityIndicator
     }
     else
@@ -584,13 +584,6 @@ AirFrame *IEEE802154Radio::unbufferMsg(cMessage *msg)
  */
 void IEEE802154Radio::handleUpperMsg(AirFrame *airframe)
 {
-    // In 802.15.4-2006 and later revisions, BUSY_RX/TX were removed and the PHY should switch to TX_ON regardless of its state
-    //if (rs.getState() == RadioState::TRANSMIT)
-    //{
-        //genPhyConf(phy_BUSY_TX);
-        //return;
-    //}
-
     // if a packet was being received, it is corrupted now and should be treated as noise
     if (snrInfo.ptr != NULL)
     {
@@ -605,10 +598,6 @@ void IEEE802154Radio::handleUpperMsg(AirFrame *airframe)
         snrInfo.sList.clear();
         // add the receive power to the noise level
         noiseLevel += snrInfo.rcvdPower;
-
-        //genPhyConf(phy_BUSY_RX); // according to 802.15.4-2003, we need to generate a PD-DATA.confirm with BUSY_RX
-        // XXX leads to problems because this disturbs the MAC state machine
-        // In 802.15.4-2006 and later revisions, BUSY_RX/TX were removed and the PHY should switch to TX_ON regardless of its state
     }
 
     // change radio status
@@ -1265,7 +1254,7 @@ void IEEE802154Radio::registerBattery()
         double mUsageIEEE802154RadioRecv = par("usage_IEEE802154Radio_recv");
         double mUsageIEEE802154RadioSleep = par("usage_IEEE802154Radio_sleep");
         double mUsageIEEE802154RadioSend = par("usage_IEEE802154Radio_send");
-        if ( (mUsageIEEE802154RadioIdle < 0) || (mUsageIEEE802154RadioRecv < 0) || (mUsageIEEE802154RadioSleep < 0) || (mUsageIEEE802154RadioSend < 0))
+        if ((mUsageIEEE802154RadioIdle < 0) || (mUsageIEEE802154RadioRecv < 0) || (mUsageIEEE802154RadioSleep < 0) || (mUsageIEEE802154RadioSend < 0))
         {
             return;
         }
@@ -1454,10 +1443,9 @@ void IEEE802154Radio::connectReceiver()
 
 void IEEE802154Radio::getSensitivityList(cXMLElement* xmlConfig)
 {
-    //sensitivityList.empty();      // TODO check if sensitivityList should be cleared or if-case for empty list checking
     if (!sensitivityList.empty())
     {
-        sensitivityList.clear();    // XXX fix for previously unused empty check (returns bool)
+        sensitivityList.clear();    // fix for previously unused empty check (returns bool)
     }
 
     if (xmlConfig == 0)

@@ -136,7 +136,7 @@ class MacPIB
         unsigned short macMaxCSMABackoffs; // Range 0-5
         /*
          * The maximum number of CAP symbols in a beacon-enabled PAN, or symbols in a
-         * nonbeacon-enabled PAN, to wait either for a frame intended as a response to a
+         * non-beacon-enabled PAN, to wait either for a frame intended as a response to a
          * data request frame or for a broadcast frame following a beacon with the Frame
          * Pending subfield set to one
          */

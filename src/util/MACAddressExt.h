@@ -280,40 +280,6 @@ class MACAddressExt
             return shortAddr == other.shortAddr;
         }
 
-        // TODO need to be either restructured or completely substituted by shortEquals and longEquals !!!
-//        /**
-//         * Returns true if the two addresses are equal.
-//         */
-//        bool operator==(const MACAddressExt& other) const
-//        {
-//            return longAddress == other.longAddress;
-//        }
-//
-//        /**
-//         * Returns true if the two addresses are not equal.
-//         */
-//        bool operator!=(const MACAddressExt& other) const
-//        {
-//            return longAddr != other.longAddr;
-//        }
-
-        // TODO remove if not needed
-//        /**
-//         * Returns -1, 0 or 1 as result of comparison of 2 addresses.
-//         */
-//        int compareTo(const MACAddressExt& other) const;
-
-        // TODO remove if not needed
-//        bool operator<(const MACAddressExt& other) const
-//        {
-//            return longAddr < other.longAddr;
-//        }
-//
-//        bool operator>(const MACAddressExt& other) const
-//        {
-//            return longAddr > other.longAddr;
-//        }
-
         /**
          * Generates a unique 64-bit MAC long address which begins with 0a:aa and ends in a unique suffix
          * based on the node index
