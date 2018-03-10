@@ -5,8 +5,8 @@ A new IEEE 802.15.4-2006 Simulation Model for OMNeT++ / INET
 
 Minimum requirements are:
 
-- OMNeT++ 4.3 version (tested up to 5.0-Beta1)
-- INET 2.x (!) version (tested with 2.2 to 2.6)
+- OMNeT++ 4.6 version
+- INET 2.x (!) version (tested with 2.4 to 2.6)
   - Minimal set of enabled project features: IPv4, IPv6, Mobility, Radio
 - Windows or Linux operating system
 
