@@ -486,13 +486,6 @@ void IEEE802154Mac::handleUpperMLMEMsg(cMessage* msg)
                 delete (msg);
                 return;
             }
-            else if (!isFFD)
-            {
-                macEV << msg->getName() << "is dropped - RFD won't associate...\n";
-                numUpperMgmtPktDropped++;
-                delete (msg);
-                return;
-            }
             else if (dynamic_cast<AssociationRequest *>(msg))
             {
                 AssociationRequest* frame = check_and_cast<AssociationRequest *>(msg);
