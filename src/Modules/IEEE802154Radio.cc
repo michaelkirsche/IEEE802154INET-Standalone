@@ -94,7 +94,7 @@ void IEEE802154Radio::initialize(int stage)
 
     if (stage == 0)
     {
-        // initialize the debug output bool from NED parameter value
+        // initialize the debug output boolean from NED parameter value
         radioDebug = (hasPar("radioDebug") ? (par("radioDebug").boolValue()) : (false));
 
         radioEV << "Initializing IEEE802154Radio, stage=" << stage << endl;
@@ -313,8 +313,8 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
 
     if (ev.isGUI())
     {
-        char tBuf[45];
-        sprintf(tBuf, "#rcvdOK: %lu pks\n#givenUp: %lu pks", numReceivedCorrectly, numReceivedButGivenUp);
+        char tBuf[50];
+        sprintf(tBuf, "#rcvdOK: %lu pkts\n#givenUp: %lu pkts", numReceivedCorrectly, numReceivedButGivenUp);
         getDisplayString().setTagArg("t", 0, tBuf);
     }
 
@@ -358,13 +358,27 @@ void IEEE802154Radio::handleMessage(cMessage *msg)
         {
             // must be an AirFrame
             AirFrame *airframe = (AirFrame *) msg;
+
+            // test code begin[
+
+            radioEV << "Received packet while performing ED !\n";
+            distance = getRadioPosition().distance(airframe->getSenderPos());
+            rcvdPow = receptionModel->calculateReceivedPower(airframe->getPSend(), airframe->getCarrierFrequency(), distance);
+            radioEV << "Calculated Received Power during ED = " << rcvdPow << endl;
+
+            cMsgPar* power = new cMsgPar();
+            power->setDoubleValue(log10(rcvdPow / BASE_NOISE_LEVEL));
+            radioEV << "reported power value is = " << (double) (log10(rcvdPow / BASE_NOISE_LEVEL)) << endl;
+            airframe->addPar(power);
+
+            // test code end]
+
             if (activeED)
             {
                 radioEV << "Received packet while performing ED !\n";
                 distance = getRadioPosition().distance(airframe->getSenderPos());
                 rcvdPow = receptionModel->calculateReceivedPower(airframe->getPSend(), airframe->getCarrierFrequency(), distance);
                 radioEV << "Calculated Received Power during ED = " << rcvdPow << endl;
-
                 generateEDconf(rcvdPow, ED_SUCCESS);
                 activeED = false;
                 delete (msg);
@@ -516,19 +530,21 @@ AirFrame *IEEE802154Radio::encapsulatePacket(cPacket *frame)
     airframe->setSenderPos(getRadioPosition());
     airframe->setCarrierFrequency(carrierFrequency);
 
-    radioEV << "Frame (" << frame->getClassName() << ")" << frame->getName() << " will be transmitted at "
-            << (airframe->getBitrate() / 1e3) << "Kbps in " << airframe->getDuration() << "sec \n";
+    radioEV
+    << "Frame (" << frame->getClassName() << ")" << frame->getName() << " will be transmitted at " << (airframe->getBitrate() / 1e3) << "Kbps in " << airframe->getDuration()
+            << "sec \n";
     return airframe;
 }
 
 void IEEE802154Radio::sendUp(AirFrame *airframe)
 {
     cPacket *frame = airframe->decapsulate();    // this is the Data request
-    radioEV << "Sending up PD-Data.indication with SNR ratio: " << airframe->getSnr() << " and LossRate: "
-            << airframe->getLossRate() <<" and ReceivedPower: " << airframe->getPowRec() << endl;
+    radioEV
+    << "Sending up PD-Data.indication with SNR ratio: " << airframe->getSnr() << " and LossRate: " << airframe->getLossRate() << " and ReceivedPower: " << airframe->getPowRec()
+            << endl;
 
     pdDataInd* dataInd = new pdDataInd("PD-DATA.indication");
-    dataInd->setPpduLinkQuality(airframe->getSnr());    // setting LQI for the received packet, for later evaluation in MAC and App layer
+    dataInd->setPpduLinkQuality(airframe->getSnr());    // setting LQI for the received packet, for later evaluation in MAC and Application layer
     dataInd->setPsduLength(frame->getByteLength());
 
     if (frame->hasEncapsulatedPacket() == true)
@@ -732,7 +748,7 @@ void IEEE802154Radio::handleCommand(int msgkind, cMsgPar* prop)
             radioEV << "Initiating CCA \n";
             if (!snrInfo.sList.empty())
             {
-                radioEV << "[CCA]: currently receicing - channel not clear right now! \n";
+                radioEV << "[CCA]: currently receiving - channel not clear right now! \n";
                 genCCAConf(false);
             }
             else
@@ -777,7 +793,7 @@ void IEEE802154Radio::handleSelfMsg(cMessage *msg)
         AirFrame *airframe = unbufferMsg(msg);
 
         handleLowerMsgEnd(airframe);
-        delete(airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[*].NIC.radioInterface.PD-DATA
+        delete (airframe);   // fix for undisposed object: (AirFrame) net.IEEE802154Nodes[*].NIC.radioInterface.PD-DATA
     }
     else if (msg->getKind() == MK_TRANSMISSION_OVER)
     {
@@ -1416,7 +1432,8 @@ void IEEE802154Radio::connectReceiver()
         if (airframe->getTimestamp() + propagationDelay >= simTime())
         {
             // pick up ongoing transmissions on the new channel
-            radioEV << "Picking up ongoing transmissions on new channel: (" << airframe->getClassName() << ") " << airframe->getName()
+            radioEV
+            << "Picking up ongoing transmissions on new channel: (" << airframe->getClassName() << ") " << airframe->getName()
                     << " -> will arrive in the future, scheduling it for delivery in " << (simtime_t) (airframe->getTimestamp() + propagationDelay - simTime()) << " sec \n";
 
             // in INET, this might get send to each radioIn[] gate of the host
@@ -1429,7 +1446,9 @@ void IEEE802154Radio::connectReceiver()
         // if we hear some part of the message
         else if (airframe->getTimestamp() + airframe->getDuration() + propagationDelay > simTime())
         {
-            radioEV << "Picking up ongoing transmissions on new channel: (" << airframe->getClassName() << ") " << airframe->getName() << " -> missed beginning of frame, processing it as noise \n";
+            radioEV
+            << "Picking up ongoing transmissions on new channel: (" << airframe->getClassName() << ") " << airframe->getName()
+                    << " -> missed beginning of frame, processing it as noise \n";
 
             AirFrame *frameDup = airframe->dup();
             frameDup->setArrivalTime(airframe->getTimestamp() + propagationDelay);
@@ -1538,8 +1557,7 @@ void IEEE802154Radio::performCCA()
             break;
         }
 
-        default:
-        {
+        default: {
             error("performCCA(): unsupported message parameter for CCA mode in IEEE802154Radio");
             break;
         }
@@ -1575,7 +1593,7 @@ void IEEE802154Radio::genCCAConf(bool success)
 
 // Functionality for a IEEE 802.15.4 Energy Detection Scan
 // We wait for a Message and do not buffer it if received
-// just generate a ED-Conf for the UpperLayer if any energy was detected on the selected channel
+// just generate a PLME-ED.confirm for the UpperLayer if any energy was detected on the selected channel
 void IEEE802154Radio::performED()
 {
     if (rs.getState() == RadioState::IDLE)

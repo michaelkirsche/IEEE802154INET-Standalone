@@ -36,9 +36,9 @@ packet mcpsDataReq {                   // Range of each field
 	unsigned short DstPANId;           // 0x0000–0xffff
 	MACAddressExt DstAddr;			
 	unsigned char msduLength;          // <= aMaxMACPayloadSize
-	//msdu, Payload just encapsulated
+	// MSDU payload is encapsulated
 	unsigned char msduHandle;          // 0x00–0xff 
-	unsigned char TxOptions@enum(Ieee802154TxOption);  // actuallay a 3-Bit field 000 - 111
+	unsigned char TxOptions@enum(Ieee802154TxOption);  // actually a 3-Bit field 000 - 111
 	unsigned char SecurityLevel;	   // 0x00–0x07
 	unsigned char KeyIdMode;           // 0x00–0x03
 	unsigned long KeySource;           // depending on KeyidMode max set of uint8_t[8]			

@@ -25,7 +25,7 @@ void IEEE802154Phy::initialize(int stage)
     cSimpleModule::initialize(stage);
     if (stage == 0)
     {
-        // initialize the debug output bool from NED parameter value
+        // initialize the debug output boolean from NED parameter value
         phyDebug = (hasPar("phyDebug") ? (par("phyDebug").boolValue()) : (false));
 
         trxState = phy_IDLE;

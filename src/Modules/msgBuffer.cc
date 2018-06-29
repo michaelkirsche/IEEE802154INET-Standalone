@@ -148,8 +148,8 @@ void msgBuffer::handleMessage(cMessage* msg)
     }
     if (ev.isGUI())
     {
-        char buf[55];
-        sprintf(buf, "Size: %d pks | Holding : %u pks | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
+        char buf[60];
+        sprintf(buf, "Size: %d pkts | Holding : %u pkts | firstPack : %s", buffer.size(), elems, firstPack ? "true" : "false");
         getDisplayString().setTagArg("t", 0, buf);
     }
     return;

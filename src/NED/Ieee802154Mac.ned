@@ -36,7 +36,7 @@ simple IEEE802154Mac
         int gtsPayload;
         int defChann;
         bool ackForGts;
-        bool promiscuousMode = default(false);  	// set to true to enable promicious mode (accept all packages)
+        bool promiscuousMode = default(false);  	// set to true to enable promiscuous mode (accept all packages)
         bool SecurityEnabled = default(false);
         bool isFFD = default(true);             	// full function devices yes/no
 

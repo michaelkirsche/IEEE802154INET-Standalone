@@ -491,7 +491,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // backoff periods left
         int bPeriodsLeft;
 
-        // num of incoming beacons lost in a row
+        // number of incoming beacons lost in a row
         unsigned char bcnLossCounter;
 
         bool waitGTSConf;
@@ -504,14 +504,14 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
         // indicating a beacon frame waiting for transmission, suppress all other transmissions
         bool beaconWaitingTx;
 
-        // outging superframe specification used by coordinators
+        // outgoing superframe specification used by coordinators
         SuperframeSpec txSfSpec = { //
                                     /*.BO=*/ 0, // initial Beacon Order
                                     /*.BI=*/ 0, // initial Beacon Interval
                                     /*.SO=*/ 0, // initial Superframe Order
                                     /*.SD=*/ 0, // Initial Superframe Duration
                                     /*.finalCAP=*/ 0, // Initial final Superframe slot used by CAP
-                                    /*.battLifeExt*/ false, // Initial bool for battery life extension
+                                    /*.battLifeExt*/ false, // Initial boolean for battery life extension
                                     /*.panCoor*/ false, // Initial PAN coordinator yes/no decision
                                     /*.assoPmt*/ false // Initial Association permit yes/no decision
                                   };
@@ -523,7 +523,7 @@ class IEEE802154Mac : public cSimpleModule, public INotifiable
                                     /*.SO=*/ 0, // initial Superframe Order
                                     /*.SD=*/ 0, // Initial Superframe Duration
                                     /*.finalCAP=*/ 0, // Initial final Superframe slot used by CAP
-                                    /*.battLifeExt*/ false, // Initial bool for battery life extension
+                                    /*.battLifeExt*/ false, // Initial boolean for battery life extension
                                     /*.panCoor*/ false, // Initial PAN coordinator yes/no decision
                                     /*.assoPmt*/ false // Initial Association permit yes/no decision
                                   };

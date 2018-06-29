@@ -41,7 +41,7 @@ simple Ieee802154Radio like IRadio
         double thermalNoise @unit("dBm") = default(-110dBm);    // base noise level (dBm)
         double sensitivity @unit("dBm") = default(-85dBm);      // received signals with power below sensitivity are ignored
 
-		double maxDistance @unit(m) = default(-1m); 	// if the maxDistance is bigger of 0 the sensitivity is adjusted to a maximun reception to this value
+		double maxDistance @unit(m) = default(-1m); 	// if the maxDistance is bigger of 0 the sensitivity is adjusted to a maximum reception to this value
         bool setReceptionThreshold = default(false);
         double receptionThreshold @unit("dBm") = default(-110dBm);
         double maxDistantReceptionThreshold @unit(m) = default(-1m);
@@ -56,7 +56,7 @@ simple Ieee802154Radio like IRadio
         double TransmissionAntennaGainIndB @unit("dB") = default(0dB);  // Transmission Antenna Gain
         double ReceiveAntennaGainIndB @unit("dB") = default(0dB);       // Receive Antenna Gain
         double SystemLossFactor @unit("dB") = default(0dB);             // System Loss of Hardware
-        // two ray model paramaeters
+        // two ray model parameters
         double TransmiterAntennaHigh @unit(m) = default(1m);            // Transmitter Antenna High
         double ReceiverAntennaHigh @unit(m) = default(1m);              // Receiver Antenna High
         // LogNormalShadowingModel

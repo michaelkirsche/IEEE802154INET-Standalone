@@ -23,13 +23,14 @@ simple llc
     parameters:
         bool llcDebug = default(false);         // debug output switch for the IEEE 802.15.4 LLC module
         
-        bool convertMode = default(false);      // set to true if app layer is not compatible to 802.15.4 MAC entity (does not use 802.15.4 service primitives)
+        bool convertMode = default(false);      // set to true if application layer is not compatible to 802.15.4 MAC entity 
+												// (does not use or understand 802.15.4 service primitives)
         
         int TXoption = default(0);
         // For b0: 1 = acknowledged transmission, 0 = unacknowledged transmission.
         // For b1: 1 = GTS transmission, 0 = CAP transmission (for a beacon-enabled PAN).
         // For b2: 1 = indirect transmission, 0 = direct transmission.
-        // --> For a nonbeacon-enabled PAN, bit b1 should always be set to 0!
+        // --> For a non-beacon-enabled PAN, bit b1 should always be set to 0!
         // b2 b1 b0 | val
         // --------------
         //  0  0  0 | 0 --> unacknowledged CAP direct transmission
@@ -52,7 +53,7 @@ simple llc
         bool CoordRealignment = default(false);
 
         double PollFrequency = default(0.5);	// if indirect, choose this wisely (simtime)
-        // Initital Scan variables
+        // Initial Scan variables
         int ScanChannels = default(0);  		// 27 bit choose each bit for the channel to be scanned - whereas 1=scan and 0=don't scan -> convert your 27bits into an integer value
         double ScanDuration = default(0.2);		// [aBaseSuperframeDuration * (2^n + 1)] this is n so - value is Symbols
         int ScanPage = default(0);				// initial channel page for the scan (between 0 and 31, while 3-31 are not used (see 2006-Specs Sec. 6.1.2.2)

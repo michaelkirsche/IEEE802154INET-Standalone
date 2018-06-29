@@ -25,7 +25,7 @@ Define_Module(llc);
 
 void llc::initialize()
 {
-    // initialize the debug output bool from NED parameter value
+    // initialize the debug output boolean from NED parameter value
     llcDebug = (hasPar("llcDebug") ? (par("llcDebug").boolValue()) : (false));
 
     // instead of randomly selecting a 8-bit msgHandle, we use the index of the node for the moment (see llc:llc() constructor)

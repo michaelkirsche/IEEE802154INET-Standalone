@@ -16,8 +16,6 @@
 //
 #pragma once
 
-// TODO: Check and update for IEEE 802.15.4-2006 revision compliance
-
 #ifndef IEEE802154CONSTS_H_
 #define IEEE802154CONSTS_H_
 
@@ -54,13 +52,13 @@ const unsigned char  aMinSIFSPeriod = 12; // min # of symbols comprising a SIFS 
 // ------------------------------------------ //
 
 //---Additional MAC constants (from the 802.15.4-2006 Revision)---
-const unsigned char  maxGTSAllocations = 7; // max # of allocated Guranteed Time Slots (GTS) (see Sec. 7.5.7 GTS allocation and management)
+const unsigned char  maxGTSAllocations = 7; // max # of allocated Guaranteed Time Slots (GTS) (see Sec. 7.5.7 GTS allocation and management)
 
 //---Frequency bands and data rates (currently according 802.15.4-2003 Specs Table 1)---
 // TODO: Add Specs from 2009 and newer revisions (frequencies / data & symbol rates)
-const double BR_868M = 20;      // 20 kb/s   -- ch 0
-const double BR_915M = 40;      // 40 kb/s   -- ch 1,2,3,...,10
-const double BR_2_4G = 250;     // 250 kb/s  -- ch 11,12,13,...,26
+const double BR_868M = 20;      // 20 kbps   -- ch 0
+const double BR_915M = 40;      // 40 kbps   -- ch 1,2,3,...,10
+const double BR_2_4G = 250;     // 250 kbps  -- ch 11,12,13,...,26
 const double SR_868M = 20;      // 20 ks/s
 const double SR_915M = 40;      // 40 ks/s
 const double SR_2_4G = 62.5;    // 62.5 ks/s

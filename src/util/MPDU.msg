@@ -110,7 +110,7 @@ packet AckFrame
 {
     unsigned short fcs;     // 16-Bit Frame Check Sequence
     unsigned char sqnr;     // 8-Bit Sequence Number
-    unsigned short fcf;     // 16-Bit Framce Control Field
+    unsigned short fcf;     // 16-Bit Frame Control Field
 }
 
 packet DisAssociation
@@ -129,7 +129,7 @@ packet DisAssociation
 
 packet Association
 {
-    MACAddressExt addr; // used different in request and response for coordinator // device addr
+    MACAddressExt addr; // used different in request and response for coordinator // device address
     DevCapability CapabilityInformation;
     unsigned char SecurityLevel;            // 0x00–0x07, compare Table 95 in Spec. 802.15.4-2006
     unsigned char KeyIdMode;                // 0x00–0x03, mode to identify the key to be used
@@ -148,13 +148,13 @@ packet AssociationRequest extends Association
 
 packet AssociationResponse extends Association
 {
-    // Short Address ist also stored in the long address
+    // Short Address is also stored in the long address
     unsigned short status @enum(MlmeAssociationStatus);     // refer to IEEE802154Enum.h    
 }
 
 packet AssociationConfirm extends Association
 {
-    // Short Address ist also stored in the long address
+    // Short Address is also stored in the long address
     unsigned short status @enum(MlmeAssociationStatus);     // refer to IEEE802154Enum.h        
 }
 
@@ -247,7 +247,7 @@ message StartRequest
     unsigned char SuperframeOrder;          // 0 - BO or 15, length of the active period of the superframe
     bool PANCoordinator;                    // if true device becomes PAN coordinator of new PAN, if false device begins using new configuration
     bool BatteryLifeExtension;              // if true disable receiver for macBattLifeExtPeriods backoff periods after IFS following a beacon
-    bool CoordRealignment;                  // if true coordinator realigment command is to be transmitted priod to changing superframe structure
+    bool CoordRealignment;                  // if true coordinator realignment command is to be transmitted prior to changing superframe structure
     unsigned char CoordRealignSecurityLevel;// 0x00–0x07, security level used for realignment command
     unsigned char CoordRealignKeyIdMode;    // 0x00–0x03, mode to identify the key to be used
     unsigned long CoordRealignKeySource;    // depending on KeyidMode max set of uint8_t[8]

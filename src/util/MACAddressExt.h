@@ -29,7 +29,7 @@
 
 const unsigned int MAC_LONG_ADDRESS_SIZE      { 8U };
 const unsigned int MAC_SHORT_ADDRESS_SIZE     { 2U };
-const unsigned long long MAC_LONG_ADDRESS_MASK { 0xffffffffffffffffULL };   // ULL to indicate a "unsigned long long" hexadecimal value
+const unsigned long long MAC_LONG_ADDRESS_MASK { 0xffffffffffffffffULL }; // ULL to indicate a "unsigned long long" hexadecimal value
 const unsigned int MAC_ADDRESS_SHORT_MASK     { 0xffffU };
 const unsigned int BROADCAST_SHORT_ADDRESS    { 0xffffU };
 
@@ -134,12 +134,12 @@ class MACAddressExt
         }
 
         /**
-         * Returns the kth byte of the 64-bit long address.
+         * Returns the k-th byte of the 64-bit long address.
          */
         unsigned char getLongAddressByte(unsigned int k) const;
 
         /**
-         * Sets the kth byte of the 64-bit long address.
+         * Sets the k-th byte of the 64-bit long address.
          */
         void setLongAddressByte(unsigned int k, unsigned char addrbyte);
 
@@ -281,8 +281,7 @@ class MACAddressExt
         }
 
         /**
-         * Generates a unique 64-bit MAC long address which begins with 0a:aa and ends in a unique suffix
-         * based on the node index
+         * Generates a unique 64-bit MAC address that begins with 0A:AA and ends with a unique suffix based on the node index
          */
         static MACAddressExt generateMacAddressWithNodeIndex(unsigned int index);
 
